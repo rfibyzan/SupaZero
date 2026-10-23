@@ -139,6 +139,10 @@ public sealed class FarmViewModel : ObservableObject
 
     private void RebuildMaps()
     {
+        // Buang sisa bug v0.2.4 (wadah MapsList terbaca sebagai map).
+        if (S.Farm.KnownMaps is { } km && km.Any(m => IsJunk(m.Name)))
+            Farm(f => f with { KnownMaps = km.Where(m => !IsJunk(m.Name)).ToList() is { Count: > 0 } k ? k : null });
+        if (IsJunk(S.Farm.Map)) Farm(f => f with { Map = "" });
         Maps.Clear();
         Maps.Add(CurrentMapLabel);
         foreach (var m in S.Farm.KnownMaps ?? []) Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
@@ -146,6 +150,8 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(SelectedMap));
         Raise(nameof(MapsHint));
     }
+
+    private static bool IsJunk(string n) => n is "ScrollingBar" or "List" or "UIListLayout" or "UIGridLayout";
 
     private static string Strip(string s) => s.Replace(" (terkunci)", string.Empty).Trim();
 }
