@@ -121,8 +121,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private string? _lastTraitDebug;
+
     private void SyncPowers()
     {
+        if (Session.Game?.TraitDebug is { } dbg && dbg != _lastTraitDebug) { _lastTraitDebug = dbg; AddLog(dbg); }
         var p = Powers;
         if (!p.Dirty) return;
         p.Dirty = false;

@@ -85,6 +85,13 @@ public sealed partial class GameReader
     private static readonly string[] Rarities = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Arcane", "Zenless", "Secret", "Exotic"];
     private static readonly Regex CounterRx = new(@"\s+\d+\s*/\s*\d+\s*$");
     private static readonly Regex SlotNumRx = new(@"(\d+)");
+    private static readonly Regex TagRx = new(@"<[^>]*>");
+
+    /// <summary>Teks GUI tanpa tag RichText (mis. "Cursed King &lt;font color=..&gt;2/4&lt;/font&gt;").</summary>
+    private string? Plain(long node) => Text(node) is { } t ? TagRx.Replace(t, string.Empty).Trim() is { Length: > 0 } p ? p : null : null;
+
+    /// <summary>Ringkasan pembacaan layar Trait terakhir (untuk log diagnosa).</summary>
+    public string? TraitDebug { get; private set; }
 
     private Dictionary<string, string>? _idleToId;
     private DateTime _powersAt = DateTime.MinValue;
@@ -184,13 +191,23 @@ public sealed partial class GameReader
     {
         long root = reader.ResolvePath(pg, TraitRoot);
         if (root == 0 || !IsShown(root, pg)) return;
-        string? header = Text(reader.ResolvePath(root, TraitPowerName));
-        if (string.IsNullOrWhiteSpace(header)) return;
+        string? header = Plain(reader.ResolvePath(root, TraitPowerName));
+        if (header is null) { TraitDebug = "Trait: nama power kosong"; return; }
         string power = CounterRx.Replace(header, string.Empty).Trim();
-        long card = reader.ResolvePath(root, TraitCard);
-        string? trait = Text(reader.FindChild(card, "Txt"))?.Trim();
-        if (string.IsNullOrEmpty(trait)) return;
-        string? chance = Text(reader.FindChild(card, "Chance"));
+
+        // Kartu trait aktif: TraitCard1, cadangan kartu lain yang terlihat dan berisi teks.
+        long rollFrame = reader.ResolvePath(root, TraitCard[..TraitCard.LastIndexOf(".TraitCard1", StringComparison.Ordinal)]);
+        string? trait = null, chance = null;
+        foreach (int i in new[] { 1, 2, 3, 4, 5, 6, 7 })
+        {
+            long hit = rollFrame != 0 ? reader.ResolvePath(rollFrame, $"TraitCard{i}.Hitbox") : 0;
+            if (hit == 0 || (i > 1 && !IsVisibleFlag(reader.ResolvePath(rollFrame, $"TraitCard{i}")))) continue;
+            if (Plain(reader.FindChild(hit, "Txt")) is not { } t) continue;
+            trait = t;
+            long ch = reader.FindChild(hit, "Chance");
+            chance = Plain(ch) ?? Plain(reader.FindChild(ch, "Txt"));
+            break;
+        }
         var buffs = new List<string>();
         long buffsNode = reader.ResolvePath(root, TraitBuffs);
         if (buffsNode != 0 && IsVisibleFlag(buffsNode))
@@ -198,8 +215,11 @@ public sealed partial class GameReader
             {
                 long b = reader.ResolvePath(buffsNode, $"Buff{i}.Buff{i}");
                 if (b == 0 || !IsVisibleFlag(b)) continue;
-                if (Text(reader.FindChild(b, "Txt(Shadow)")) is { Length: > 0 } v) buffs.Add(v.Trim());
+                long sh = reader.FindChild(b, "Txt(Shadow)");
+                if ((Plain(reader.FindChild(sh, "Txt")) ?? Plain(sh)) is { } v) buffs.Add(v);
             }
-        Powers.LearnTrait(power, new PowerTrait(trait, string.IsNullOrWhiteSpace(chance) ? null : chance.Trim(), buffs));
+        TraitDebug = $"Trait: '{header}' → {power} = {trait ?? "(kosong)"} {chance} {string.Join(" ", buffs)}".TrimEnd();
+        if (trait is null) return;
+        Powers.LearnTrait(power, new PowerTrait(trait, chance, buffs));
     }
 }
