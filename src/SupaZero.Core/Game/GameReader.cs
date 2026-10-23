@@ -104,6 +104,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             LobbyMenuOpen = lobbyShown,
             QueueSkip = qShown ? MenuRect(qSkip) : null,
             SkillCooldowns = ReadSkillCooldowns(pg),
+            DashCooling = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.HudDashProgress) is long dp && dp != 0 && IsShown(dp, pg),
             QueueSkipCosts = qCost != 0 && IsShown(qCost, pg),
             LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
             LobbyActTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActTagPath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,

@@ -124,6 +124,8 @@ public sealed record GameSnapshot
 
     /// <summary>Kotak skill HUD (HUD.HUD.BottomLeftHolder.main.skills.skillBox), kosong bila tidak terbaca.</summary>
     public IReadOnlyList<SkillCooldown> SkillCooldowns { get; init; } = [];
+    /// <summary>Dash sedang cooldown (HUD buttons.Dash.Progress tampil).</summary>
+    public bool DashCooling { get; init; }
 
     // Upgrade
     public bool SkillTreeOpen { get; init; }

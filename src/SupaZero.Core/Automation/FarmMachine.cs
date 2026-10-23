@@ -411,6 +411,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         Status = $"{area} · {(left < 0 ? "?" : left.ToString())} musuh";
         var actions = new List<MacroAction>();
         // Tracking: musuh hidup terdekat → jalan mendekat sampai jarak serang, kursor diarahkan ke musuh.
+        // Selama mendekat hanya Dash (Q) yang dipakai; serangan dasar + skill 1/2/3 baru setelah dalam jarak serang.
+        bool approaching = false;
         if (s.PlayerPos is { } me && s.Enemies.Where(e => e.Alive)
                 .OrderBy(e => Navigator.Distance2D(me.X, me.Z, e.Pos.X, e.Pos.Z)).FirstOrDefault() is { } target)
         {
@@ -418,27 +420,42 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             Status += $" · target #{target.Name} {d:0} stud";
             if (S.Navigation.ChaseEnemies)
             {
-                var walk = d > S.Navigation.AttackRange
-                    ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
+                approaching = d > S.Navigation.AttackRange;
+                var walk = approaching ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
                 actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
             if (S.Navigation.AimAtEnemy && s.Camera?.WorldToScreen(target.Pos) is { } sp
                 && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
                 actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke musuh #{target.Name}"));
         }
+
+        var skills = S.Combat.EffectiveSkills.Where(k => k.Enabled && HotkeyMap.TryGetVirtualKey(k.Key, out _)).ToList();
+        var dash = skills.FirstOrDefault(IsDash);
+        var swap = skills.FirstOrDefault(IsSwap);
+        if (approaching)
+        {
+            // Dash hanya bila masih cukup jauh (> 2× jarak serang) dan tidak sedang cooldown (HUD Dash.Progress).
+            if (dash is not null && !s.DashCooling && Ready("dash", now, Math.Max(800, dash.CooldownMs))
+                && s.PlayerPos is { } p0 && actions.OfType<MoveAction>().Any(m => m.Keys.Count > 0)
+                && s.Enemies.Any(e => e.Alive && Navigator.Distance2D(p0.X, p0.Z, e.Pos.X, e.Pos.Z) > 2 * S.Navigation.AttackRange)
+                && HotkeyMap.TryGetVirtualKey(dash.Key, out uint dvk))
+                actions.Add(new KeyAction((ushort)dvk, 40, $"{dash.Name} ({dash.Key}) mendekat"));
+            return actions;
+        }
+
         if (now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
         {
             _lastAttack = now;
             actions.Add(new AttackAction("Serangan dasar"));
         }
-        // Satu skill per tick: yang paling lama tidak dipakai dan siap. Bila HUD terbaca, cooldown/kunci dari HUD
+        // Skill 1/2/3: satu per tick, yang paling lama tidak dipakai dan siap. Bila HUD terbaca, cooldown/kunci dari HUD
         // (jeda minimal 400 ms agar HUD sempat berubah); bila tidak, pakai CooldownMs dari pengaturan.
         var hudCd = s.SkillCooldowns.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
-        var due = S.Combat.EffectiveSkills
-            .Where(k => k.Enabled && HotkeyMap.TryGetVirtualKey(k.Key, out _))
-            .Where(k => hudCd.TryGetValue(k.Key, out var c)
-                ? c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400)
-                : !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs))
+        bool SkillReady(SkillBinding k) => hudCd.TryGetValue(k.Key, out var c)
+            ? c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400)
+            : !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs);
+        var main = skills.Where(k => !IsDash(k) && !IsSwap(k)).ToList();
+        var due = main.Where(SkillReady)
             .OrderBy(k => _skillLast.TryGetValue(k.Name, out long t) ? t : long.MinValue)
             .FirstOrDefault();
         if (due is not null && HotkeyMap.TryGetVirtualKey(due.Key, out uint vk))
@@ -446,6 +463,10 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _skillLast[due.Name] = now;
             actions.Add(new KeyAction((ushort)vk, 40, $"{due.Name} ({due.Key})"));
         }
+        // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci.
+        else if (swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
+                 && Ready("swap", now, 3000) && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk))
+            actions.Add(new KeyAction((ushort)svk, 40, $"{swap.Name} ({swap.Key}): semua skill cooldown"));
         return actions;
     }
 
@@ -564,6 +585,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     private List<MacroAction> Note(string key, long now, int everyMs, string text) =>
         Ready("note:" + key, now, everyMs) ? [new NoteAction(text)] : [];
+
+    private static bool IsDash(SkillBinding k) => k.Name == "Dash";
+    private static bool IsSwap(SkillBinding k) => k.Name == "Ganti senjata" || k.Name == "Ganti power";
 
     private bool Ready(string key, long now, int cooldownMs)
     {

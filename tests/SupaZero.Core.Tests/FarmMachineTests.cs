@@ -94,6 +94,31 @@ public class FarmMachineTests
         Assert.Contains("#1", Assert.Single(a.OfType<AimAction>()).Reason);
     }
 
+    [Fact]
+    public void Fight_ApproachOnlyDashes_ThenAttacks_ThenSwapsWhenAllCooling()
+    {
+        var (m, _) = New(s => s.Combat = s.Combat with { Skills = CombatSettings.DefaultSkills().Select(k => k with { Enabled = true }).ToList() });
+        var far = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
+            PlayerPos = new(75, 3, -300), CameraLook = (0, -1),
+            Enemies = [new("1", new(75, 3, -340), 100, 100)],
+            SkillCooldowns = [new("1", null, false), new("2", null, false), new("3", null, false)],
+        };
+        var a = m.Step(far, 10_000);
+        Assert.DoesNotContain(a, x => x is AttackAction);
+        Assert.All(a.OfType<KeyAction>(), k => Assert.Contains("Dash", k.Reason));
+
+        var near = far with { PlayerPos = new(75, 3, -336) };
+        var b = m.Step(near, 11_000);
+        Assert.Contains(b, x => x is AttackAction);
+        Assert.Contains("(1)", Assert.Single(b.OfType<KeyAction>()).Reason);
+
+        var cooling = near with { SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", null, true)] };
+        var c = m.Step(cooling, 12_000);
+        Assert.Contains("(T)", Assert.Single(c.OfType<KeyAction>()).Reason);
+    }
+
     [Theory]
     [InlineData("", null)]
     [InlineData("1.7", 1.7)]
