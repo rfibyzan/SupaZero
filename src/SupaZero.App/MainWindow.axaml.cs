@@ -40,10 +40,10 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
-        if (!_vm.General.IsRebinding) return;
+        if (_vm.ActiveRebind is null) return;
         bool cancel = e.Key == Key.Escape;
         string? name = cancel ? null : KeyNames.From(e.Key == Key.System ? Key.LeftAlt : e.Key);
-        if (_vm.General.CompleteRebind(name, cancel)) e.Handled = true;
+        if (_vm.TryCompleteRebind(name, cancel)) e.Handled = true;
     }
 
     private void ApplyTransparency(bool on)

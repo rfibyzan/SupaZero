@@ -1,0 +1,337 @@
+using SupaZero.Core.Game;
+using SupaZero.Core.Input;
+using SupaZero.Core.Settings;
+
+namespace SupaZero.Core.Automation;
+
+public enum MacroPhase { Idle, WalkingToLobby, Lobby, Voting, Fighting, Navigating, Upgrading, Advancing, Retrying, Done }
+
+/// <summary>
+/// Otak AutoFarm: murni (tanpa I/O), menerima <see cref="GameSnapshot"/> + waktu, mengembalikan aksi. Mudah dites.
+/// Alur: lobby (jalan ke lingkaran Create Room → pilih mode/map/act/difficulty → Start) → vote Yes → ronde (serang +
+/// skill; area bersih → jalan ke area berikutnya, serang rubble bila tersangkut) → EndScreen: menang (upgrade bila perlu
+/// → Next/Retry/Leave sesuai mode) / kalah (Retry s.d. batas).
+/// </summary>
+public sealed class FarmMachine(Func<AppSettings> settings)
+{
+    private readonly Dictionary<string, long> _cooldowns = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _skillLast = new(StringComparer.Ordinal);
+    private long _lastAttack;
+    private int _retries;
+    private int _boughtThisStage;
+    private bool _upgradeDoneThisStage;
+    private bool _pendingBuyConfirm;
+    private int? _tokensBeforeBuy;
+    private GameScreen _lastScreen = GameScreen.Unknown;
+    private Vec3? _stuckRef;
+    private long _stuckSince;
+
+    public MacroPhase Phase { get; private set; } = MacroPhase.Idle;
+    public int StagesCleared { get; private set; }
+    public int Retries => _retries;
+    public string Status { get; private set; } = "Idle";
+
+    public void Reset()
+    {
+        _cooldowns.Clear();
+        _skillLast.Clear();
+        _lastAttack = 0;
+        _retries = _boughtThisStage = 0;
+        _upgradeDoneThisStage = _pendingBuyConfirm = false;
+        _tokensBeforeBuy = null;
+        _lastScreen = GameScreen.Unknown;
+        _stuckRef = null;
+        StagesCleared = 0;
+        Phase = MacroPhase.Idle;
+        Status = "Idle";
+    }
+
+    public IReadOnlyList<MacroAction> Step(GameSnapshot s, long nowMs)
+    {
+        var S = settings();
+        var screen = s.Screen;
+        if (screen != _lastScreen) OnScreenChanged(_lastScreen, screen);
+        _lastScreen = screen;
+
+        var actions = screen switch
+        {
+            GameScreen.Unknown => Wait("Menunggu Roblox / DataModel."),
+            GameScreen.Lobby => WalkToLobby(s, S, nowMs),
+            GameScreen.LobbyMenu => LobbyMenu(s, S, nowMs),
+            GameScreen.StartVote => Vote(s, S, nowMs),
+            GameScreen.InRound => Fight(s, S, nowMs),
+            GameScreen.Victory => Victory(s, S, nowMs),
+            GameScreen.Defeat => Defeat(s, S, nowMs),
+            _ => [],
+        };
+        // Lepas tombol gerak di semua fase yang tidak berjalan.
+        if (Phase is not (MacroPhase.WalkingToLobby or MacroPhase.Navigating) && !actions.Any(a => a is MoveAction))
+            return [new MoveAction([], "Berhenti jalan"), .. actions];
+        return actions;
+    }
+
+    private void OnScreenChanged(GameScreen from, GameScreen to)
+    {
+        if (to == GameScreen.Victory) StagesCleared++;
+        if (to == GameScreen.StartVote || (to == GameScreen.InRound && from is GameScreen.Victory or GameScreen.Defeat))
+        {
+            _boughtThisStage = 0;
+            _upgradeDoneThisStage = false;
+            _pendingBuyConfirm = false;
+        }
+        if (to == GameScreen.Victory) _retries = 0;
+        _stuckRef = null;
+    }
+
+    private List<MacroAction> Wait(string why)
+    {
+        Phase = MacroPhase.Idle;
+        Status = why;
+        return [];
+    }
+
+    // ---------- Lobby ----------
+
+    private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now)
+    {
+        var f = S.Farm;
+        if (!f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
+        if (f.LobbyCircle is not { } target)
+        {
+            Phase = MacroPhase.Lobby;
+            Status = "Posisi lingkaran Create Room belum direkam.";
+            return Note("no-circle", now, 8000, "Rekam dulu posisi lingkaran Create Room (tab AutoFarm → Rekam posisi saat berdiri di lingkaran).");
+        }
+        Phase = MacroPhase.WalkingToLobby;
+        var walk = WalkTo(s, target, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
+        if (walk.Count == 0)
+        {
+            Status = "Sudah di lingkaran, menunggu menu Create Room terbuka.";
+            return [new MoveAction([], "Sampai"), .. Note("circle-wait", now, 6000, "Sudah di lingkaran tapi menu Create Room belum terbuka. Cek posisi rekaman.")];
+        }
+        return walk;
+    }
+
+    private List<MacroAction> LobbyMenu(GameSnapshot s, AppSettings S, long now)
+    {
+        Phase = MacroPhase.Lobby;
+        var f = S.Farm;
+        if (!f.AutoCreateLobby) return Wait("Menu Create Room terbuka (Auto create room mati).");
+
+        // 1) Mode
+        if (s.LobbyModes.Count > 0 && Pick(s.LobbyModes, f.Mode.ToString(), "mode", now) is { } modeAct) return modeAct;
+        // 2) Map
+        if (!string.IsNullOrWhiteSpace(f.Map) && !Matches(s.LobbyMapTag, f.Map))
+        {
+            Status = $"Map terpilih '{s.LobbyMapTag ?? "?"}', target '{f.Map}'.";
+            var entry = s.LobbyMaps.FirstOrDefault(e => Matches(e.Name, f.Map));
+            if (entry is { Locked: true }) return Stop($"Map '{f.Map}' masih terkunci di akun ini.");
+            if (entry?.Rect is { } r) return Ready("lobby-map", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"Map {entry.Name}")] : [];
+            return Note("lobby-map", now, 5000, $"Map '{f.Map}' tidak ada di MapsList (terbaca: {string.Join(", ", s.LobbyMaps.Select(m => m.Name))}).");
+        }
+        // 3) Act
+        string wantAct = "Act" + f.Act;
+        if (!Matches(s.LobbyActTag, wantAct) && !Matches(s.LobbyActTag, f.Act.ToString()))
+        {
+            Status = $"Act terpilih '{s.LobbyActTag ?? "?"}', target {wantAct}.";
+            var entry = s.LobbyActs.FirstOrDefault(e => Matches(e.Name, wantAct) || e.Name.Trim() == f.Act.ToString());
+            if (entry is { Locked: true }) return Stop($"{wantAct} masih terkunci di akun ini.");
+            if (entry?.Rect is { } r) return Ready("lobby-act", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"{wantAct}")] : [];
+            return Note("lobby-act", now, 5000, $"{wantAct} tidak terbaca di ActsList (ActLine.Tag = '{s.LobbyActTag ?? "?"}').");
+        }
+        // 4) Difficulty + Start
+        var actions = new List<MacroAction>();
+        var (dx, dy) = AnimeZeroPaths.DifficultyCenters[(int)f.Difficulty];
+        if (Ready("lobby-diff", now, 6000)) actions.Add(new ClickAction(dx, dy, $"Difficulty {f.Difficulty}"));
+        if (s.LobbyStart is { } start && Ready("lobby-start", now, 3000))
+            actions.Add(new ClickAction(start.CenterX, start.CenterY, "Start (Create Room)"));
+        Status = $"Create Room: {f.Mode} {(f.Map.Length > 0 ? f.Map : s.LobbyMapTag)} {wantAct} {f.Difficulty} → Start.";
+        return actions;
+    }
+
+    /// <summary>Klik entri yang cocok bila belum terpilih. null = sudah benar / tidak ada data.</summary>
+    private List<MacroAction>? Pick(IReadOnlyList<LobbyEntry> list, string want, string what, long now)
+    {
+        var entry = list.FirstOrDefault(e => Matches(e.Name, want));
+        if (entry is null || entry.Selected) return null;
+        if (entry.Locked) return Stop($"{what} '{want}' masih terkunci di akun ini.");
+        Status = $"Pilih {what} {want}.";
+        return entry.Rect is { } r && Ready("lobby-" + what, now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"{what} {entry.Name}")] : [];
+    }
+
+    private List<MacroAction> Vote(GameSnapshot s, AppSettings S, long now)
+    {
+        Phase = MacroPhase.Voting;
+        Status = "Start Game? → Yes";
+        if (!S.Farm.AutoVoteStart || !Ready("vote-yes", now, 2000)) return [];
+        var (x, y) = s.StartVoteYes is { } r ? (r.CenterX, r.CenterY) : (AnimeZeroPaths.StartVoteYesX, AnimeZeroPaths.StartVoteYesY);
+        return [new ClickAction(x, y, "Vote Yes")];
+    }
+
+    // ---------- Ronde ----------
+
+    private List<MacroAction> Fight(GameSnapshot s, AppSettings S, long now)
+    {
+        var hud = s.Hud;
+        int left = s.EnemyCount >= 0 ? s.EnemyCount : hud?.EnemiesLeft ?? -1;
+        string area = hud is { AreaTotal: > 0 } ? $"Area {hud.Area}/{hud.AreaTotal}" : "Area ?";
+        if (left == 0)
+        {
+            Phase = MacroPhase.Navigating;
+            if (!S.Navigation.AutoNavigate) { Status = $"{area} bersih (Auto navigasi mati)."; return []; }
+            if (s.NextAreaPos is not { } next)
+            {
+                Status = $"{area} bersih, area berikutnya tidak terbaca.";
+                return [new MoveAction([], "Tujuan tidak ada"), .. Note("nav-none", now, 6000, $"{area} bersih tapi posisi area berikutnya (World.Spawns/Areas) tidak terbaca.")];
+            }
+            var walk = WalkTo(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.Area + 1}", S.Navigation.AttackWhenStuck);
+            Status = walk.Count == 0 ? $"Sampai area {hud!.Area + 1}, menunggu musuh." : $"{area} bersih → jalan ke area {hud!.Area + 1}.";
+            return walk.Count == 0 ? [new MoveAction([], "Sampai")] : walk;
+        }
+        Phase = MacroPhase.Fighting;
+        Status = $"{area} · {(left < 0 ? "?" : left.ToString())} musuh";
+        var actions = new List<MacroAction>();
+        if (now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
+        {
+            _lastAttack = now;
+            actions.Add(new AttackAction("Serangan dasar"));
+        }
+        // Satu skill per tick: yang paling lama tidak dipakai dan sudah lewat cooldown.
+        var due = S.Combat.EffectiveSkills
+            .Where(k => k.Enabled && HotkeyMap.TryGetVirtualKey(k.Key, out _))
+            .Where(k => !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs))
+            .OrderBy(k => _skillLast.TryGetValue(k.Name, out long t) ? t : long.MinValue)
+            .FirstOrDefault();
+        if (due is not null && HotkeyMap.TryGetVirtualKey(due.Key, out uint vk))
+        {
+            _skillLast[due.Name] = now;
+            actions.Add(new KeyAction((ushort)vk, 40, $"{due.Name} ({due.Key})"));
+        }
+        return actions;
+    }
+
+    /// <summary>Jalan ke tujuan dengan W/A/S/D; tersangkut ≥1,5 dtk → lompat (+ serang bila diizinkan, untuk rubble).</summary>
+    private List<MacroAction> WalkTo(GameSnapshot s, Vec3 target, double radius, long now, string label, bool attackWhenStuck)
+    {
+        if (s.PlayerPos is not { } p || s.CameraLook is not { } look)
+        {
+            Status = "Posisi karakter/kamera tidak terbaca.";
+            return [new MoveAction([], "Data posisi tidak ada"), .. Note("nopos", now, 6000, "Posisi karakter atau kamera tidak terbaca (cek offsets).")];
+        }
+        var keys = Navigator.KeysToward(p.X, p.Z, look.X, look.Z, target.X, target.Z, radius);
+        if (keys.Count == 0) { _stuckRef = null; return []; }
+        var actions = new List<MacroAction> { new MoveAction(keys, $"Jalan ke {label}") };
+        if (_stuckRef is null || Navigator.Distance2D(p.X, p.Z, _stuckRef.X, _stuckRef.Z) > 1.5)
+        {
+            _stuckRef = p;
+            _stuckSince = now;
+        }
+        else if (now - _stuckSince >= 1500)
+        {
+            if (Ready("jump", now, 1200)) actions.Add(new KeyAction(VirtualKeys.Space, 80, "Lompat (tersangkut)"));
+            if (attackWhenStuck && now - _lastAttack >= 150)
+            {
+                _lastAttack = now;
+                actions.Add(new AttackAction("Serang rintangan"));
+            }
+        }
+        Status = $"Jalan ke {label} ({Navigator.Distance2D(p.X, p.Z, target.X, target.Z):0} stud)";
+        return actions;
+    }
+
+    // ---------- Layar akhir ----------
+
+    private List<MacroAction> Victory(GameSnapshot s, AppSettings S, long now)
+    {
+        var up = S.Upgrade;
+        if (up.Enabled && !_upgradeDoneThisStage && Upgrade(s, up, now) is { } upgrade) return upgrade;
+
+        var after = S.Farm.AfterWin == AfterWin.Auto
+            ? (S.Farm.Mode == FarmMode.Story ? AfterWin.Next : AfterWin.Retry)
+            : S.Farm.AfterWin;
+        var (btn, label) = after switch
+        {
+            AfterWin.Next => (s.NextButton, "Next stage"),
+            AfterWin.Retry => (s.RetryButton, "Retry"),
+            _ => (s.LeaveButton, "Leave"),
+        };
+        if (after == AfterWin.Next && btn is null && s.RetryButton is null && s.LeaveButton is not null)
+            return Stop("Menang, tombol Next tidak ada → Story selesai.");
+        if (btn is not { } b)
+        {
+            Phase = MacroPhase.Idle;
+            Status = $"Menang, tombol {label} tidak terbaca.";
+            return Note("no-btn", now, 5000, $"Tombol {label} tidak terbaca di EndScreen.");
+        }
+        Phase = MacroPhase.Advancing;
+        Status = $"Menang (ke-{StagesCleared}) → {label}";
+        return Ready("after-win", now, 2500) ? [new ClickAction(b.CenterX, b.CenterY, label)] : [];
+    }
+
+    /// <summary>null = upgrade selesai/tidak bisa, lanjut.</summary>
+    private List<MacroAction>? Upgrade(GameSnapshot s, UpgradeSettings up, long now)
+    {
+        Phase = MacroPhase.Upgrading;
+        if (!s.SkillTreeOpen)
+        {
+            _upgradeDoneThisStage = true;
+            return [new NoteAction("SkillTree tidak terbuka (tombol pembukanya belum diriset) → upgrade stage ini dilewati.")];
+        }
+        if (_pendingBuyConfirm)
+        {
+            if (s.Tokens is int t && _tokensBeforeBuy is int b && t < b) { _boughtThisStage++; _pendingBuyConfirm = false; }
+            else if (!Ready("buy-timeout", now, 3000)) return [];
+            else _pendingBuyConfirm = false;
+        }
+        if (_boughtThisStage >= up.MaxBuysPerStage || s.Tokens is 0) { _upgradeDoneThisStage = true; return null; }
+        if (s.BuyButton is { } buy && Ready("buy", now, 800))
+        {
+            _pendingBuyConfirm = true;
+            _tokensBeforeBuy = s.Tokens;
+            _cooldowns["buy-timeout"] = now;
+            Status = $"Upgrade: beli (token {s.Tokens?.ToString() ?? "?"})";
+            return [new ClickAction(buy.CenterX, buy.CenterY, "BuyButton")];
+        }
+        var slot = UpgradePlanner.Next(s.Slots, up.EffectivePriority, up.Mode, _boughtThisStage);
+        if (slot is null) { _upgradeDoneThisStage = true; return null; }
+        Status = $"Upgrade: pilih {slot.Column} #{slot.Index + 1}";
+        return Ready("slot", now, 800) ? [new ClickAction(slot.Rect!.Value.CenterX, slot.Rect.Value.CenterY, $"Slot {slot.Column} #{slot.Index + 1}")] : [];
+    }
+
+    private List<MacroAction> Defeat(GameSnapshot s, AppSettings S, long now)
+    {
+        var f = S.Farm;
+        if (f.RetryOnDefeat && _retries < f.MaxRetriesPerStage && s.RetryButton is { } retry)
+        {
+            Phase = MacroPhase.Retrying;
+            Status = $"DEFEAT → Retry ({_retries + 1}/{f.MaxRetriesPerStage})";
+            if (!Ready("retry", now, 3000)) return [];
+            _retries++;
+            return [new ClickAction(retry.CenterX, retry.CenterY, "Retry")];
+        }
+        return Stop("DEFEAT, retry habis → macro berhenti.");
+    }
+
+    // ---------- util ----------
+
+    private List<MacroAction> Stop(string why)
+    {
+        Phase = MacroPhase.Done;
+        Status = why;
+        return [new MoveAction([], "Stop"), new StopAction(why)];
+    }
+
+    private List<MacroAction> Note(string key, long now, int everyMs, string text) =>
+        Ready("note:" + key, now, everyMs) ? [new NoteAction(text)] : [];
+
+    private bool Ready(string key, long now, int cooldownMs)
+    {
+        if (_cooldowns.TryGetValue(key, out long last) && now - last < cooldownMs) return false;
+        _cooldowns[key] = now;
+        return true;
+    }
+
+    private static bool Matches(string? actual, string want) =>
+        actual is not null && want.Length > 0 &&
+        actual.Replace(" ", "").Contains(want.Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
+}

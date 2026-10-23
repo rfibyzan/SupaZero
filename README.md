@@ -1,6 +1,6 @@
 # SupaZero
 
-Macro **Anime Zero** (Roblox, place `114574503491412`): otomatis main Story stage demi stage, upgrade SkillTree tiap selesai stage bila perlu, sampai seluruh Story selesai. UI sama dengan SupaFisch (C# .NET 8 + Avalonia, tema Black/White/Custom).
+Macro **AutoFarm Anime Zero** (Roblox, place `114574503491412`): Story (lanjut stage demi stage), Infinite, Defend, Raid, Trials. Jalan sendiri ke lingkaran Create Room, pilih mode/map/act/difficulty, bertarung, jalan ke area berikutnya (serang rubble bila tersangkut), upgrade SkillTree, lalu Next/Retry. UI sama dengan SupaFisch (C# .NET 8 + Avalonia, tema Black/White/Custom).
 
 ![General](docs/img/general.png)
 
@@ -15,9 +15,9 @@ Macro **Anime Zero** (Roblox, place `114574503491412`): otomatis main Story stag
 | Folder | Isi |
 |---|---|
 | `src/RIE.Core` | Salinan reader read-only RobloxInstanceExplorer v3.12 (ProcessMemory, offsets, InstanceReader, PropertyReader). |
-| `src/SupaZero.Core` | `Game/` baca keadaan game → `GameSnapshot`; `Automation/` `StoryMachine` (otak macro, murni & dites), `UpgradePlanner`, `MacroRunner` (loop); `Interop/Win32Input` (SendInput); `Settings/`. |
-| `src/SupaZero.App` | UI Avalonia gaya SupaFisch: tab General, Story, Upgrade, Settings. |
-| `tests/SupaZero.Core.Tests` | xUnit: parser HUD, state machine, planner upgrade, GameReader dengan memori palsu. |
+| `src/SupaZero.Core` | `Game/` baca keadaan game → `GameSnapshot`; `Automation/` `FarmMachine` (otak macro, murni & dites), `Navigator` (W/A/S/D ke tujuan dari posisi karakter + arah kamera), `UpgradePlanner`, `MacroRunner` (loop); `Interop/Win32Input` (SendInput); `Settings/`. |
+| `src/SupaZero.App` | UI Avalonia gaya SupaFisch: tab General, AutoFarm, Upgrade, Offsets, Settings. |
+| `tests/SupaZero.Core.Tests` | xUnit: parser HUD, FarmMachine, Navigator, planner upgrade, GameReader dengan memori palsu. |
 | `docs/` | `research.md` (hasil riset RIE fase 1), `ROADMAP.md`. |
 
 ## Menjalankan (PowerShell)
@@ -30,15 +30,16 @@ dotnet run --project src/SupaZero.App -c Release
 
 Tes: `dotnet test tests/SupaZero.Core.Tests`
 
-Offsets: Settings → Offsets → **Unduh terbaru** (disimpan ke `%AppData%\SupaZero\offsets.json`), atau otomatis memakai `offsets.json` milik RIE bila ada. Pengaturan di `%AppData%\SupaZero\settings.json`, log di `%AppData%\SupaZero\logs`.
+Offsets: tab **Offsets** → **Unduh terbaru** (disimpan ke `%AppData%\SupaZero\offsets.json`), atau otomatis memakai `offsets.json` milik RIE bila ada. Pengaturan di `%AppData%\SupaZero\settings.json`, log di `%AppData%\SupaZero\logs`.
 
 ## Alur macro
 
-1. **Lobby**: CREATE LOBBY terbuka → cek Map/Act (`MapLine.Tag`, `ActLine.Tag`) → klik Difficulty → Start (`StaerButton`).
-2. **Start Game?** → Yes.
-3. **Ronde**: selama `Workspace.enemies` berisi musuh → klik kiri + skill bergiliran (default 1,2,3).
-4. **Area bersih** → navigasi ke area berikutnya (**belum otomatis**, lihat ROADMAP).
-5. **EndScreen menang** → upgrade SkillTree (bila diaktifkan dan terbuka) → Next.
-6. **DEFEAT** (`ResultText`) → Retry sampai batas, lalu berhenti.
+1. **Lobby**: jalan (W/A/S/D, tanpa teleport) ke lingkaran Create Room yang kamu rekam di tab AutoFarm.
+2. **Create Room**: pilih Mode → Map (berhenti bila map/act terkunci) → Act → Difficulty → Start (`StaerButton`).
+3. **Start Game?** → Yes.
+4. **Ronde**: selama `Workspace.enemies` berisi musuh → klik kiri + tombol skill sesuai cooldown masing-masing.
+5. **Area bersih** → jalan ke `Workspace.World.Spawns/Areas[n+1]`; tersangkut 1,5 dtk → lompat + serang (rubble HxH).
+6. **EndScreen menang** → upgrade SkillTree (bila aktif dan terbuka) → Next (Story) / Retry (mode lain) / pilihan manual.
+7. **DEFEAT** (`ResultText`) → Retry sampai batas, lalu berhenti.
 
 Hotkey default **F1** (Start/Stop), bisa diganti di tab General.

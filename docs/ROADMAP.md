@@ -1,23 +1,25 @@
 # Roadmap SupaZero
 
-Status: kerangka v0.1.0 (23 Okt 2026). Belum diuji live.
+Status: v0.2.0 (23 Okt 2026), AutoFarm. Belum diuji live.
 
 ## Sudah ada
 - Attach read-only + auto-reattach saat teleport lobby ↔ stage.
-- Deteksi layar: Lobby, CREATE LOBBY, StartVote, ronde, menang, kalah (DEFEAT tidak tertukar dengan "Story complete").
-- Vote Yes, serangan dasar + rotasi skill, Next, Retry dengan batas.
-- Upgrade SkillTree: pilih slot sesuai prioritas kolom (Prioritas / Bergiliran), BuyButton, verifikasi token turun.
-- UI SupaFisch: tab General/Story/Upgrade/Settings, hotkey global, tema, log.
+- AutoFarm: mode Story/Infinite/Defend/Raid/Trials, setelah menang Otomatis/Next/Retry/Leave.
+- Jalan ke lingkaran Create Room (posisi direkam) dan ke area berikutnya: W/A/S/D relatif kamera (Navigator), tanpa teleport.
+- Tersangkut → lompat + serang (rubble HxH).
+- Deteksi daftar map/act/mode di Create Room + status terkunci (heuristik), map tersimpan untuk dropdown.
+- Tombol skill per baris: Rebind seperti hotkey, toggle, cooldown masing-masing.
+- Tab Offsets seperti SupaFisch (unduh, versi, cek cocok dengan Roblox terpasang, file manual).
+- Upgrade SkillTree: prioritas kolom, BuyButton, verifikasi token turun.
 
 ## Perlu verifikasi di RIE ([V] di `AnimeZeroPaths.cs`)
-- Path persis: StartVote + tombol Yes, EndScreen + Next/Retry/Leave, ResultText, BossBar.
-- `MapLine.Tag` / `ActLine.Tag`: anak StringValue "Tag" atau teks?
-- Isi kolom SkillTree (nama kolom ATK/CRIT/DEF/SPD, urutan slot).
-- GUI inset Y (58 px default) cocok dengan klik di layar Byzan.
+- StartVote + Yes, EndScreen + Next/Retry/Leave, ResultText, BossBar.
+- `ModesList`, `MapsList`, `ActsList`: struktur entri, penanda terkunci ("*Lock*") dan terpilih ("*Select*").
+- `Workspace.World.Spawns/Areas[n]` benar-benar titik area ke-n.
+- Isi kolom SkillTree.
 
 ## Belum dikerjakan
-1. **Navigasi antar-area**: baca posisi HRP pemain + `Workspace.World.Areas/Spawns`, putar kamera (drag klik kanan / tombol) dan jalan (W/A/S/D) ke area berikutnya. Proyeksi `WorldToScreen` sudah tersedia di RIE.Core.
-2. **Boulder** (HxH Act 1-3): deteksi part rintangan di `Workspace.World.Navigation`, hadapkan karakter, serang sampai hilang.
-3. **Mengejar musuh**: hadapkan karakter ke musuh terdekat (Workspace.enemies[*].HumanoidRootPart).
-4. Tombol pembuka SkillTree dan menu CREATE LOBBY, klik map/act otomatis.
-5. Switch power T (Sukuna, Katakuri) via asset id ikon Ultimate; dash Q.
+1. Belok/putar kamera saat jalur tidak lurus (sekarang lurus ke tujuan + lompat).
+2. Hadapkan karakter ke musuh terdekat / rubble.
+3. Tombol pembuka SkillTree.
+4. Trials: tombol Next Floor; Raid: deteksi cooldown attempt.

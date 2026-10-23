@@ -29,12 +29,10 @@ public sealed class CustomColorViewModel(string label, Func<string> get, Action<
     public void Reload() { Raise(nameof(Text)); Raise(nameof(Swatch)); }
 }
 
-/// <summary>Tab Settings: Appearance (sama dengan SupaFisch), kalibrasi GUI, offsets.</summary>
+/// <summary>Tab Settings: Appearance (sama dengan SupaFisch) + kalibrasi macro.</summary>
 public sealed class SettingsPageViewModel : ObservableObject
 {
-    private const string OffsetsUrl = "https://offsets.imtheo.lol/offsets.json";
     private readonly MainViewModel _root;
-    private string _offsetsStatus = string.Empty;
 
     public SettingsPageViewModel(MainViewModel root)
     {
@@ -77,33 +75,12 @@ public sealed class SettingsPageViewModel : ObservableObject
         set { S.General = S.General with { TickMs = (int)value }; _root.Save(); }
     }
 
-    public string OffsetsStatus { get => _offsetsStatus; private set => Set(ref _offsetsStatus, value); }
-
     public RelayCommand ResetCustomCommand => new(_ =>
     {
         S.CustomTheme = new CustomThemeSettings();
         foreach (var r in CustomColors) r.Reload();
         if (IsCustom) ThemeService.Apply(S);
         _root.Save();
-    });
-
-    public RelayCommand ReloadOffsetsCommand => new(_ => _root.LoadOffsets());
-
-    public RelayCommand DownloadOffsetsCommand => new(async _ =>
-    {
-        OffsetsStatus = "Mengunduh...";
-        try
-        {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            string json = await http.GetStringAsync(OffsetsUrl);
-            string path = Path.Combine(AppSettings.DataDirectory, "offsets.json");
-            Directory.CreateDirectory(AppSettings.DataDirectory);
-            await File.WriteAllTextAsync(path, json);
-            S.OffsetsPath = path;
-            _root.LoadOffsets();
-            OffsetsStatus = "Tersimpan: " + path;
-        }
-        catch (Exception ex) { OffsetsStatus = "Gagal: " + ex.Message; }
     });
 
     private CustomColorViewModel Row(string label, Func<CustomThemeSettings, string> get, Func<CustomThemeSettings, string, CustomThemeSettings> with) =>

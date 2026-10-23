@@ -12,6 +12,9 @@ public sealed record AttackAction(string Reason) : MacroAction(Reason);
 /// <summary>Tekan tombol (virtual-key) selama <paramref name="HoldMs"/>.</summary>
 public sealed record KeyAction(ushort VirtualKey, int HoldMs, string Reason) : MacroAction(Reason);
 
+/// <summary>Tahan tepat tombol gerak ini (W/A/S/D); tombol gerak lain dilepas. Kosong = lepas semua.</summary>
+public sealed record MoveAction(IReadOnlyList<ushort> Keys, string Reason) : MacroAction(Reason);
+
 /// <summary>Tidak ada input; hanya catatan log (mis. menunggu pemain, fitur belum ada).</summary>
 public sealed record NoteAction(string Reason) : MacroAction(Reason);
 

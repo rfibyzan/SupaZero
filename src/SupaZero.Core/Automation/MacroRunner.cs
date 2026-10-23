@@ -12,7 +12,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     private CancellationTokenSource? _cts;
     private Task? _loop;
 
-    public StoryMachine Machine { get; } = new(settings);
+    public FarmMachine Machine { get; } = new(settings);
+    private readonly HashSet<ushort> _held = [];
     public bool IsRunning => _loop is { IsCompleted: false };
     public GameSnapshot? LastSnapshot { get; private set; }
 
@@ -41,6 +42,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         if (_cts is null) return;
         _cts.Cancel();
         _cts = null;
+        ReleaseMovement();
         Log?.Invoke("Macro berhenti.");
         RunningChanged?.Invoke(false);
     }
@@ -89,9 +91,17 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 Stop();
                 return;
         }
-        if (!foreground) return;
+        if (!foreground)
+        {
+            ReleaseMovement();
+            return;
+        }
         switch (a)
         {
+            case MoveAction m:
+                foreach (ushort k in _held.Where(k => !m.Keys.Contains(k)).ToList()) { input.KeyUp(k); _held.Remove(k); }
+                foreach (ushort k in m.Keys.Where(k => _held.Add(k))) input.KeyDown(k);
+                break;
             case ClickAction c:
                 Log?.Invoke($"Klik {c.Reason} ({c.X:0},{c.Y:0})");
                 input.ClickClient(c.X, c.Y);
@@ -104,6 +114,15 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 await Task.Delay(Math.Max(10, k.HoldMs), ct);
                 input.KeyUp(k.VirtualKey);
                 break;
+        }
+    }
+
+    private void ReleaseMovement()
+    {
+        lock (_held)
+        {
+            foreach (ushort k in _held) input.KeyUp(k);
+            _held.Clear();
         }
     }
 

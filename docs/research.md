@@ -12,3 +12,14 @@ Riset fase 1 selesai :
 - Upgrade: SkillTree per unit (UI Animation (Working).SkillTree), token di Header.Holder.Txt, 4 kolom ATK/CRIT/DEF/SPD x 5 slot; beli = klik slot (CanBuy.Visible) lalu BuyFrame.BuyButton; verifikasi token turun dan CanBuy hilang.
 
 Catatan: tiap stage butuh pergerakan karakter; di HxH Act 1-3 ada boulder penghalang yang harus dihancurkan.
+
+
+## Riset YouTube + wiki (23 Okt 2026)
+
+- Mode di menu Create Lobby: **Story** (act terbuka berurutan; map Sakamoto berakhir boss Uzuki, HxH dengan rubble), **Defend** (Sakamoto Defense), **Infinite** (gelombang tanpa akhir, boss tiap 10/8/6/5 wave sesuai difficulty, material mulai wave 16), **Raid** (Spirited Away & Shadow Gate khusus Nightmare, 5 run lalu cooldown 30 menit; Evil Reflection Easy–Nightmare), **Trials** (menara 5 room per floor, boss di room 5, tombol Next Floor), **Tidal High Rise** (panjat sebelum air naik).
+- Menu Create Lobby: mode → map → act → difficulty; ada pratinjau reward dan Drop Target (x3 Nightmare, x2 Hard).
+- Difficulty: Easy (HP 0,85x) sampai Nightmare (2x); Story Easy 1.500 coin + 50 gem, Nightmare 15.000 coin + 350 gem.
+- Combat: hanya 2 musuh bisa menyerang sekaligus; guard bar + perfect block; **T** ganti senjata (+20% dmg 4 dtk); rubble maks 30% HP per hit (jangan pakai ultimate ke rubble).
+- Ada vote mulai sebelum wave pertama Story.
+- Matchmaking bisa join room terbuka dari server lobby lain (toggle di queue).
+- Sumber: animezeroroblox.wiki/guide/game-modes, animezero-wiki.wiki, video "The BEST Beginner's Guide In Anime Zero" (MK, 9 Okt 2026).

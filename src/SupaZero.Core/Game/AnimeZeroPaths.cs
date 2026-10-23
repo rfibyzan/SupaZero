@@ -37,6 +37,7 @@ public static class AnimeZeroPaths
 
     // Lobby CREATE LOBBY
     public const string LobbyRoot = "UI Animation (Finished).Quque.MainFrame";
+    public const string LobbyModesList = "ModesList";   // [V]
     public const string LobbyMapsList = "MapsList";
     public const string LobbyActsList = "ActsList";
     public const string LobbyMapLine = "MapLine";       // .Tag = map terpilih

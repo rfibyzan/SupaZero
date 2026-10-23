@@ -54,13 +54,22 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         long tree = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.SkillTreeRoot) : 0;
         bool treeShown = tree != 0 && IsShown(tree, pg);
 
+        var hud = HudText.Parse(hudRaw);
+        var playerPos = ReadPlayerPos(roots.LocalPlayer);
+
         return new GameSnapshot
         {
             Attached = true,
+            PlayerPos = playerPos,
+            CameraLook = ReadCameraLook(ws),
+            NextAreaPos = hud is { AreaTotal: > 0 } && hud.Area < hud.AreaTotal ? ReadAreaPos(ws, hud.Area + 1) : null,
+            LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],
+            LobbyMaps = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyMapsList), pg) : [],
+            LobbyActs = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyActsList), pg) : [],
             PlaceId = placeId,
             LocalPlayer = roots.LocalPlayer != 0 ? reader.GetName(roots.LocalPlayer) : string.Empty,
             HudRaw = hudRaw,
-            Hud = HudText.Parse(hudRaw),
+            Hud = hud,
             EnemyCount = enemyCount,
             StartVoteVisible = voteShown,
             StartVoteYes = voteYes,
@@ -104,6 +113,91 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
             }
         }
         return list;
+    }
+
+    /// <summary>Posisi HumanoidRootPart karakter: Player.ModelInstance → Character → HumanoidRootPart.</summary>
+    private Settings.Vec3? ReadPlayerPos(long localPlayer)
+    {
+        if (localPlayer == 0 || !reader.Offsets.TryResolve("Player.ModelInstance", out long mo)) return null;
+        if (!M.TryReadPointer(localPlayer + mo, out long character) || character == 0) return null;
+        long hrp = reader.FindChild(character, "HumanoidRootPart");
+        return hrp != 0 && props.TryGetWorldPosition(hrp, out float x, out float y, out float z) ? new(x, y, z) : null;
+    }
+
+    /// <summary>LookVector kamera (XZ) dari Workspace.CurrentCamera.</summary>
+    private (double X, double Z)? ReadCameraLook(long ws)
+    {
+        if (ws == 0 || !reader.Offsets.TryResolve("Workspace.CurrentCamera", out long co)) return null;
+        if (!M.TryReadPointer(ws + co, out long cam) || cam == 0) return null;
+        if (!props.Read(cam, "Camera").TryGetValue("LookVector", out var lv)) return null;
+        var p = lv.Split(',', StringSplitOptions.TrimEntries);
+        return p.Length == 3 && double.TryParse(p[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double x)
+               && double.TryParse(p[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double z)
+            ? (x, z) : null;
+    }
+
+    /// <summary>Posisi area ke-n: Workspace.World.Spawns[n] lalu Areas[n] (Part, Model, atau Folder berisi Part).</summary>
+    private Settings.Vec3? ReadAreaPos(long ws, int n)
+    {
+        long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;
+        if (world == 0) return null;
+        foreach (string folder in new[] { AnimeZeroPaths.WorldSpawns, AnimeZeroPaths.WorldAreas })
+        {
+            long f = reader.FindChild(world, folder);
+            long node = f != 0 ? reader.FindChild(f, n.ToString()) : 0;
+            if (node != 0 && PositionOf(node) is { } pos) return pos;
+        }
+        return null;
+    }
+
+    private Settings.Vec3? PositionOf(long node, int depth = 0)
+    {
+        if (props.TryGetWorldPosition(node, out float x, out float y, out float z)) return new(x, y, z);
+        if (depth >= 2) return null;
+        foreach (long c in reader.GetChildren(node, 64))
+            if (PositionOf(c, depth + 1) is { } p) return p;
+        return null;
+    }
+
+    /// <summary>
+    /// Entri daftar Create Lobby (map/act/mode) [V]: anak GuiObject yang punya teks. Terkunci = ada turunan terlihat
+    /// bernama "*Lock*" atau teks memuat "lock". Terpilih = turunan terlihat bernama "*Select*"/"*Selected*".
+    /// </summary>
+    private List<LobbyEntry> ReadList(long list, long pg)
+    {
+        var result = new List<LobbyEntry>();
+        if (list == 0) return result;
+        foreach (long c in reader.GetChildren(list, 64))
+        {
+            string cls = reader.GetClassName(c);
+            if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg)) continue;
+            string name = FirstText(c, 0) ?? reader.GetName(c);
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            bool locked = name.Contains("lock", StringComparison.OrdinalIgnoreCase) || HasShownDescendant(c, pg, "lock", 0);
+            bool selected = HasShownDescendant(c, pg, "select", 0);
+            result.Add(new LobbyEntry(name.Trim(), locked, selected, Rect(c)));
+        }
+        return result;
+    }
+
+    private string? FirstText(long node, int depth)
+    {
+        if (PropertyReader.IsTextClass(reader.GetClassName(node)) && Text(node) is { Length: > 0 } t) return t;
+        if (depth >= 3) return null;
+        foreach (long c in reader.GetChildren(node, 32))
+            if (FirstText(c, depth + 1) is { } s) return s;
+        return null;
+    }
+
+    private bool HasShownDescendant(long node, long pg, string nameFragment, int depth)
+    {
+        if (depth >= 3) return false;
+        foreach (long c in reader.GetChildren(node, 32))
+        {
+            if (reader.GetName(c).Contains(nameFragment, StringComparison.OrdinalIgnoreCase) && IsShown(c, pg)) return true;
+            if (HasShownDescendant(c, pg, nameFragment, depth + 1)) return true;
+        }
+        return false;
     }
 
     /// <summary>Cari turunan bernama <paramref name="name"/> (BFS, maks 9 level / 6000 node), dengan cache.</summary>

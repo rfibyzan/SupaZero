@@ -35,14 +35,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); });
 
         General = new GeneralViewModel(this);
-        Story = new StoryViewModel(this);
+        Farm = new FarmViewModel(this);
         Upgrade = new UpgradeViewModel(this);
+        Offsets = new OffsetsViewModel(this);
         SettingsPage = new SettingsPageViewModel(this);
         Tabs =
         [
             new TabViewModel("General", General),
-            new TabViewModel("Story", Story),
+            new TabViewModel("AutoFarm", Farm),
             new TabViewModel("Upgrade", Upgrade),
+            new TabViewModel("Offsets", Offsets),
             new TabViewModel("Settings", SettingsPage),
         ];
 
@@ -55,7 +57,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RobloxSession Session { get; }
     public MacroRunner Runner { get; }
     public GeneralViewModel General { get; }
-    public StoryViewModel Story { get; }
+    public FarmViewModel Farm { get; }
+    public OffsetsViewModel Offsets { get; }
     public UpgradeViewModel Upgrade { get; }
     public SettingsPageViewModel SettingsPage { get; }
     public IReadOnlyList<TabViewModel> Tabs { get; }
@@ -82,14 +85,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
     public GameSnapshot Snapshot { get => _snapshot; private set => Set(ref _snapshot, value); }
 
-    public string OffsetsInfo => Session.Offsets is { } o
-        ? $"{o.RobloxVersion} · {o.TotalOffsets} offsets · {o.FilePath}"
-        : "Offsets belum dimuat. Unduh terbaru atau taruh offsets.json di %AppData%\\SupaZero.";
+    /// <summary>Rebind tombol yang sedang menunggu input (hotkey macro atau tombol skill). null = tidak ada.</summary>
+    public Func<string?, bool, bool>? ActiveRebind { get; set; }
 
-    public void LoadOffsets()
+    public bool TryCompleteRebind(string? keyName, bool cancel)
     {
-        string? path = RobloxSession.FindOffsets(Settings.OffsetsPath);
-        if (path is null) { AddLog("offsets.json tidak ditemukan."); return; }
+        var r = ActiveRebind;
+        if (r is null) return false;
+        ActiveRebind = null;
+        return r(keyName, cancel);
+    }
+
+    public event Action? OffsetsChanged;
+
+    public void LoadOffsets(string? explicitPath = null)
+    {
+        string? path = explicitPath ?? RobloxSession.FindOffsets(Settings.OffsetsPath);
+        if (path is null) { AddLog("offsets.json tidak ditemukan."); OffsetsChanged?.Invoke(); return; }
         try
         {
             lock (_readGate) Session.LoadOffsets(path);
@@ -97,7 +109,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             AddLog("Offsets dimuat: " + path);
         }
         catch (Exception ex) { AddLog("Gagal memuat offsets: " + ex.Message); }
-        Raise(nameof(OffsetsInfo));
+        OffsetsChanged?.Invoke();
     }
 
     public void ApplyGuiCalibration()
@@ -126,6 +138,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             : Session.Status;
         StatusText = Runner.IsRunning ? $"{Runner.Machine.Phase}: {Runner.Machine.Status}" : $"Layar: {snap.Screen}";
         General.Refresh();
+        Farm.Refresh();
     }
 
     public void AddLog(string line)

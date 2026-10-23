@@ -12,6 +12,9 @@ public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory,
 
 public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect);
 
+/// <summary>Satu entri daftar (map/act/mode) di Create Lobby.</summary>
+public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect? Rect);
+
 /// <summary>Satu bacaan keadaan game (read-only) per tick macro.</summary>
 public sealed record GameSnapshot
 {
@@ -19,8 +22,17 @@ public sealed record GameSnapshot
     public long PlaceId { get; init; }
     public string LocalPlayer { get; init; } = string.Empty;
 
+    // Karakter + kamera (untuk Navigator)
+    public Settings.Vec3? PlayerPos { get; init; }
+    public (double X, double Z)? CameraLook { get; init; }
+    /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
+    public Settings.Vec3? NextAreaPos { get; init; }
+
     // Lobby
     public bool LobbyMenuOpen { get; init; }
+    public IReadOnlyList<LobbyEntry> LobbyModes { get; init; } = [];
+    public IReadOnlyList<LobbyEntry> LobbyMaps { get; init; } = [];
+    public IReadOnlyList<LobbyEntry> LobbyActs { get; init; } = [];
     public string? LobbyMapTag { get; init; }
     public string? LobbyActTag { get; init; }
     public GuiRect? LobbyStart { get; init; }

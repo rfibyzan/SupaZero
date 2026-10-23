@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             x:Class="SupaZero.App.Views.OffsetsView"
+             x:DataType="vm:OffsetsViewModel">
+  <!-- Sama dengan tab Offsets SupaFisch. -->
+  <StackPanel Spacing="8">
+    <Border Classes="card" Padding="0">
+      <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="12,10">
+          <StackPanel Spacing="2">
+            <TextBlock Text="{Binding StatusTitle}" FontWeight="SemiBold" FontSize="14" Classes.error="{Binding StatusIsError}" />
+            <TextBlock Classes="muted" Text="{Binding StatusDetail}" TextWrapping="Wrap" FontSize="12" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="accent" Content="{Binding UpdateText}" Command="{Binding UpdateCommand}"
+                  IsEnabled="{Binding !Busy}" VerticalAlignment="Center" />
+        </Grid>
+        <Border Classes="sep" />
+        <Grid ColumnDefinitions="*,Auto" Margin="12,8"><TextBlock Text="Version" /><TextBlock Grid.Column="1" Text="{Binding Version}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" Margin="12,8"><TextBlock Text="Updated" /><TextBlock Grid.Column="1" Text="{Binding Updated}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" Margin="12,8,12,10"><TextBlock Text="Total" /><TextBlock Grid.Column="1" Text="{Binding Total}" /></Grid>
+      </StackPanel>
+    </Border>
+    <Border Classes="card" IsVisible="{Binding HasWarning}" BorderBrush="{DynamicResource OfWarn}">
+      <TextBlock Classes="warn" Text="{Binding Warning}" TextWrapping="Wrap" />
+    </Border>
+    <Border Classes="card" Padding="10,8">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="caps" Text="MANUAL OFFSETS FILE" />
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <TextBox Text="{Binding Path}" Watermark="Path ke offsets.json" FontSize="12" Margin="0,0,6,0" />
+          <Button Grid.Column="1" Content="Browse…" Click="Browse_Click" Margin="0,0,6,0" Padding="10,4" />
+          <Button Grid.Column="2" Content="Load" Command="{Binding LoadCommand}" Padding="10,4" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" Text="Provider: https://offsets.imtheo.lol/offsets.json" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

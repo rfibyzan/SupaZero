@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             x:Class="SupaZero.App.Views.FarmView"
+             x:DataType="vm:FarmViewModel">
+  <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+    <!-- Kiri atas: target farm -->
+    <Border Classes="card" Margin="0,0,8,8" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Target farm" />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,210" MinHeight="34">
+          <TextBlock Classes="label" Text="Mode" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Modes}" SelectedIndex="{Binding ModeIndex}" />
+        </Grid>
+        <Grid ColumnDefinitions="*,210" MinHeight="34">
+          <TextBlock Classes="label" Text="Map" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Maps}" SelectedItem="{Binding SelectedMap}" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" Text="{Binding MapsHint}" TextWrapping="Wrap" Margin="0,-2,0,2" />
+        <Grid ColumnDefinitions="*,210" MinHeight="34">
+          <TextBlock Classes="label" Text="Act" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Acts}" SelectedIndex="{Binding ActIndex}" />
+        </Grid>
+        <Grid ColumnDefinitions="*,210" MinHeight="34">
+          <TextBlock Classes="label" Text="Difficulty" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Difficulties}" SelectedIndex="{Binding DifficultyIndex}" />
+        </Grid>
+        <Grid ColumnDefinitions="*,210" MinHeight="34">
+          <TextBlock Classes="label" Text="Setelah menang" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding AfterWins}" SelectedIndex="{Binding AfterWinIndex}"
+                    ToolTip.Tip="Otomatis: Story → Next, mode lain → Retry." />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Kanan atas: lobby -->
+    <Border Grid.Column="1" Classes="card" Margin="8,0,0,8" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Lobby" />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto create room" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCreateLobby}" /></Grid>
+        <Border Classes="row">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+              <TextBlock Classes="label" Text="Lingkaran Create Room" />
+              <TextBlock Classes="muted" FontSize="11" Text="{Binding CircleText}" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="Rekam posisi" Command="{Binding RecordCircleCommand}" Padding="10,4" />
+          </Grid>
+        </Border>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   Text="Berdiri di lingkaran Create Room lalu tekan Rekam posisi. Macro berjalan ke sana sendiri (W/A/S/D, tanpa teleport)." />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto vote Start (Yes)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoVoteStart}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Retry saat DEFEAT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding RetryOnDefeat}" /></Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Maks retry per stage" />
+          <NumericUpDown Grid.Column="1" Value="{Binding MaxRetries}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Kiri bawah: skill -->
+    <Border Grid.Row="1" Classes="card" Margin="0,0,8,0" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Combat" />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Serangan dasar (ms)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding AttackIntervalMs}" Minimum="30" Maximum="2000" Increment="10" FormatString="0" />
+        </Grid>
+        <ItemsControl ItemsSource="{Binding SkillRows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:SkillRowViewModel">
+              <Border Classes="card" Padding="0" Margin="0,0,0,6">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                  <Border Background="{DynamicResource OfAccentDim}" CornerRadius="8,0,0,8" MinWidth="48" Padding="10,8"
+                          BorderBrush="{DynamicResource OfBorder}" BorderThickness="0,0,1,0">
+                    <TextBlock Text="{Binding KeyText}" Classes="accent" FontSize="15" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Grid.Column="1" Classes="label" Text="{Binding Name}" Margin="10,0" />
+                  <NumericUpDown Grid.Column="2" Value="{Binding CooldownMs}" Minimum="200" Maximum="60000" Increment="250"
+                                 FormatString="0 ms" Width="96" ShowButtonSpinner="False" Margin="0,0,6,0" VerticalAlignment="Center"
+                                 ToolTip.Tip="Jeda antar-tekan (ms)" />
+                  <Button Grid.Column="3" Content="{Binding RebindText}" Command="{Binding RebindCommand}" Padding="10,4" MinWidth="78"
+                          HorizontalContentAlignment="Center" VerticalAlignment="Center" />
+                  <ToggleSwitch Grid.Column="4" IsChecked="{Binding Enabled}" Margin="8,0,4,0" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- Kanan bawah: navigasi -->
+    <Border Grid.Row="1" Grid.Column="1" Classes="card" Margin="8,0,0,0" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Navigasi" />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Jalan ke area berikutnya" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoNavigate}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Serang rubble saat tersangkut" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AttackWhenStuck}" /></Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Radius sampai (stud)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding ArriveRadius}" Minimum="1" Maximum="50" Increment="1" FormatString="0" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   Text="Tujuan dibaca dari Workspace.World.Spawns/Areas. Tersangkut 1,5 detik → lompat dan serang (rubble HxH maks 30% HP per hit)." />
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

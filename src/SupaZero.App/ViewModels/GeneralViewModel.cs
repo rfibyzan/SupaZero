@@ -17,7 +17,12 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
     public Func<string?, bool>? RegisterHotkey { get; set; }
     public Func<string?>? HotkeyError { get; set; }
 
-    public RelayCommand RebindCommand => new(_ => { _isRebinding = true; RaiseHotkey(); });
+    public RelayCommand RebindCommand => new(_ =>
+    {
+        _isRebinding = true;
+        root.ActiveRebind = CompleteRebind;
+        RaiseHotkey();
+    });
     public RelayCommand ToggleCommand => new(_ => root.Runner.Toggle());
     public RelayCommand ClearLogCommand => new(_ => root.LogLines.Clear());
 
@@ -27,7 +32,7 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
         HotkeyStatus = ok ? string.Empty : HotkeyError?.Invoke() ?? string.Empty;
     }
 
-    /// <summary>Dipanggil MainWindow saat tombol berikutnya ditekan dalam mode rebind. True = event ditangani.</summary>
+    /// <summary>Dipanggil lewat MainViewModel.ActiveRebind saat tombol berikutnya ditekan. True = event ditangani.</summary>
     public bool CompleteRebind(string? name, bool cancel)
     {
         if (!_isRebinding) return false;

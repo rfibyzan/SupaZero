@@ -23,24 +23,66 @@ public sealed record GeneralSettings(
 
 public enum Difficulty { Easy, Medium, Hard, Nightmare }
 
-/// <summary>Pilihan Story di CREATE LOBBY. Map kosong = pakai map yang sudah terpilih di lobby.</summary>
-public sealed record StorySettings(
+/// <summary>Mode di menu Create Lobby (riset wiki/YouTube Okt 2026).</summary>
+public enum FarmMode { Story, Infinite, Defend, Raid, Trials }
+
+/// <summary>Aksi di EndScreen setelah menang.</summary>
+public enum AfterWin
+{
+    /// <summary>Story → Next (lanjut stage berikutnya); mode lain → Retry.</summary>
+    Auto,
+    Next,
+    Retry,
+    Leave,
+}
+
+public sealed record Vec3(double X, double Y, double Z)
+{
+    public override string ToString() => $"{X:0.#}, {Y:0.#}, {Z:0.#}";
+}
+
+/// <summary>Satu map yang terbaca dari MapsList di Create Lobby (disimpan agar dropdown tetap terisi di luar lobby).</summary>
+public sealed record KnownMap(string Name, bool Locked);
+
+/// <summary>Pengaturan AutoFarm. Map kosong = pakai map yang sudah terpilih di lobby.</summary>
+public sealed record FarmSettings(
+    FarmMode Mode = FarmMode.Story,
     string Map = "",
     int Act = 1,
     Difficulty Difficulty = Difficulty.Easy,
+    AfterWin AfterWin = AfterWin.Auto,
     bool AutoCreateLobby = true,
+    /// <summary>Posisi lingkaran Create Room di lobby (direkam dari posisi karakter). null = belum direkam.</summary>
+    Vec3? LobbyCircle = null,
     bool AutoVoteStart = true,
-    bool AutoNext = true,
     bool RetryOnDefeat = true,
-    int MaxRetriesPerStage = 3);
+    int MaxRetriesPerStage = 3,
+    List<KnownMap>? KnownMaps = null);
+
+/// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
+public sealed record SkillBinding(string Name, string Key, bool Enabled, int CooldownMs);
 
 public sealed record CombatSettings(
     int AttackIntervalMs = 150,
-    bool UseSkills = true,
-    string SkillKeys = "1,2,3",
-    int SkillIntervalMs = 1200,
-    bool UseDash = false,
-    bool AutoSwitchPower = false);
+    List<SkillBinding>? Skills = null)
+{
+    public static List<SkillBinding> DefaultSkills() =>
+    [
+        new("Skill 1", "1", true, 4000),
+        new("Skill 2", "2", true, 6000),
+        new("Skill 3", "3", true, 8000),
+        new("Dash", "Q", false, 3000),
+        new("Ganti senjata", "T", false, 15000),
+    ];
+
+    public IReadOnlyList<SkillBinding> EffectiveSkills => Skills is { Count: > 0 } s ? s : DefaultSkills();
+}
+
+public sealed record NavigationSettings(
+    bool AutoNavigate = true,
+    double ArriveRadius = 6,
+    /// <summary>Saat jalan tapi posisi tidak berubah (tersangkut rubble/boulder) → serang + lompat.</summary>
+    bool AttackWhenStuck = true);
 
 public enum UpgradeMode
 {
@@ -66,8 +108,9 @@ public sealed class AppSettings
 {
     public GeneralSettings General { get; set; } = new();
     public CustomThemeSettings CustomTheme { get; set; } = new();
-    public StorySettings Story { get; set; } = new();
+    public FarmSettings Farm { get; set; } = new();
     public CombatSettings Combat { get; set; } = new();
+    public NavigationSettings Navigation { get; set; } = new();
     public UpgradeSettings Upgrade { get; set; } = new();
     public string? OffsetsPath { get; set; }
 
