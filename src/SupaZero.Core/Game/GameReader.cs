@@ -10,7 +10,7 @@ namespace SupaZero.Core.Game;
 /// Node GUI yang path persisnya belum diverifikasi dicari per nama (BFS terbatas) lalu di-cache; cache divalidasi
 /// ulang tiap baca (nama + parent masih cocok) karena GUI Roblox sering dibuat ulang.
 /// </summary>
-public sealed class GameReader(InstanceReader reader, PropertyReader props)
+public sealed partial class GameReader(InstanceReader reader, PropertyReader props)
 {
     private readonly Dictionary<string, long> _cache = new(StringComparer.Ordinal);
 

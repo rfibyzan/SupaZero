@@ -47,6 +47,21 @@
                      Text="Input hanya dikirim saat jendela Roblox di depan. Memori hanya dibaca." />
         </StackPanel>
       </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="Power terpasang" />
+          <Border Classes="sep" Margin="0,2,0,4" />
+          <StackPanel Spacing="1">
+            <Grid ColumnDefinitions="56,*"><TextBlock Classes="label" Text="Slot 1" /><TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding Power1Name}" TextTrimming="CharacterEllipsis" /></Grid>
+            <TextBlock Classes="muted" FontSize="11" Margin="56,0,0,0" Text="{Binding Power1Detail}" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Spacing="1" Margin="0,4,0,0">
+            <Grid ColumnDefinitions="56,*"><TextBlock Classes="label" Text="Slot 2" /><TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding Power2Name}" TextTrimming="CharacterEllipsis" /></Grid>
+            <TextBlock Classes="muted" FontSize="11" Margin="56,0,0,0" Text="{Binding Power2Detail}" TextWrapping="Wrap" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
     </StackPanel>
 
     <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="card" Margin="0,8,0,0">

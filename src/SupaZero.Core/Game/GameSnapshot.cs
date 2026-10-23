@@ -71,6 +71,9 @@ public sealed record GameSnapshot
     public IReadOnlyList<SkillSlot> Slots { get; init; } = [];
     public GuiRect? BuyButton { get; init; }
 
+    // Power di loadout (lobby; di stage memakai hasil lobby terakhir)
+    public IReadOnlyList<EquippedPower> Equipped { get; init; } = [];
+
     public bool InRound => Hud is not null || EnemyCount >= 0;
 
     public bool IsDefeat => ResultText?.Contains("DEFEAT", StringComparison.OrdinalIgnoreCase) == true;

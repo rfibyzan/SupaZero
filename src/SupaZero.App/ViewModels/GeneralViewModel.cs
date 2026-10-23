@@ -1,3 +1,4 @@
+using SupaZero.Core.Game;
 using SupaZero.Core.Input;
 
 namespace SupaZero.App.ViewModels;
@@ -64,8 +65,33 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
     public string RetriesText => root.Runner.Machine.Retries.ToString();
     public string HudRawText => root.Snapshot.HudRaw ?? "-";
 
+    // Kartu power terpasang
+    public string Power1Name => PowerName(1);
+    public string Power1Detail => PowerDetail(1);
+    public string Power2Name => PowerName(2);
+    public string Power2Detail => PowerDetail(2);
+
+    private EquippedPower? Power(int loadout) => root.Snapshot.Equipped.FirstOrDefault(p => p.Loadout == loadout);
+    private string PowerName(int loadout) => Power(loadout)?.Name ?? "-";
+
+    private string PowerDetail(int loadout)
+    {
+        if (Power(loadout) is not { } p) return root.Snapshot.Attached ? "Belum terbaca (masuk lobby dulu)" : "-";
+        var parts = new List<string>();
+        if (p.Level is { } lv) parts.Add($"Lv.{lv}");
+        if (p.Rarity is { Length: > 0 } r) parts.Add(r);
+        parts.Add(p.Trait is { } t
+            ? $"Trait {t.Name}{(t.Chance is { } c ? $" ({c})" : "")}{(t.Buffs.Count > 0 ? " · " + string.Join(" ", t.Buffs) : "")}"
+            : "Trait ? (buka menu Trait sekali)");
+        return string.Join(" · ", parts);
+    }
+
     public void Refresh()
     {
+        Raise(nameof(Power1Name));
+        Raise(nameof(Power1Detail));
+        Raise(nameof(Power2Name));
+        Raise(nameof(Power2Detail));
         Raise(nameof(ScreenText));
         Raise(nameof(PhaseText));
         Raise(nameof(AreaText));

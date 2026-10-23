@@ -107,6 +107,34 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public event Action? OffsetsChanged;
 
+    private PowerKnowledge? _powers;
+    /// <summary>Nama &amp; trait power yang dipelajari dari game, disinkronkan ke settings.</summary>
+    public PowerKnowledge Powers
+    {
+        get
+        {
+            if (_powers is not null) return _powers;
+            _powers = new PowerKnowledge();
+            foreach (var (k, v) in Settings.PowerNames) _powers.Names[k] = v;
+            foreach (var (k, v) in Settings.PowerTraits) _powers.Traits[k] = v;
+            return _powers;
+        }
+    }
+
+    private void SyncPowers()
+    {
+        var p = Powers;
+        if (!p.Dirty) return;
+        p.Dirty = false;
+        lock (_readGate)
+        {
+            Settings.PowerNames = new Dictionary<string, string>(p.Names);
+            Settings.PowerTraits = new Dictionary<string, PowerTrait>(p.Traits);
+        }
+        Save();
+        AddLog("Data power/trait diperbarui dari game.");
+    }
+
     public void LoadOffsets(string? explicitPath = null)
     {
         string? path = explicitPath ?? RobloxSession.FindOffsets(Settings.OffsetsPath);
@@ -128,6 +156,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             g.GuiInsetY = Settings.General.GuiInsetY;
             g.GuiScale = Settings.General.GuiScale;
             g.LobbyInsetY = Settings.General.LobbyInsetY;
+            g.Powers = Powers;
             g.AreasButtonPath = Settings.Farm.AreasButtonPath;
             g.StoryCardPath = Settings.Farm.StoryCardPath;
         }
@@ -149,6 +178,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ? $"{Session.Status} · {place} · {(snap.LocalPlayer.Length > 0 ? snap.LocalPlayer : "?")} · layar {snap.Screen}"
             : Session.Status;
         StatusText = Runner.IsRunning ? $"{Runner.Machine.Phase}: {Runner.Machine.Status}" : $"Layar: {snap.Screen}";
+        SyncPowers();
         General.Refresh();
         Farm.Refresh();
     }
