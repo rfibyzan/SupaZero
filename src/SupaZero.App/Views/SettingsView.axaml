@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             x:Class="SupaZero.App.Views.SettingsView"
+             x:DataType="vm:SettingsPageViewModel">
+  <!-- Appearance identik dengan SupaFisch (Transparent UI, Theme Black/White/Custom, Custom colours) + Macro + Offsets. -->
+  <UserControl.Styles>
+    <Style Selector="ToggleButton.themechip">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource OfBorder}" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="MinWidth" Value="110" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+    <Style Selector="ToggleButton.themechip:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource OfAccent}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfText}" />
+    </Style>
+    <Style Selector="ToggleButton.themechip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfText}" />
+    </Style>
+  </UserControl.Styles>
+
+  <StackPanel Spacing="8">
+    <TextBlock Classes="caps" Text="APPEARANCE" Margin="2,0,0,0" />
+    <Border Classes="card">
+      <Grid ColumnDefinitions="*,Auto" MinHeight="30">
+        <TextBlock Classes="label" Text="Transparent UI" />
+        <ToggleSwitch Grid.Column="1" IsChecked="{Binding TransparentUi}" />
+      </Grid>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h2" Text="Theme" />
+        <Border Classes="sep" />
+        <ItemsControl ItemsSource="{Binding Themes}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ThemeChoiceViewModel">
+              <ToggleButton Classes="themechip" Margin="0,0,8,8" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                            Command="{Binding SelectCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Border Width="12" Height="12" CornerRadius="3" Background="{Binding Swatch}" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+              </ToggleButton>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card" IsVisible="{Binding IsCustom}">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Custom colours" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Content="Reset" Command="{Binding ResetCustomCommand}" Padding="10,3" />
+        </Grid>
+        <Border Classes="sep" />
+        <ItemsControl ItemsSource="{Binding CustomColors}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CustomColorViewModel">
+              <Grid ColumnDefinitions="*,Auto,140" MinHeight="38" Margin="0,0,0,4">
+                <TextBlock Classes="muted" Text="{Binding Label}" VerticalAlignment="Center" />
+                <Border Grid.Column="1" Width="24" Height="24" CornerRadius="4" Margin="0,0,8,0"
+                        Background="{Binding Swatch}" BorderBrush="{DynamicResource OfBorder}" BorderThickness="1" />
+                <TextBox Grid.Column="2" Text="{Binding Text}" FontFamily="Consolas, Menlo, monospace" MaxLength="7"
+                         VerticalContentAlignment="Center" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  
+    <TextBlock Classes="caps" Text="MACRO" Margin="2,8,0,0" />
+    <Border Classes="card">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="GUI inset Y (topbar, px)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding GuiInsetY}" Minimum="0" Maximum="200" Increment="1" FormatString="0" />
+        </Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Tick macro (ms)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding TickMs}" Minimum="30" Maximum="2000" Increment="10" FormatString="0" />
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <TextBlock Classes="caps" Text="OFFSETS" Margin="2,8,0,0" />
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding Root.OffsetsInfo}" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Classes="accent" Content="Unduh terbaru" Command="{Binding DownloadOffsetsCommand}" />
+          <Button Content="Muat ulang" Command="{Binding ReloadOffsetsCommand}" />
+        </StackPanel>
+        <TextBlock Classes="muted" FontSize="11" Text="{Binding OffsetsStatus}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

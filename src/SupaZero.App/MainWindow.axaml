@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SupaZero.App.ViewModels"
+        x:Class="SupaZero.App.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="SupaZero" Width="980" Height="700" MinWidth="780" MinHeight="520"
+        Background="{DynamicResource OfBg}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="44">
+  <!-- Tata letak sama dengan SupaFisch: judul + badge, strip tab atas, strip koneksi, header halaman + Stopped/Running. -->
+  <Grid RowDefinitions="44,Auto,Auto,Auto,*">
+    <StackPanel Orientation="Horizontal" Spacing="10" Margin="14,0" VerticalAlignment="Center" IsHitTestVisible="False">
+      <Border Classes="badge" Width="26" Height="26">
+        <TextBlock Text="Z" FontWeight="Black" FontSize="15" Foreground="{DynamicResource OfOnAccent}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <TextBlock Text="SupaZero" FontWeight="SemiBold" VerticalAlignment="Center" />
+    </StackPanel>
+
+    <Border Grid.Row="1" BorderBrush="{DynamicResource OfBorder}" BorderThickness="0,0,0,1" Margin="14,4,14,0" Padding="0,0,0,8">
+      <ListBox Classes="tabs" ItemsSource="{Binding Tabs}" SelectedIndex="{Binding SelectedTabIndex}">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:TabViewModel"><TextBlock Text="{Binding Title}" /></DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <Border Grid.Row="2" Classes="strip" Margin="14,8,14,0">
+      <TextBlock Text="{Binding ConnectionText}" TextTrimming="CharacterEllipsis" />
+    </Border>
+
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="14,12,14,6" IsVisible="{Binding ShowHeader}">
+      <TextBlock Classes="h1" Text="{Binding HeaderTitle}" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <Ellipse Width="8" Height="8" Fill="{DynamicResource OfAccent}" VerticalAlignment="Center" />
+        <TextBlock Classes="muted" Text="{Binding RunStateText}" />
+      </StackPanel>
+    </Grid>
+
+    <ScrollViewer Grid.Row="4" Margin="14,4,14,14" HorizontalScrollBarVisibility="Disabled">
+      <ContentControl Content="{Binding SelectedTab.Content}" />
+    </ScrollViewer>
+  </Grid>
+</Window>

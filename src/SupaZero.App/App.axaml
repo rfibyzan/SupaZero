@@ -1,0 +1,217 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             xmlns:views="using:SupaZero.App.Views"
+             x:Class="SupaZero.App.App"
+             RequestedThemeVariant="Dark">
+  <!-- Default = tema Black (sama dengan SupaFisch); ThemeService (Settings → Appearance) mengganti semua kunci Of* saat runtime. -->
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <SolidColorBrush x:Key="OfBg" Color="#0A0A0A" />
+      <SolidColorBrush x:Key="OfCard" Color="#141414" />
+      <SolidColorBrush x:Key="OfCardInner" Color="#1A1A1A" />
+      <SolidColorBrush x:Key="OfBorder" Color="#262626" />
+      <SolidColorBrush x:Key="OfAccent" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="OfAccentDim" Color="#1F1F1F" />
+      <SolidColorBrush x:Key="OfAccentPressed" Color="#C4C4C4" />
+      <SolidColorBrush x:Key="OfButtonBg" Color="#363636" />
+      <SolidColorBrush x:Key="OfButtonHover" Color="#4A4A4A" />
+      <SolidColorBrush x:Key="OfButtonPressed" Color="#262626" />
+      <SolidColorBrush x:Key="OfButtonDisabled" Color="#1F1F1F" />
+      <SolidColorBrush x:Key="OfOnButton" Color="#EDEDED" />
+      <SolidColorBrush x:Key="OfText" Color="#EDEDED" />
+      <SolidColorBrush x:Key="OfMuted" Color="#8C8C8C" />
+      <SolidColorBrush x:Key="OfStrip" Color="#151515" />
+      <SolidColorBrush x:Key="OfWarn" Color="#FFB547" />
+      <SolidColorBrush x:Key="OfError" Color="#FF6B6B" />
+      <!-- Turunan palet (ThemeService menimpa semua kunci Of* saat tema diterapkan). -->
+      <SolidColorBrush x:Key="OfAccentHover" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="OfOnAccent" Color="#0A0A0A" />
+      <SolidColorBrush x:Key="OfHover" Color="#1C1C1C" />
+      <SolidColorBrush x:Key="OfInset" Color="#0F0F0F" />
+      <SolidColorBrush x:Key="OfOverlayBg" Color="#CC0A0A0A" />
+
+      <!-- Override brush Fluent (ThemeService menimpa saat runtime). -->
+      <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#C4C4C4" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#0A0A0A" />
+      <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="SliderThumbBackground" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="SliderTrackValueFill" Color="#E5E5E5" />
+      <SolidColorBrush x:Key="ProgressBarForeground" Color="#E5E5E5" />
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:GeneralViewModel"><views:GeneralView /></DataTemplate>
+    <DataTemplate DataType="vm:StoryViewModel"><views:StoryView /></DataTemplate>
+    <DataTemplate DataType="vm:UpgradeViewModel"><views:UpgradeView /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsPageViewModel"><views:SettingsView /></DataTemplate>
+  </Application.DataTemplates>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#E5E5E5" RegionColor="#0A0A0A" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+
+    <Style Selector="Window, UserControl">
+      <Setter Property="Foreground" Value="{DynamicResource OfText}" />
+    </Style>
+    <Style Selector="TextBlock">
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <!-- Kartu -->
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource OfCard}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource OfBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style Selector="Border.row">
+      <Setter Property="Background" Value="{DynamicResource OfCardInner}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource OfBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="Border.strip">
+      <Setter Property="Background" Value="{DynamicResource OfStrip}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="Border.badge">
+      <Setter Property="Background" Value="{DynamicResource OfAccent}" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Border.sep">
+      <Setter Property="Height" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource OfBorder}" />
+    </Style>
+
+    <!-- Teks -->
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource OfMuted}" />
+    </Style>
+    <Style Selector="TextBlock.caps">
+      <Setter Property="Foreground" Value="{DynamicResource OfMuted}" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.accent">
+      <Setter Property="Foreground" Value="{DynamicResource OfAccent}" />
+    </Style>
+    <Style Selector="TextBlock.warn">
+      <Setter Property="Foreground" Value="{DynamicResource OfWarn}" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource OfError}" />
+    </Style>
+
+    <!-- Tombol -->
+    <Style Selector="Button">
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.accent">
+      <Setter Property="Background" Value="{DynamicResource OfButtonBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="16,8" />
+    </Style>
+    <!-- Semua state di-set eksplisit: template Fluent menimpa Foreground ContentPresenter saat pressed/disabled
+         (teks putih di atas aksen terang → tidak terbaca). -->
+    <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonPressed}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+    </Style>
+    <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonDisabled}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfMuted}" />
+    </Style>
+    <Style Selector="ToggleButton.segment:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonHover}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+    </Style>
+    <Style Selector="ToggleButton.segment:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonPressed}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+    </Style>
+    <Style Selector="Button.back">
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.segment">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="ToggleButton.segment:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfButtonBg}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfOnButton}" />
+    </Style>
+
+    <!-- Toggle tanpa teks On/Off -->
+    <Style Selector="ToggleSwitch">
+      <Setter Property="OnContent" Value="" />
+      <Setter Property="OffContent" Value="" />
+      <Setter Property="MinWidth" Value="0" />
+    </Style>
+
+    <!-- Strip tab atas -->
+    <Style Selector="ListBox.tabs">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.tabs ListBoxItem">
+      <Setter Property="Padding" Value="16,9" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Foreground" Value="{DynamicResource OfMuted}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="ListBox.tabs ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfHover}" />
+    </Style>
+    <Style Selector="ListBox.tabs ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfAccentDim}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfAccent}" />
+    </Style>
+    <Style Selector="ListBox.tabs ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource OfAccentDim}" />
+      <Setter Property="Foreground" Value="{DynamicResource OfAccent}" />
+    </Style>
+  </Application.Styles>
+</Application>

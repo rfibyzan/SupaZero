@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             x:Class="SupaZero.App.Views.GeneralView"
+             x:DataType="vm:GeneralViewModel">
+  <!-- Sama dengan General SupaFisch: kiri hotkey + status ronde, kanan kontrol macro, bawah Log. -->
+  <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto">
+    <StackPanel Spacing="8" Margin="0,0,8,0">
+      <Border Classes="card" Padding="0">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Border Background="{DynamicResource OfAccentDim}" CornerRadius="8,0,0,8" MinWidth="72" Padding="12,14"
+                  BorderBrush="{DynamicResource OfBorder}" BorderThickness="0,0,1,0">
+            <TextBlock Text="{Binding HotkeyText}" Classes="accent" FontSize="18" FontWeight="Bold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Grid.Column="1" Text="Macro hotkey" Classes="h2" VerticalAlignment="Center" Margin="14,0" />
+          <Button Grid.Column="2" Content="{Binding RebindText}" Command="{Binding RebindCommand}"
+                  MinWidth="104" HorizontalContentAlignment="Center" Margin="12" />
+        </Grid>
+      </Border>
+      <TextBlock Classes="muted" FontSize="11" Text="{Binding HotkeyStatus}" Margin="4,-4,0,0" TextWrapping="Wrap" />
+
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="Status ronde" />
+          <Border Classes="sep" Margin="0,2,0,4" />
+          <Grid ColumnDefinitions="*,190" MinHeight="28"><TextBlock Classes="label" Text="Layar" /><TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding ScreenText}" /></Grid>
+          <Grid ColumnDefinitions="*,190" MinHeight="28"><TextBlock Classes="label" Text="Area" /><TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding AreaText}" /></Grid>
+          <Grid ColumnDefinitions="*,190" MinHeight="28"><TextBlock Classes="label" Text="Musuh tersisa" /><TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding EnemiesText}" /></Grid>
+          <Grid ColumnDefinitions="*,190" MinHeight="28"><TextBlock Classes="label" Text="Stage selesai" /><TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding StagesText}" /></Grid>
+          <Grid ColumnDefinitions="*,190" MinHeight="28"><TextBlock Classes="label" Text="Retry stage ini" /><TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding RetriesText}" /></Grid>
+          <Grid ColumnDefinitions="*,190" MinHeight="28"><TextBlock Classes="label" Text="EnemyCount.Text" /><TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="muted" Text="{Binding HudRawText}" TextTrimming="CharacterEllipsis" /></Grid>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Macro" />
+          <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                  Content="Start / Stop" Command="{Binding ToggleCommand}" />
+          <Border Classes="sep" />
+          <TextBlock Classes="accent" FontWeight="SemiBold" Text="{Binding HotkeyHint}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding PhaseText}" TextWrapping="Wrap" Classes="muted" />
+          <TextBlock Classes="caps" TextWrapping="Wrap"
+                     Text="Input hanya dikirim saat jendela Roblox di depan. Memori hanya dibaca." />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="card" Margin="0,8,0,0">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Log" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Content="Clear" Command="{Binding ClearLogCommand}" Padding="10,3" />
+        </Grid>
+        <ListBox ItemsSource="{Binding Root.LogLines}" Height="190" Background="{DynamicResource OfInset}" FontSize="11">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Padding" Value="10,3" />
+              <Setter Property="MinHeight" Value="0" />
+            </Style>
+          </ListBox.Styles>
+        </ListBox>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

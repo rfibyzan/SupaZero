@@ -1,0 +1,9 @@
+bin/
+obj/
+*.user
+.vs/
+publish/
+
+# Font Roblox (Builder) tidak boleh masuk repo (lisensi khusus UGC Roblox)
+*.otf
+*.ttf
