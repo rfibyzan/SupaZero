@@ -190,6 +190,21 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Lobby_NearRoomFailed_RetriesNearInsteadOfTeleport()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), AreasButton = new GuiRect(40, 540, 80, 80),
+            StartRooms = [new StartRoom("2", new Vec3(0, 0, 0), false), new StartRoom("9", new Vec3(500, 0, 0), false)],
+        };
+        long t = 0;
+        for (; t <= 40_000; t += 500) m.Step(snap, t); // sampai → gagal join → room 2 di-ban
+        var a = Real(m.Step(snap, t));
+        Assert.DoesNotContain(a, x => x is ClickAction);
+    }
+
+    [Fact]
     public void Lobby_NearDetectedCircle_Walks()
     {
         var (m, _) = New();

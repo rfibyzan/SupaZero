@@ -166,9 +166,23 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             for (int i = 0; i < s.StartCircles.Count; i++) cands.Add(("circle:" + i, s.StartCircles[i]));
         if (f.LobbyCircle is { } manual) cands.Add(("manual", manual));
 
+        // Baru teleport (≤ 30 dtk): spawn bisa agak jauh dari lingkaran → tetap jalan (sampai 90 stud), jangan teleport ulang.
+        bool justTeleported = _teleportAt is long ta && now - ta < 30_000;
+        double maxWalk = justTeleported ? 90 : TeleportIfFartherThan;
+
         // Room yang gagal join (sudah sampai tapi menu tidak terbuka) di-skip 30 dtk.
         foreach (var k in _roomBan.Where(kv => kv.Value <= now).Select(kv => kv.Key).ToList()) _roomBan.Remove(k);
         var usable = cands.Where(c => !_roomBan.ContainsKey(c.Id)).ToList();
+        // Lingkaran dekat semuanya pernah gagal → coba lagi yang dekat, jangan teleport ke area lain (penyebab loop Areas → Teleport).
+        if (s.PlayerPos is { } pp)
+        {
+            var near = cands.Where(c => Navigator.Distance2D(pp.X, pp.Z, c.Pos.X, c.Pos.Z) <= maxWalk).ToList();
+            if (near.Count > 0 && !usable.Any(c => near.Contains(c)))
+            {
+                foreach (var c in near) _roomBan.Remove(c.Id);
+                usable = near;
+            }
+        }
         if (usable.Count == 0 && cands.Count > 0)
         {
             _roomBan.Clear(); // semua sudah dicoba → ulang dari awal
@@ -201,9 +215,6 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _arrivedAt = null;
         }
 
-        // Baru teleport (≤ 30 dtk): spawn bisa agak jauh dari lingkaran → tetap jalan (sampai 200 stud), jangan teleport ulang.
-        bool justTeleported = _teleportAt is long ta && now - ta < 30_000;
-        double maxWalk = justTeleported ? 200 : TeleportIfFartherThan;
         if (target is { } t && dist <= maxWalk)
         {
             _roomTarget = t.Id;
@@ -212,13 +223,19 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
             _arrivedAt ??= now;
             long waited = now - _arrivedAt.Value;
+            // Sudah di tepi lingkaran tapi menu belum muncul → masuk ke tengah hitbox.
+            if (waited >= 2000 && dist > 2)
+            {
+                var center = WalkTo(s, t.Pos, 1.5, now, "tengah lingkaran", attackWhenStuck: false);
+                if (center.Count > 0) return [.. pre, .. center];
+            }
             if (waited >= Math.Max(1, f.JoinTimeoutSec) * 1000L)
             {
                 _roomBan[t.Id] = now + 30_000;
                 _roomTarget = null;
                 _arrivedAt = null;
                 Status = "Gagal join, pindah lingkaran.";
-                return [new MoveAction([], "Pindah lingkaran"), new NoteAction($"Tidak bisa join {Label(t.Id)} ({waited / 1000} dtk) → coba lingkaran lain.")];
+                return [new MoveAction([], "Pindah lingkaran"), new NoteAction($"Tidak bisa join {Label(t.Id)} ({waited / 1000} dtk, jarak {dist:0.#} stud) → coba lingkaran lain.")];
             }
             Status = $"Di {Label(t.Id)}, menunggu menu Create Room ({waited / 1000}/{f.JoinTimeoutSec} dtk).";
             return [new MoveAction([], "Sampai")];
@@ -235,6 +252,13 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         {
             Status = "Semua room terisi pemain lain, menunggu yang kosong.";
             return [.. pre, new MoveAction([], "Tunggu room kosong"), .. Note("rooms-full", now, 10000, "Semua room terisi pemain lain, menunggu yang kosong.")];
+        }
+
+        // Baru saja teleport: tunggu karakter/lingkaran terbaca, jangan teleport ulang (maks 1x / 12 dtk).
+        if (_teleportAt is long tq && now - tq < 12_000)
+        {
+            Status = "Menunggu setelah teleport…";
+            return [.. pre, new MoveAction([], "Tunggu teleport")];
         }
 
         // Teleport lewat Areas → kartu sesuai mode (Story bila tidak ada kartu bernama mode itu).
