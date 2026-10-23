@@ -42,7 +42,7 @@ public class FarmMachineTests
         var (m, _) = New();
         var snap = new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left") };
         var a1 = m.Step(snap, 10_000);
-        Assert.Contains(a1, x => x is AttackAction);
+        Assert.DoesNotContain(a1, x => x is AttackAction); // tick dengan skill → basic attack dilewati
         var k1 = Assert.Single(a1.OfType<KeyAction>());
         var a2 = m.Step(snap, 11_300);
         var k2 = Assert.Single(a2.OfType<KeyAction>());
@@ -111,13 +111,15 @@ public class FarmMachineTests
 
         var near = far with { PlayerPos = new(75, 3, -336) };
         var b = m.Step(near, 11_000);
-        Assert.Contains(b, x => x is AttackAction);
+        Assert.DoesNotContain(b, x => x is AttackAction); // skill ditekan → basic attack dilewati tick ini
         Assert.Contains(b.OfType<KeyAction>(), k => k.Reason.Contains("(1)"));
         Assert.Contains(b.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
 
         var cooling = near with { SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", null, true)] };
         var c = m.Step(cooling, 13_000);
         Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
+        Assert.DoesNotContain(c, x => x is AttackAction);
+        Assert.Contains(m.Step(cooling, 13_600), x => x is AttackAction); // setelah T, basic attack lanjut
         // Skill habis + dekat musuh → roaming melingkar (bergerak) sambil lompat, tidak diam.
         Assert.Contains(c.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
         Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("Lompat"));

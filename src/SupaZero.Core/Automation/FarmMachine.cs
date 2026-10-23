@@ -471,11 +471,6 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return actions;
         }
 
-        if (now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
-        {
-            _lastAttack = now;
-            actions.Add(new AttackAction("Serangan dasar"));
-        }
         // Skill 1/2/3: satu per tick, yang paling lama tidak dipakai dan siap. Bila HUD terbaca, cooldown/kunci dari HUD
         // (jeda minimal 400 ms agar HUD sempat berubah); bila tidak, pakai CooldownMs dari pengaturan.
         var hudCd = s.SkillCooldowns.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
@@ -486,17 +481,28 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         var due = main.Where(SkillReady)
             .OrderBy(k => _skillLast.TryGetValue(k.Name, out long t) ? t : long.MinValue)
             .FirstOrDefault();
+        // Basic attack (klik terus-menerus) bisa menelan tombol skill/T di game, jadi saat skill atau T ditekan,
+        // basic attack dilewati di tick itu dan ditahan sebentar sesudahnya.
         if (due is not null && HotkeyMap.TryGetVirtualKey(due.Key, out uint vk))
         {
             _skillLast[due.Name] = now;
-            actions.Add(new KeyAction((ushort)vk, 40, $"{due.Name} ({due.Key})"));
+            _attackHoldUntil = now + 250;
+            actions.Add(new KeyAction((ushort)vk, 60, $"{due.Name} ({due.Key})"));
+        }
+        // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci.
+        else if (swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
+                 && Ready("swap", now, 3000) && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk))
+        {
+            _attackHoldUntil = now + 500;
+            actions.Add(new KeyAction((ushort)svk, 120, $"{swap.Name} ({swap.Key}): semua skill cooldown"));
+        }
+        else if (now >= _attackHoldUntil && now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
+        {
+            _lastAttack = now;
+            actions.Add(new AttackAction("Serangan dasar"));
         }
         // Sudah dekat: tetap bergerak melingkari musuh + lompat (baik saat pakai skill maupun basic attack saja).
         Roam(s, S, tgt, now, actions);
-        // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci.
-        if (due is null && swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
-                 && Ready("swap", now, 3000) && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk))
-            actions.Add(new KeyAction((ushort)svk, 40, $"{swap.Name} ({swap.Key}): semua skill cooldown"));
         return actions;
     }
 
@@ -528,6 +534,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             actions.Add(new KeyAction(VirtualKeys.Space, 80, "Lompat (roaming)"));
         }
     }
+    private long _attackHoldUntil;
     private long? _roamSince;
     private long _roamLast, _nextRoamJump, _roamFlipAt;
     private int _roamDir = 1;
