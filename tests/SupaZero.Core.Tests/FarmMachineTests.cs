@@ -260,6 +260,23 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Lobby_DifficultyTag_ClicksUntilMatch_ThenStart()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Act = 1, Difficulty = Difficulty.Hard });
+        var hard = new GuiRect(1209, 527, 103, 123);
+        var snap = new GameSnapshot
+        {
+            Attached = true, LobbyMenuOpen = true, LobbyActTag = "[Act 1]", LobbyDifficultyTag = "EASY", LobbyStart = Btn,
+            LobbyDifficulties = [new LobbyEntry("Hard", false, false, hard)],
+        };
+        var c = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(snap, 0))));
+        Assert.Equal(hard.CenterX, c.X);
+        var ok = snap with { LobbyDifficultyTag = "HARD" };
+        var start = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(ok, 1000))));
+        Assert.StartsWith("Start", start.Reason);
+    }
+
+    [Fact]
     public void Lobby_NeverClicksOutsideWindow()
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Map = "Tidal High Rise" });

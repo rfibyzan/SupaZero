@@ -19,6 +19,17 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// <summary>Inset Y untuk GUI hub lobby (LobbyHUD / Finished UI). Terverifikasi 0: ScreenGui ini mengabaikan topbar.</summary>
     public double LobbyInsetY { get; set; } = 0;
 
+    /// <summary>Rect menu Create Room: ScreenGui tanpa inset topbar (terverifikasi snapshot, MainFrame AbsolutePosition 0,58).</summary>
+    private GuiRect? MenuRect(long node) => HubRect(node);
+
+    private string? CleanText(long node)
+    {
+        string? t = node != 0 ? Text(node) : null;
+        if (t is null) return null;
+        t = System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim();
+        return t.Length == 0 ? null : t;
+    }
+
     private GuiRect? HubRect(long node) =>
         Rect(node) is { } r ? r with { Y = r.Y + (LobbyInsetY - GuiInsetY) * GuiScale } : null;
 
@@ -70,7 +81,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             NextAreaPos = hud is { AreaTotal: > 0 } && hud.Area < hud.AreaTotal ? ReadAreaPos(ws, hud.Area + 1) : null,
             LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],
             LobbyMaps = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyMapsList), pg) : [],
-            LobbyActs = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyActsList), pg) : [],
+            LobbyActs = lobbyShown ? ReadActs(lobby, pg) : [],
             PlaceId = placeId,
             LocalPlayer = roots.LocalPlayer != 0 ? reader.GetName(roots.LocalPlayer) : string.Empty,
             HudRaw = hudRaw,
@@ -85,9 +96,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             LeaveButton = endShown ? Rect(Find(end, AnimeZeroPaths.LeaveButton)) : null,
             BossBarVisible = boss != 0 && IsShown(boss, pg),
             LobbyMenuOpen = lobbyShown,
-            LobbyMapTag = lobbyShown ? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
-            LobbyActTag = lobbyShown ? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
-            LobbyStart = lobbyShown ? Rect(Find(lobby, AnimeZeroPaths.LobbyStartButton)) : null,
+            LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
+            LobbyActTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActTagPath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
+            LobbyDifficultyTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyDifficultyTagPath))?.Trim('[', ']', ' ') : null,
+            LobbyStart = lobbyShown ? MenuRect(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyStartPath)) ?? MenuRect(Find(lobby, AnimeZeroPaths.LobbyStartButton)) : null,
             LobbyMapsView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyMapsList)) : null,
             LobbyActsView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyActsList)) : null,
             LobbyModesView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyModesList)) : null,
@@ -474,7 +486,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 string cardName = System.Text.RegularExpressions.Regex.Replace(cardTitle, "<[^>]+>", "").Trim();
                 string? cardMode = Text(reader.ResolvePath(inner, "Holder.Lvl.Value"))?.Trim();
                 bool cardLocked = HasShownDescendant(c, pg, "lock", 0);
-                result.Add(new LobbyEntry(cardName, cardLocked, HasShownDescendant(c, pg, "select", 0), Rect(c), string.IsNullOrEmpty(cardMode) ? null : cardMode));
+                result.Add(new LobbyEntry(cardName, cardLocked, HasShownDescendant(c, pg, "select", 0), MenuRect(inner) ?? MenuRect(c), string.IsNullOrEmpty(cardMode) ? null : cardMode));
                 continue;
             }
             if (reader.GetName(c).Contains("Spacer", StringComparison.OrdinalIgnoreCase)) continue;
@@ -490,7 +502,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             if (string.IsNullOrWhiteSpace(name)) continue;
             bool locked = name.Contains("lock", StringComparison.OrdinalIgnoreCase) || HasShownDescendant(c, pg, "lock", 0);
             bool selected = HasShownDescendant(c, pg, "select", 0);
-            result.Add(new LobbyEntry(name.Trim(), locked, selected, Rect(c), mode));
+            result.Add(new LobbyEntry(name.Trim(), locked, selected, MenuRect(c), mode));
         }
         return result;
     }
@@ -500,36 +512,51 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     {
         if (list == 0) return null;
         long box = EntryContainer(list);
-        return Rect(box) ?? Rect(list);
+        return MenuRect(box) ?? MenuRect(list);
     }
 
-    /// <summary>
-    /// Tombol difficulty: GuiObject terlihat bertuliskan Easy/Medium/Hard/Nightmare di dalam menu Create Room
-    /// (path belum diriset; posisi ref 1920x1080 jadi cadangan di FarmMachine).
-    /// </summary>
+    /// <summary>Tombol difficulty terverifikasi: Container.&lt;D&gt;.&lt;D&gt;.Hit (TextButton seukuran kartu).</summary>
     private List<LobbyEntry> ReadDifficulties(long lobby, long pg)
     {
         var found = new List<LobbyEntry>();
-        string[] names = Enum.GetNames<Settings.Difficulty>();
-        var queue = new Queue<(long Node, int Depth)>();
-        queue.Enqueue((lobby, 0));
-        int visited = 0;
-        while (queue.Count > 0 && visited < 4000)
+        long box = reader.ResolvePath(lobby, AnimeZeroPaths.LobbyDifficultyContainer);
+        if (box == 0) return found;
+        string? sel = CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyDifficultyTagPath))?.Trim('[', ']', ' ');
+        foreach (string d in Enum.GetNames<Settings.Difficulty>())
         {
-            var (n, d) = queue.Dequeue();
-            visited++;
-            string cls = reader.GetClassName(n);
-            if (n != lobby && PropertyReader.IsTextClass(cls) && Text(n) is { } t)
-            {
-                string clean = System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim();
-                string? hit = names.FirstOrDefault(x => x.Equals(clean, StringComparison.OrdinalIgnoreCase));
-                if (hit is not null && found.All(f => f.Name != hit) && IsShown(n, pg) && Rect(n) is { } r)
-                    found.Add(new LobbyEntry(hit, false, false, r));
-            }
-            if (d >= 10) continue;
-            foreach (long c in reader.GetChildren(n, 64)) queue.Enqueue((c, d + 1));
+            long outer = reader.FindChild(box, d);
+            long card = outer != 0 ? reader.FindChild(outer, d) : 0;
+            long hit = card != 0 ? reader.FindChild(card, "Hit") : 0;
+            var r = MenuRect(hit) ?? MenuRect(card) ?? MenuRect(outer);
+            if (r is null || !IsShown(outer, pg)) continue;
+            found.Add(new LobbyEntry(d, false, sel is not null && sel.Equals(d, StringComparison.OrdinalIgnoreCase), r));
         }
         return found;
+    }
+
+    /// <summary>
+    /// Kartu act terverifikasi: ActsList.List.ScrollingFrame.Act&lt;n&gt; (Frame; ada banyak "Act1" untuk tiap map, yang
+    /// Visible milik map terpilih) → .Act&lt;n&gt; ImageButton → .TxtHolder.Act ("Act 1") / .TxtHolder.Title, .Locked.
+    /// </summary>
+    private List<LobbyEntry> ReadActs(long lobby, long pg)
+    {
+        long scroll = reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActsScroll);
+        if (scroll == 0) return ReadList(Find(lobby, AnimeZeroPaths.LobbyActsList), pg);
+        var result = new List<LobbyEntry>();
+        foreach (long c in reader.GetChildren(scroll, 128))
+        {
+            string n = reader.GetName(c);
+            if (!n.StartsWith("Act", StringComparison.Ordinal) || !IsShown(c, pg)) continue;
+            long btn = reader.FindChild(c, n);
+            if (btn == 0) continue;
+            string act = CleanText(reader.ResolvePath(btn, "TxtHolder.Act")) ?? n.Replace("Act", "Act ");
+            string? title = CleanText(reader.ResolvePath(btn, "TxtHolder.Title"));
+            long lockF = reader.FindChild(btn, "Locked");
+            bool locked = lockF != 0 && IsShown(lockF, pg);
+            if (MenuRect(btn) is not { } r) continue;
+            result.Add(new LobbyEntry(title is null ? act : $"{act} {title}", locked, false, r));
+        }
+        return result;
     }
 
     /// <summary>

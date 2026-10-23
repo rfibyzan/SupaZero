@@ -51,6 +51,8 @@ public sealed record GameSnapshot
     public IReadOnlyList<LobbyEntry> LobbyActs { get; init; } = [];
     public string? LobbyMapTag { get; init; }
     public string? LobbyActTag { get; init; }
+    /// <summary>Difficulty terpilih dari MapLine.Tag ("[HARD]" → "Hard"), null bila tidak terbaca.</summary>
+    public string? LobbyDifficultyTag { get; init; }
     public GuiRect? LobbyStart { get; init; }
     /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
     public GuiRect? LobbyMapsView { get; init; }

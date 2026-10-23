@@ -277,15 +277,19 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         string wantAct = "Act " + want;
         // 4) Difficulty (klik dulu, tunggu terdaftar) → Start
         Status = $"Create Room: {f.Mode} {(f.Map.Length > 0 ? f.Map : s.LobbyMapTag)} {wantAct} {f.Difficulty} → Start.";
-        if (_diffAt is null || now - _diffAt.Value >= 8000)
+        bool diffKnown = !string.IsNullOrEmpty(s.LobbyDifficultyTag);
+        bool diffOk = diffKnown && s.LobbyDifficultyTag!.Equals(f.Difficulty.ToString(), StringComparison.OrdinalIgnoreCase);
+        if (diffKnown ? !diffOk : (_diffAt is null || now - _diffAt.Value >= 8000))
         {
             var (dx, dy) = DifficultyPoint(s, f.Difficulty);
             if (!InWindow(s, dx, dy))
                 return Note("lobby-diff", now, 5000, $"Tombol difficulty {f.Difficulty} di luar jendela Roblox ({dx:0},{dy:0}) → tidak diklik.");
+            if (diffKnown && !Ready("lobby-diff", now, 1500)) return [];
             _diffAt = now;
+            Status = $"Difficulty terpilih '{s.LobbyDifficultyTag ?? "?"}', target {f.Difficulty}.";
             return [new ClickAction(dx, dy, $"Difficulty {f.Difficulty}")];
         }
-        if (now - _diffAt.Value < 700) return [];
+        if (_diffAt is { } da && now - da < 700) return [];
         var (sx, sy) = s.LobbyStart is { } st ? (st.CenterX, st.CenterY) : Scaled(s, AnimeZeroPaths.StartRefX, AnimeZeroPaths.StartRefY);
         if (!InWindow(s, sx, sy))
             return Note("lobby-start", now, 5000, $"Tombol Start di luar jendela Roblox ({sx:0},{sy:0}) → tidak diklik.");

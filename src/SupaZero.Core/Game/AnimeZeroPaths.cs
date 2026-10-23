@@ -58,6 +58,14 @@ public static class AnimeZeroPaths
     public const string LobbyMapLine = "MapLine";       // .Tag = map terpilih
     public const string LobbyActLine = "ActLine";       // .Tag = act terpilih
     public const string LobbyStartButton = "StaerButton"; // (sic) ~(1364,934)
+    // Terverifikasi snapshot RIE Byzan (23 Okt 2026, root "UI Animation (Finished)".Quque.MainFrame, AbsolutePosition 0,58):
+    // ScreenGui ini TIDAK perlu inset topbar (AbsolutePosition sudah koordinat klien) → rect menu memakai inset lobby (0).
+    public const string LobbyStartPath = "Content.RightHolder.Buttons.StaerButton.StaerButton";       // ImageButton
+    public const string LobbyDifficultyContainer = "Content.RightHolder.RHS.Difficulty.Difficulty.Container"; // .<Easy|Medium|Hard|Nightmare>.<sama>.Hit
+    public const string LobbyMapTitlePath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.MapLine.Title"; // "Hxh" / "ZZZ World"
+    public const string LobbyDifficultyTagPath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.MapLine.Tag"; // "[EASY]" / "[HARD]"
+    public const string LobbyActTagPath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.ActLine.Tag";   // "[Act 2]"
+    public const string LobbyActsScroll = "Content.ActsList.List.ScrollingFrame"; // Act<n> (Frame, nama ganda per map; yang Visible = map terpilih) .Act<n> ImageButton .TxtHolder.Act "Act 1", .Locked
     public const string LobbyLeaveButton = "Leave";       // ~(1639,934)
     /// <summary>Resolusi acuan koordinat cadangan (Difficulty/Start) di atas; diskalakan ke ukuran klien jendela.</summary>
     public const double RefW = 1920, RefH = 1080;
