@@ -413,9 +413,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         // Tracking: musuh hidup terdekat → jalan mendekat sampai jarak serang, kursor diarahkan ke musuh.
         // Selama mendekat hanya Dash (Q) yang dipakai; serangan dasar + skill 1/2/3 baru setelah dalam jarak serang.
         bool approaching = false;
+        EnemyInfo? tgt = null;
         if (s.PlayerPos is { } me && s.Enemies.Where(e => e.Alive)
                 .OrderBy(e => Navigator.Distance2D(me.X, me.Z, e.Pos.X, e.Pos.Z)).FirstOrDefault() is { } target)
         {
+            tgt = target;
             double d = Navigator.Distance2D(me.X, me.Z, target.Pos.X, target.Pos.Z);
             Status += $" · target #{target.Name} {d:0} stud";
             if (S.Navigation.ChaseEnemies)
@@ -469,12 +471,41 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _skillLast[due.Name] = now;
             actions.Add(new KeyAction((ushort)vk, 40, $"{due.Name} ({due.Key})"));
         }
+        else
+            Roam(s, S, tgt, now, actions);
         // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci.
-        else if (swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
+        if (due is null && swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
                  && Ready("swap", now, 3000) && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk))
             actions.Add(new KeyAction((ushort)svk, 40, $"{swap.Name} ({swap.Key}): semua skill cooldown"));
         return actions;
     }
+
+    /// <summary>
+    /// Skill habis, tinggal basic attack: jalan melingkari musuh (radius ~0,7× jarak serang, ±80°/dtk)
+    /// sambil lompat tiap 0,9–1,6 dtk, bukan diam di tempat.
+    /// </summary>
+    private void Roam(GameSnapshot s, AppSettings S, EnemyInfo? target, long now, List<MacroAction> actions)
+    {
+        if (!S.Navigation.RoamWhenSkillsCooling || !S.Navigation.ChaseEnemies || target is null
+            || s.PlayerPos is not { } p || s.CameraLook is not { } look) return;
+        double r = Math.Max(2.5, S.Navigation.AttackRange * 0.7);
+        if (_roamSince is not long t0 || now - _roamLast > 1500) { t0 = now; _roamSince = now; _roamAngle = Math.Atan2(p.Z - target.Pos.Z, p.X - target.Pos.X); }
+        _roamLast = now;
+        double a = _roamAngle + Math.PI / 4 + (now - t0) / 1000.0 * (80 * Math.PI / 180); // target 45° di depan agar langsung bergerak
+        double gx = target.Pos.X + r * Math.Cos(a), gz = target.Pos.Z + r * Math.Sin(a);
+        var keys = Navigator.KeysToward(p.X, p.Z, look.X, look.Z, gx, gz, 0.8);
+        actions.RemoveAll(x => x is MoveAction);
+        actions.Insert(0, new MoveAction(keys, "Roaming melingkari musuh"));
+        if (now >= _nextRoamJump)
+        {
+            _nextRoamJump = now + 900 + _rng.Next(700);
+            actions.Add(new KeyAction(VirtualKeys.Space, 80, "Lompat (roaming)"));
+        }
+    }
+    private long? _roamSince;
+    private long _roamLast, _nextRoamJump;
+    private double _roamAngle;
+    private readonly Random _rng = new();
 
     /// <summary>Jalan ke tujuan dengan W/A/S/D; tersangkut ≥1,5 dtk → lompat (+ serang bila diizinkan, untuk rubble).</summary>
     private List<MacroAction> WalkTo(GameSnapshot s, Vec3 target, double radius, long now, string label, bool attackWhenStuck)
