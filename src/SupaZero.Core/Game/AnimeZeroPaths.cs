@@ -45,6 +45,9 @@ public static class AnimeZeroPaths
     public const string Systems = "Systems";
     public const string QueueRooms = "QuqueRooms"; // typo asli game
     public const string JoinHitbox = "JoinHitbox";
+    public const string RoomGui = "RoomGui";
+    /// <summary>RoomGui saat room sudah dibuat pemain lain: "Join Here" + "Players 3/4" + hitung mundur.</summary>
+    public const string RoomOccupiedText = "Join Here";
 
     public const string LobbyModesList = "ModesList";   // [V]
     public const string LobbyMapsList = "MapsList";

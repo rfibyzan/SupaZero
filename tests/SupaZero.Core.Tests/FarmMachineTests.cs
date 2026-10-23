@@ -92,6 +92,32 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Lobby_SkipsOccupiedRoom()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1),
+            StartRooms = [new StartRoom("1", new Vec3(10, 0, 0), Occupied: true, 3, 4), new StartRoom("2", new Vec3(-30, 0, 0), false)],
+        };
+        var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
+        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 terisi → ke room 2 (-X = kiri)
+    }
+
+    [Fact]
+    public void Lobby_JoinTimeout_TriesNextRoom()
+    {
+        var (m, _) = New();
+        var rooms = new[] { new StartRoom("1", new Vec3(1, 0, 0), false), new StartRoom("2", new Vec3(-30, 0, 0), false) };
+        var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartRooms = rooms };
+        Assert.Empty(Real(m.Step(snap, 0)));      // sudah di room 1, menunggu menu
+        Assert.Empty(Real(m.Step(snap, 3000)));
+        Assert.Contains(Real(m.Step(snap, 5500)), a => a is NoteAction n && n.Reason.Contains("room 1"));
+        var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 6000))));
+        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 di-ban → ke room 2
+    }
+
+    [Fact]
     public void Lobby_LockedMap_Stops()
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Map = "HxH" });

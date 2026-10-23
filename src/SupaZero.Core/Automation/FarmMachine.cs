@@ -34,6 +34,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     public void Reset()
     {
         _cooldowns.Clear();
+        _roomBan.Clear();
+        _roomTarget = null;
+        _arrivedAt = null;
         _skillLast.Clear();
         _lastAttack = 0;
         _retries = _boughtThisStage = 0;
@@ -99,29 +102,89 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     /// Lobby: lingkaran "Start Here" terdekat ≤ 45 stud → jalan ke sana. Lebih jauh / tidak terbaca → tombol Areas →
     /// kartu teleport (Story) → muncul dekat lingkaran. Posisi rekaman manual hanya cadangan.
     /// </summary>
+    private readonly Dictionary<string, long> _roomBan = new(StringComparer.Ordinal);
+    private string? _roomTarget;
+    private long? _arrivedAt;
+
+    private static string Label(string id) => id.StartsWith("room:") ? "room " + id[5..] : id == "manual" ? "lingkaran rekaman" : "lingkaran";
+
     private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now)
     {
         var f = S.Farm;
         if (!f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
         Phase = MacroPhase.WalkingToLobby;
 
-        Vec3? target = null;
+        // Kandidat: room QuqueRooms (lewati yang terisi pemain lain), cadangan "Start Here", lalu rekaman manual.
+        var cands = new List<(string Id, Vec3 Pos)>();
+        foreach (var r in s.StartRooms)
+        {
+            if (f.SkipOccupiedRooms && r.Occupied) continue;
+            cands.Add(("room:" + r.Id, r.Pos));
+        }
+        if (s.StartRooms.Count == 0)
+            for (int i = 0; i < s.StartCircles.Count; i++) cands.Add(("circle:" + i, s.StartCircles[i]));
+        if (f.LobbyCircle is { } manual) cands.Add(("manual", manual));
+
+        // Room yang gagal join (sudah sampai tapi menu tidak terbuka) di-skip 30 dtk.
+        foreach (var k in _roomBan.Where(kv => kv.Value <= now).Select(kv => kv.Key).ToList()) _roomBan.Remove(k);
+        var usable = cands.Where(c => !_roomBan.ContainsKey(c.Id)).ToList();
+        if (usable.Count == 0 && cands.Count > 0)
+        {
+            _roomBan.Clear(); // semua sudah dicoba → ulang dari awal
+            usable = cands;
+        }
+
+        (string Id, Vec3 Pos)? target = null;
         double dist = double.MaxValue;
         if (s.PlayerPos is { } p)
         {
-            foreach (var c in s.StartCircles.Append(f.LobbyCircle).OfType<Vec3>())
+            // Tetap di room yang sedang dituju selama masih valid (hindari bolak-balik).
+            if (_roomTarget is { } cur && usable.FirstOrDefault(c => c.Id == cur) is { Id: not null } keep)
             {
-                double d = Navigator.Distance2D(p.X, p.Z, c.X, c.Z);
-                if (d < dist) { dist = d; target = c; }
+                target = keep;
+                dist = Navigator.Distance2D(p.X, p.Z, keep.Pos.X, keep.Pos.Z);
             }
+            else
+                foreach (var c in usable)
+                {
+                    double d = Navigator.Distance2D(p.X, p.Z, c.Pos.X, c.Pos.Z);
+                    if (d < dist) { dist = d; target = c; }
+                }
+        }
+        var pre = new List<MacroAction>();
+        if (_roomTarget is not null && target?.Id != _roomTarget)
+        {
+            if (s.StartRooms.Any(r => "room:" + r.Id == _roomTarget && r.Occupied))
+                pre.Add(new NoteAction($"{Label(_roomTarget)} diisi pemain lain → pindah lingkaran."));
+            _roomTarget = null;
+            _arrivedAt = null;
         }
 
-        if (target is not null && dist <= TeleportIfFartherThan)
+        if (target is { } t && dist <= TeleportIfFartherThan)
         {
-            var walk = WalkTo(s, target, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
-            if (walk.Count > 0) return walk;
-            Status = "Di lingkaran, menunggu menu Create Room.";
-            return [new MoveAction([], "Sampai"), .. Note("circle-wait", now, 6000, "Sudah di lingkaran tapi menu Create Room belum terbuka.")];
+            _roomTarget = t.Id;
+            var walk = WalkTo(s, t.Pos, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
+            if (walk.Count > 0) { _arrivedAt = null; return [.. pre, .. walk]; }
+
+            _arrivedAt ??= now;
+            long waited = now - _arrivedAt.Value;
+            if (waited >= Math.Max(1, f.JoinTimeoutSec) * 1000L)
+            {
+                _roomBan[t.Id] = now + 30_000;
+                _roomTarget = null;
+                _arrivedAt = null;
+                Status = "Gagal join, pindah lingkaran.";
+                return [new MoveAction([], "Pindah lingkaran"), new NoteAction($"Tidak bisa join {Label(t.Id)} ({waited / 1000} dtk) → coba lingkaran lain.")];
+            }
+            Status = $"Di {Label(t.Id)}, menunggu menu Create Room ({waited / 1000}/{f.JoinTimeoutSec} dtk).";
+            return [new MoveAction([], "Sampai")];
+        }
+        _roomTarget = null;
+        _arrivedAt = null;
+        if (target is null && s.StartRooms.Count > 0 && s.StartRooms.All(r => r.Occupied) && f.SkipOccupiedRooms)
+        {
+            Status = "Semua room terisi pemain lain, menunggu yang kosong.";
+            return [.. pre, new MoveAction([], "Tunggu room kosong"), .. Note("rooms-full", now, 10000, "Semua room terisi pemain lain, menunggu yang kosong.")];
         }
 
         // Teleport lewat Areas → kartu sesuai mode (Story bila tidak ada kartu bernama mode itu).

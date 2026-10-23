@@ -29,3 +29,5 @@ Catatan: tiap stage butuh pergerakan karakter; di HxH Act 1-3 ada boulder pengha
 - Lingkaran Create Room = `Workspace.Systems.QuqueRooms.<n>.JoinHitbox` (Part, Anchored, CanCollide/CanTouch false, Size 18×25×25, Transparency 1). Contoh room 1: Position (-83.382, 5.926, 202.381).
 - Isi room: `Barrier` (Folder), `Capsule` (Model), `Inside`/`Outside`/`RingVFX` (Part), `RoomGui` (BillboardGui → Container).
 - `Workspace.Systems` juga berisi `AreasTeleportLocation`, `Cams`, `DeliverySpawns`, `GuideSpots`, `NPCS`.
+- RoomGui: room kosong menampilkan "Start Here"; room yang sudah dibuat pemain lain menampilkan "Join Here", kartu mode+map (mis. Story / Hxh Chapter 3), "Players 3/4", dan hitung mundur (mis. 28s).
+- Byzan melaporkan: kadang sudah berada di lingkaran tapi menu Create Room tidak terbuka → macro pindah ke lingkaran lain setelah batas waktu.

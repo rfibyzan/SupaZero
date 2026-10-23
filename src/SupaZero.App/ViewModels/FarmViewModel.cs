@@ -82,9 +82,11 @@ public sealed class FarmViewModel : ObservableObject
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
     public decimal MaxRetries { get => S.Farm.MaxRetriesPerStage; set => Farm(f => f with { MaxRetriesPerStage = (int)value }); }
     public string CircleText => S.Farm.LobbyCircle is { } c ? "Cadangan: " + c : "Cadangan manual: belum direkam";
-    public string DetectedText => _root.Snapshot.StartCircles.Count is int n and > 0
-        ? $"Terdeteksi {n} lingkaran \"Start Here\""
-        : "Lingkaran belum terdeteksi";
+    public string DetectedText => _root.Snapshot.StartRooms is { Count: > 0 } r
+        ? $"{r.Count} room: {r.Count(x => !x.Occupied)} kosong, {r.Count(x => x.Occupied)} terisi"
+        : _root.Snapshot.StartCircles.Count is int n and > 0 ? $"Terdeteksi {n} lingkaran \"Start Here\"" : "Lingkaran belum terdeteksi";
+    public bool SkipOccupiedRooms { get => S.Farm.SkipOccupiedRooms; set => Farm(f => f with { SkipOccupiedRooms = value }); }
+    public decimal JoinTimeoutSec { get => S.Farm.JoinTimeoutSec; set => Farm(f => f with { JoinTimeoutSec = (int)value }); }
 
     public RelayCommand RecordCircleCommand => new(_ =>
     {

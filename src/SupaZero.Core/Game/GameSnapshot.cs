@@ -16,6 +16,9 @@ public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? R
 public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect? Rect);
 
 /// <summary>Satu bacaan keadaan game (read-only) per tick macro.</summary>
+/// <summary>Satu room antrean (Workspace.Systems.QuqueRooms.&lt;n&gt;). Occupied = RoomGui menampilkan "Join Here"/"Players x/y" (sudah ada pemain lain).</summary>
+public sealed record StartRoom(string Id, Settings.Vec3 Pos, bool Occupied, int? Players = null, int? MaxPlayers = null);
+
 public sealed record GameSnapshot
 {
     public bool Attached { get; init; }
@@ -34,6 +37,8 @@ public sealed record GameSnapshot
     public IReadOnlyList<LobbyEntry> TeleportCards { get; init; } = [];
     /// <summary>Lingkaran Create Room terdeteksi: part yang memuat teks "Start Here" di Workspace.</summary>
     public IReadOnlyList<Settings.Vec3> StartCircles { get; init; } = [];
+    /// <summary>Room dari QuqueRooms.*.JoinHitbox + status terisi (dibaca ulang tiap tick).</summary>
+    public IReadOnlyList<StartRoom> StartRooms { get; init; } = [];
 
     // Lobby
     public bool LobbyMenuOpen { get; init; }

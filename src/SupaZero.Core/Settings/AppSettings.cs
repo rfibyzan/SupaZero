@@ -54,6 +54,10 @@ public sealed record FarmSettings(
     bool AutoCreateLobby = true,
     /// <summary>Posisi lingkaran Create Room di lobby (direkam dari posisi karakter). null = belum direkam.</summary>
     Vec3? LobbyCircle = null,
+    /// <summary>Lewati room yang sudah dibuat pemain lain ("Join Here" / "Players x/y").</summary>
+    bool SkipOccupiedRooms = true,
+    /// <summary>Sudah di lingkaran tapi menu Create Room tidak terbuka selama ini (detik) → coba lingkaran lain.</summary>
+    int JoinTimeoutSec = 5,
     bool AutoVoteStart = true,
     bool RetryOnDefeat = true,
     int MaxRetriesPerStage = 3,

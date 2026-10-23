@@ -90,7 +90,8 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         };
         if (snap.Screen != GameScreen.Lobby) return snap;
         var (areas, cards) = ScanHub(pg);
-        return snap with { AreasButton = areas, TeleportCards = cards, StartCircles = ScanCircles(ws) };
+        var startRooms = ReadRooms(ws);
+        return snap with { AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws) };
     }
 
     // ---------- Hub lobby ----------
@@ -173,6 +174,51 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
     /// Lingkaran Create Room: Workspace.Systems.QuqueRooms.*.JoinHitbox; cadangan: cari teks "Start Here" (BillboardGui/SurfaceGui) di Workspace lalu ambil posisi part
     /// induknya (Adornee bila diisi). Statis per server lobby → cache; kosong → scan ulang tiap 3 dtk.
     /// </summary>
+    private long _roomsWs, _roomsAt;
+    private List<(string Id, long Gui, Settings.Vec3 Pos)> _rooms = [];
+    private static readonly System.Text.RegularExpressions.Regex PlayersRx = new(@"Players\s*(\d+)\s*/\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Room antrean: posisi JoinHitbox di-cache per Workspace; status RoomGui dibaca ulang tiap tick.
+    /// "Start Here" = kosong; "Join Here" / "Players x/y" = sudah ada pemain lain.
+    /// </summary>
+    private IReadOnlyList<StartRoom> ReadRooms(long ws)
+    {
+        long now = Environment.TickCount64;
+        if (ws != _roomsWs || (_rooms.Count == 0 && now - _roomsAt > 3000))
+        {
+            _roomsWs = ws;
+            _roomsAt = now;
+            _rooms = [];
+            long systems = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.Systems) : 0;
+            long rooms = systems != 0 ? reader.FindChild(systems, AnimeZeroPaths.QueueRooms) : 0;
+            foreach (long room in rooms != 0 ? reader.GetChildren(rooms, 64) : [])
+            {
+                long hit = reader.FindChild(room, AnimeZeroPaths.JoinHitbox);
+                if (hit != 0 && props.TryGetWorldPosition(hit, out float x, out float y, out float z))
+                    _rooms.Add((reader.GetName(room), reader.FindChild(room, AnimeZeroPaths.RoomGui), new(x, y, z)));
+            }
+        }
+        var list = new List<StartRoom>(_rooms.Count);
+        foreach (var (id, gui, pos) in _rooms)
+        {
+            bool occupied = false;
+            int? n = null, max = null;
+            foreach (var (_, t) in VisibleTexts(gui, 200))
+            {
+                if (PlayersRx.Match(t) is { Success: true } m)
+                {
+                    n = int.Parse(m.Groups[1].Value);
+                    max = int.Parse(m.Groups[2].Value);
+                    if (n > 0) occupied = true;
+                }
+                else if (t.Contains(AnimeZeroPaths.RoomOccupiedText, StringComparison.OrdinalIgnoreCase)) occupied = true;
+            }
+            list.Add(new StartRoom(id, pos, occupied, n, max));
+        }
+        return list;
+    }
+
     private IReadOnlyList<Settings.Vec3> ScanCircles(long ws)
     {
         long now = Environment.TickCount64;
@@ -182,15 +228,7 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         var found = new List<Settings.Vec3>();
         if (ws == 0) return _circles = found;
 
-        // Utama: Workspace.Systems.QuqueRooms.<n>.JoinHitbox
-        long systems = reader.FindChild(ws, AnimeZeroPaths.Systems);
-        long rooms = systems != 0 ? reader.FindChild(systems, AnimeZeroPaths.QueueRooms) : 0;
-        foreach (long room in rooms != 0 ? reader.GetChildren(rooms, 64) : [])
-        {
-            long hit = reader.FindChild(room, AnimeZeroPaths.JoinHitbox);
-            if (hit != 0 && props.TryGetWorldPosition(hit, out float hx, out float hy, out float hz)) found.Add(new(hx, hy, hz));
-        }
-        if (found.Count > 0) return _circles = found;
+        if (_rooms.Count > 0) return _circles = found; // room utama sudah terbaca (ReadRooms)
 
         // Cadangan: teks "Start Here" di Workspace.
         var q = new Queue<(long Node, int Depth)>();
