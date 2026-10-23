@@ -58,8 +58,6 @@
       <Border Classes="card">
         <StackPanel Spacing="10">
           <TextBlock Classes="h2" Text="Macro" />
-          <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                  Content="Start / Stop" Command="{Binding ToggleCommand}" />
           <Border Classes="sep" />
           <TextBlock Classes="accent" FontWeight="SemiBold" Text="{Binding HotkeyHint}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding PhaseText}" TextWrapping="Wrap" Classes="muted" />

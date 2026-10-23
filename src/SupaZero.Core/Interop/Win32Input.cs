@@ -70,6 +70,17 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         MouseButton(MouseLeftUp);
     }
 
+    /// <summary>Area klien jendela Roblox di layar (piksel).</summary>
+    public (int X, int Y, int W, int H)? ClientScreenRect()
+    {
+        nint h = MainWindow();
+        if (h == 0 || !GetClientRect(h, out var r)) return null;
+        var p = new Point { X = 0, Y = 0 };
+        if (!ClientToScreen(h, ref p)) return null;
+        int w = r.Right - r.Left, ht = r.Bottom - r.Top;
+        return w > 0 && ht > 0 ? (p.X, p.Y, w, ht) : null;
+    }
+
     public (int W, int H)? ClientSize()
     {
         nint h = MainWindow();

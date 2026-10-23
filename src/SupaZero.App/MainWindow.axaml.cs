@@ -12,6 +12,7 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private GlobalHotkey? _hotkey;
+    private OverlayWindow? _overlay;
 
     public MainWindow()
     {
@@ -26,8 +27,25 @@ public partial class MainWindow : Window
             _vm.General.HotkeyError = () => _hotkey.LastError;
             _vm.General.ApplyHotkey();
         };
+        // Overlay status selama macro berjalan.
+        _vm.Runner.RunningChanged += running => Dispatcher.UIThread.Post(() =>
+        {
+            if (running && _vm.Settings.General.ShowOverlay)
+            {
+                _overlay ??= new OverlayWindow { DataContext = _vm.Overlay };
+                _overlay.Show();
+            }
+            else _overlay?.Hide();
+        });
+        _vm.OverlayTick += rect =>
+        {
+            if (_overlay is not { IsVisible: true } o) return;
+            if (!_vm.Settings.General.ShowOverlay) { o.Hide(); return; }
+            if (rect is { } r) o.PlaceAt(r, _vm.Settings.General.OverlayCorner);
+        };
         Closing += (_, _) =>
         {
+            _overlay?.Close();
             _hotkey?.Dispose();
             _vm.Dispose();
             AppLog.Line("[SupaZero] Application exit.");

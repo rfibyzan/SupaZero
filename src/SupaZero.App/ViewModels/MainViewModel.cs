@@ -34,7 +34,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Settings = AppSettings.Load();
         Session = new RobloxSession();
         LoadOffsets();
-        Runner = new MacroRunner(ReadSnapshot, new Win32Input(() => Session.ProcessId), () => Settings);
+        Input = new Win32Input(() => Session.ProcessId);
+        Runner = new MacroRunner(ReadSnapshot, Input, () => Settings);
+        Overlay = new OverlayViewModel(this);
+        Runner.RunningChanged += running => { if (running) Overlay.StartedAt = DateTime.Now; };
         Runner.Log += AddLog;
         Runner.Machine.ActCleared = (map, act) => Dispatcher.UIThread.Post(() =>
         {
@@ -82,6 +85,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public AppSettings Settings { get; }
+    public Win32Input Input { get; }
+    public OverlayViewModel Overlay { get; }
+    /// <summary>Tiap tick timer saat macro jalan: (area klien Roblox di layar atau null).</summary>
+    public event Action<(int X, int Y, int W, int H)?>? OverlayTick;
     public RobloxSession Session { get; }
     public MacroRunner Runner { get; }
     public GeneralViewModel General { get; }
@@ -206,6 +213,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SyncPowers();
         General.Refresh();
         Farm.Refresh();
+        if (Runner.IsRunning)
+        {
+            Overlay.Refresh(snap);
+            OverlayTick?.Invoke(Input.ClientScreenRect());
+        }
     }
 
     public async Task SendWebhook(SupaZero.Core.Notify.DiscordWebhook.Embed embed)

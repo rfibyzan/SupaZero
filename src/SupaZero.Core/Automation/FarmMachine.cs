@@ -30,6 +30,10 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     public MacroPhase Phase { get; private set; } = MacroPhase.Idle;
     public int StagesCleared { get; private set; }
+    public int Defeats { get; private set; }
+    /// <summary>Map/act yang sedang dimainkan (dari menu Create Room).</summary>
+    public string CurrentMap => _selectedMap;
+    public int CurrentAct => _selectedAct;
     public int Retries => _retries;
     public string Status { get; private set; } = "Idle";
 
@@ -109,6 +113,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _pendingBuyConfirm = false;
         }
         if (to == GameScreen.Victory) _retries = 0;
+        if (to == GameScreen.Defeat) Defeats++;
         if (to != GameScreen.LobbyMenu) { _diffAt = null; _scrolls.Clear(); }
         _stuckRef = null;
     }

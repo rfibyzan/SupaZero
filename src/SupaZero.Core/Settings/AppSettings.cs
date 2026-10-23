@@ -21,7 +21,11 @@ public sealed record GeneralSettings(
     double GuiInsetY = 58,
     /// <summary>Inset Y GUI hub lobby (tombol Areas, kartu teleport). Terverifikasi 0.</summary>
     double LobbyInsetY = 0,
-    double GuiScale = 1);
+    double GuiScale = 1,
+    /// <summary>Overlay status di atas jendela Roblox selama macro berjalan.</summary>
+    bool ShowOverlay = true,
+    /// <summary>Pojok overlay: 0 kiri atas, 1 kanan atas, 2 kiri bawah, 3 kanan bawah.</summary>
+    int OverlayCorner = 1);
 
 public enum Difficulty { Easy, Medium, Hard, Nightmare }
 

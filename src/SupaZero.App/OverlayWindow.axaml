@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SupaZero.App.ViewModels"
+        x:Class="SupaZero.App.OverlayWindow"
+        x:DataType="vm:OverlayViewModel"
+        Title="SupaZero Overlay"
+        SystemDecorations="None" Topmost="True" ShowInTaskbar="False" CanResize="False" ShowActivated="False"
+        SizeToContent="WidthAndHeight" Background="Transparent" TransparencyLevelHint="Transparent">
+  <!-- Overlay tembus-klik di atas jendela Roblox selama macro berjalan (tidak menyentuh Roblox). -->
+  <Border Background="#D9101010" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="10" Padding="12,10" Width="300">
+    <StackPanel Spacing="3">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="SupaZero" FontWeight="Bold" FontSize="14" Foreground="White" />
+        <TextBlock Grid.Column="1" Text="{Binding RunTime}" FontSize="12" Foreground="#9EE6A0" VerticalAlignment="Center" />
+      </Grid>
+      <TextBlock Text="{Binding Phase}" FontWeight="SemiBold" FontSize="12" Foreground="#7FC8FF" />
+      <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#DDDDDD" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+      <Border Height="1" Background="#30FFFFFF" Margin="0,3" />
+      <Grid ColumnDefinitions="58,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0" Text="Stage" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Stage}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Row="1" Text="Ronde" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Area}" FontSize="11" Foreground="White" />
+        <TextBlock Grid.Row="2" Text="Target" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Target}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Row="3" Text="Skill" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Skills}" FontSize="11" Foreground="White" />
+        <TextBlock Grid.Row="4" Text="Power" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Power}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Row="5" Text="Hasil" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Score}" FontSize="11" Foreground="White" />
+      </Grid>
+      <TextBlock Text="{Binding Hint}" FontSize="10" Foreground="#777777" Margin="0,3,0,0" />
+    </StackPanel>
+  </Border>
+</Window>

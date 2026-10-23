@@ -57,6 +57,11 @@ public sealed class SettingsPageViewModel : ObservableObject
 
     public static Action<bool>? TransparencyChanged { get; set; }
 
+    // ── Overlay
+    public bool ShowOverlay { get => S.General.ShowOverlay; set { S.General = S.General with { ShowOverlay = value }; _root.Save(); } }
+    public IReadOnlyList<string> OverlayCorners { get; } = ["Kiri atas", "Kanan atas", "Kiri bawah", "Kanan bawah"];
+    public int OverlayCorner { get => S.General.OverlayCorner; set { S.General = S.General with { OverlayCorner = Math.Clamp(value, 0, 3) }; _root.Save(); } }
+
     // ── Discord webhook
     public string WebhookUrl { get => S.Webhook.Url; set { S.Webhook = S.Webhook with { Url = value?.Trim() ?? "" }; _root.Save(); Raise(nameof(WebhookStatus)); } }
     public string WebhookMention { get => S.Webhook.Mention; set { S.Webhook = S.Webhook with { Mention = value ?? "" }; _root.Save(); } }
