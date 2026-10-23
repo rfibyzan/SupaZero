@@ -69,6 +69,12 @@ public sealed class SettingsPageViewModel : ObservableObject
         set { S.General = S.General with { GuiInsetY = (double)value }; _root.ApplyGuiCalibration(); _root.Save(); }
     }
 
+    public decimal LobbyInsetY
+    {
+        get => (decimal)S.General.LobbyInsetY;
+        set { S.General = S.General with { LobbyInsetY = (double)value }; _root.ApplyGuiCalibration(); _root.Save(); }
+    }
+
     public decimal TickMs
     {
         get => S.General.TickMs;

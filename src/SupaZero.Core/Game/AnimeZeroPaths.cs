@@ -39,6 +39,9 @@ public static class AnimeZeroPaths
     public const string LobbyRoot = "UI Animation (Finished).Quque.MainFrame";
     // Hub lobby (screenshot Byzan 23 Okt 2026): tombol HUD "Areas" → kartu "Click to Teleport" → lingkaran "Start Here".
     public const string AreasButtonText = "Areas";
+    /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026), relatif PlayerGui. ScreenGui ini tidak memakai inset topbar (marker RIE dengan Inset 58 meleset ~58 px ke bawah).</summary>
+    public const string AreasButtonPath = "LobbyHUD.LeftSideButtons.AreasButton";
+    public const string StoryCardPath = "Finished UI.Areas.MainFrame.Content.Clipping.Container.MATCHES_Row1.Story.Story";
     public const string TeleportCardHint = "Click to Teleport";
     public const string StartCircleText = "Start Here";
     /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026): Workspace.Systems.QuqueRooms.&lt;n&gt;.JoinHitbox (Part 18×25×25, CanCollide false).</summary>

@@ -88,6 +88,10 @@
           <NumericUpDown Grid.Column="1" Value="{Binding GuiInsetY}" Minimum="0" Maximum="200" Increment="1" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="GUI inset Y lobby (Areas/Story, px)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding LobbyInsetY}" Minimum="0" Maximum="200" Increment="1" FormatString="0" />
+        </Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
           <TextBlock Classes="label" Text="Tick macro (ms)" />
           <NumericUpDown Grid.Column="1" Value="{Binding TickMs}" Minimum="30" Maximum="2000" Increment="10" FormatString="0" />
         </Grid>

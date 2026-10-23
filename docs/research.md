@@ -31,3 +31,5 @@ Catatan: tiap stage butuh pergerakan karakter; di HxH Act 1-3 ada boulder pengha
 - `Workspace.Systems` juga berisi `AreasTeleportLocation`, `Cams`, `DeliverySpawns`, `GuideSpots`, `NPCS`.
 - RoomGui: room kosong menampilkan "Start Here"; room yang sudah dibuat pemain lain menampilkan "Join Here", kartu mode+map (mis. Story / Hxh Chapter 3), "Players 3/4", dan hitung mundur (mis. 28s).
 - Byzan melaporkan: kadang sudah berada di lingkaran tapi menu Create Room tidak terbuka → macro pindah ke lingkaran lain setelah batas waktu.
+- Tombol Areas = `PlayerGui.LobbyHUD.LeftSideButtons.AreasButton` (ImageButton, AbsPos 24.989,516.355, AbsSize 88.977×106.558). Kartu Story = `PlayerGui.Finished UI.Areas.MainFrame.Content.Clipping.Container.MATCHES_Row1.Story.Story` (ImageButton di dalam Frame Story).
+- Marker RIE dengan Inset Y 58 meleset ~58 px ke bawah untuk LobbyHUD & Finished UI (kena tombol Spinning) → GUI ini tidak memakai inset topbar; SupaZero memakai LobbyInsetY = 0 untuk hub.

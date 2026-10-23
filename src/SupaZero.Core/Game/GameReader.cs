@@ -16,6 +16,11 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
 
     public double GuiInsetY { get; set; } = ScreenMap.DefaultGuiInsetY;
     public double GuiScale { get; set; } = 1;
+    /// <summary>Inset Y untuk GUI hub lobby (LobbyHUD / Finished UI). Terverifikasi 0: ScreenGui ini mengabaikan topbar.</summary>
+    public double LobbyInsetY { get; set; } = 0;
+
+    private GuiRect? HubRect(long node) =>
+        Rect(node) is { } r ? r with { Y = r.Y + (LobbyInsetY - GuiInsetY) * GuiScale } : null;
 
     private IMemorySource M => reader.Memory;
 
@@ -118,21 +123,25 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         GuiRect? areas = null;
         var cards = new List<LobbyEntry>();
 
-        long manualAreas = ResolveGuiPath(pg, AreasButtonPath);
-        if (manualAreas != 0 && IsShown(manualAreas, pg)) { areas = Rect(manualAreas); LastAreasPick = GuiPath(manualAreas, pg) + " (manual)"; }
-        long manualStory = ResolveGuiPath(pg, StoryCardPath);
-        if (manualStory != 0 && IsShown(manualStory, pg) && Rect(manualStory) is { } ms)
+        // 1) path manual dari Settings, 2) path terverifikasi RIE, 3) scan teks.
+        bool manualA = !string.IsNullOrWhiteSpace(AreasButtonPath);
+        long manualAreas = ResolveGuiPath(pg, manualA ? AreasButtonPath : AnimeZeroPaths.AreasButtonPath);
+        if (manualAreas != 0 && IsShown(manualAreas, pg)) { areas = HubRect(manualAreas); LastAreasPick = GuiPath(manualAreas, pg) + (manualA ? " (manual)" : " (path)"); }
+        bool manualS = !string.IsNullOrWhiteSpace(StoryCardPath);
+        long manualStory = ResolveGuiPath(pg, manualS ? StoryCardPath : AnimeZeroPaths.StoryCardPath);
+        if (manualStory != 0 && IsShown(manualStory, pg) && HubRect(manualStory) is { } ms)
         {
             cards.Add(new LobbyEntry(nameof(Settings.FarmMode.Story), false, false, ms));
-            LastCardPick = GuiPath(manualStory, pg) + " (manual)";
+            LastCardPick = GuiPath(manualStory, pg) + (manualS ? " (manual)" : " (path)");
         }
+        else manualStory = 0;
 
         foreach (var (node, text) in VisibleTexts(pg, 5000))
         {
             if (areas is null && text.Trim().Equals(AnimeZeroPaths.AreasButtonText, StringComparison.OrdinalIgnoreCase))
             {
                 long btn = ButtonFor(node);
-                areas = Rect(btn);
+                areas = HubRect(btn);
                 LastAreasPick = GuiPath(btn, pg);
             }
             else if (text.Contains(AnimeZeroPaths.TeleportCardHint, StringComparison.OrdinalIgnoreCase))
@@ -140,7 +149,7 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
                 string? title = CardTitle(node);
                 if (title is null || (manualStory != 0 && title.Contains("Story", StringComparison.OrdinalIgnoreCase))) continue;
                 long card = ButtonFor(node);
-                if (Rect(card) is not { } cr) continue;
+                if (HubRect(card) is not { } cr) continue;
                 cards.Add(new LobbyEntry(title.Trim(), false, false, cr));
                 if (title.Contains("Story", StringComparison.OrdinalIgnoreCase)) LastCardPick = GuiPath(card, pg);
             }

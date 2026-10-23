@@ -19,6 +19,8 @@ public sealed record GeneralSettings(
     int TickMs = 100,
     /// <summary>Tinggi topbar Roblox untuk konversi AbsolutePosition → klien (sama dengan kalibrasi RIE; 58 default).</summary>
     double GuiInsetY = 58,
+    /// <summary>Inset Y GUI hub lobby (tombol Areas, kartu teleport). Terverifikasi 0.</summary>
+    double LobbyInsetY = 0,
     double GuiScale = 1);
 
 public enum Difficulty { Easy, Medium, Hard, Nightmare }
