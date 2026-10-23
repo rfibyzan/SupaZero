@@ -11,7 +11,7 @@ namespace SupaZero.Core.Interop;
 public sealed partial class Win32Input(Func<int> processId) : IInput
 {
     private const uint InputMouse = 0, InputKeyboard = 1;
-    private const uint MouseMove = 0x0001, MouseLeftDown = 0x0002, MouseLeftUp = 0x0004, MouseAbsolute = 0x8000, MouseVirtualDesk = 0x4000, MouseWheel = 0x0800;
+    private const uint MouseMove = 0x0001, MouseLeftDown = 0x0002, MouseLeftUp = 0x0004, MouseAbsolute = 0x8000, MouseVirtualDesk = 0x4000, MouseWheel = 0x0800, MouseRightDown = 0x0008, MouseRightUp = 0x0010;
     private const int WheelDelta = 120;
     private const uint KeyUpFlag = 0x0002, ScanCodeFlag = 0x0008;
     private const int SmXVirtual = 76, SmYVirtual = 77, SmCxVirtual = 78, SmCyVirtual = 79;
@@ -106,6 +106,9 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
             Thread.Sleep(40);
         }
     }
+
+    public void RightDown() => MouseButton(MouseRightDown);
+    public void RightUp() => MouseButton(MouseRightUp);
 
     public void ClickHere()
     {

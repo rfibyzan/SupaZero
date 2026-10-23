@@ -176,6 +176,24 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                     if (Math.Abs(am.X - sz.W / 2.0) > 40 || Math.Abs(am.Y - sz.H / 2.0) > 40) _lastAimFar = (am.X, am.Y);
                 }
                 break;
+            case TurnAction { Drag: true } t:
+                // Tanpa shift lock: tahan klik kanan, geser relatif bertahap, lalu lepas (kamera Roblox ikut berputar).
+                _turnCts?.Cancel();
+                input.RightDown();
+                await Task.Delay(30, ct);
+                {
+                    int steps = 12, sx = 0, sy = 0;
+                    for (int i = 1; i <= steps; i++)
+                    {
+                        int tx = (int)Math.Round((double)t.Dx * i / steps), ty = (int)Math.Round((double)t.Dy * i / steps);
+                        input.MoveRelative(tx - sx, ty - sy);
+                        sx = tx; sy = ty;
+                        await Task.Delay(8, ct);
+                    }
+                }
+                await Task.Delay(20, ct);
+                input.RightUp();
+                break;
             case TurnAction t:
                 SmoothTurn(t.Dx, t.Dy, (int)(Math.Clamp(settings().General.TickMs, 30, 2000) * 0.9));
                 break;

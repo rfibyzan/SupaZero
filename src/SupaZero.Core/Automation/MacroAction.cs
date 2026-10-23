@@ -13,7 +13,8 @@ public sealed record ScrollAction(double X, double Y, int Notches, string Reason
 public sealed record AimAction(double X, double Y, string Reason) : MacroAction(Reason);
 
 /// <summary>Gerak mouse relatif (putar kamera saat shift lock).</summary>
-public sealed record TurnAction(int Dx, int Dy, string Reason) : MacroAction(Reason);
+/// <summary>Drag = tahan klik kanan selama gerak (putar kamera tanpa shift lock).</summary>
+public sealed record TurnAction(int Dx, int Dy, string Reason, bool Drag = false) : MacroAction(Reason);
 
 /// <summary>Klik kiri di posisi kursor sekarang (serangan dasar).</summary>
 public sealed record AttackAction(string Reason) : MacroAction(Reason);

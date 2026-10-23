@@ -27,6 +27,10 @@ public interface IInput
     /// <summary>Klik kiri di posisi kursor sekarang.</summary>
     void ClickHere();
 
+    /// <summary>Tahan / lepas klik kanan di posisi kursor sekarang.</summary>
+    void RightDown();
+    void RightUp();
+
     void KeyDown(ushort vk);
     void KeyUp(ushort vk);
 }

@@ -441,7 +441,18 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 if (dx != 0 || dy != 0)
                     actions.Add(new TurnAction(dx, dy, $"Putar kamera ke musuh #{target.Name}"));
             }
-            else if (S.Navigation.AimAtEnemy && s.Camera?.WorldToScreen(target.Pos) is { } sp
+            else if (S.Navigation.AimAtEnemy && s.Camera is { } cam2 && Ready("cam-drag", now, 700))
+            {
+                // Tanpa shift lock: skill mengikuti kursor, jadi kamera ikut diputar (klik kanan tahan + geser)
+                // bila musuh melenceng > 20° dari tengah atau pitch keluar batas -40°..+10°.
+                double ex = target.Pos.X - cam2.Pos.X, ey = target.Pos.Y - cam2.Pos.Y, ez = target.Pos.Z - cam2.Pos.Z;
+                int tdx = Turn(cam2.Look.X, cam2.Look.Z, ex, ez, S.Navigation.TurnPixelsPerDegree, gain: 1, deadzone: 20, max: 200);
+                int tdy = Pitch(cam2.Look, ex, ey, ez, S.Navigation.TurnPixelsPerDegree, gain: 1, deadzone: 8, max: 150);
+                if (tdx != 0 || tdy != 0)
+                    actions.Add(new TurnAction(tdx, tdy, $"Putar kamera (klik kanan) ke musuh #{target.Name}", Drag: true));
+                else _cooldowns.Remove("cam-drag");
+            }
+            if (S.Navigation.AimAtEnemy && !s.ShiftLock && s.Camera?.WorldToScreen(target.Pos) is { } sp
                 && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
                 actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke musuh #{target.Name}"));
         }
@@ -643,30 +654,30 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     /// Delta X mouse untuk memutar yaw kamera dari arah (lx,lz) ke (tx,tz). Mouse ke kanan = kamera ke kanan.
     /// Toleransi 2°, setengah galat per tick, maks 80 px per tick agar tidak overshoot.
     /// </summary>
-    public static int Turn(double lx, double lz, double tx, double tz, double pxPerDeg)
+    public static int Turn(double lx, double lz, double tx, double tz, double pxPerDeg, double gain = 0.5, double deadzone = 2, int max = 80)
     {
         if (Math.Abs(lx) + Math.Abs(lz) < 1e-6 || Math.Abs(tx) + Math.Abs(tz) < 1e-6) return 0;
         // Sudut searah jarum jam dilihat dari atas (Roblox: right = (-lz, lx) untuk look (lx, lz)).
         double cross = lx * tz - lz * tx, dot = lx * tx + lz * tz;
         double deg = Math.Atan2(cross, dot) * 180 / Math.PI; // positif = target di kanan
-        if (Math.Abs(deg) < 2) return 0;
-        // Kendali proporsional (setengah galat per tick) agar mulus tanpa overshoot.
-        return (int)Math.Clamp(Math.Round(deg * 0.5 * Math.Max(0.5, pxPerDeg)), -80, 80);
+        if (Math.Abs(deg) < deadzone) return 0;
+        // Kendali proporsional (default setengah galat per tick) agar mulus tanpa overshoot.
+        return (int)Math.Clamp(Math.Round(deg * gain * Math.Max(0.5, pxPerDeg)), -max, max);
     }
 
     /// <summary>
     /// Delta Y mouse untuk pitch kamera: mouse ke bawah = kamera menunduk. Target pitch = arah ke musuh, dibatasi -40°..+10°
     /// agar kamera tidak pernah mendongak ke langit-langit.
     /// </summary>
-    public static int Pitch(Vec3 look, double dx, double dy, double dz, double pxPerDeg)
+    public static int Pitch(Vec3 look, double dx, double dy, double dz, double pxPerDeg, double gain = 0.5, double deadzone = 3, int max = 60)
     {
         double ll = Math.Sqrt(look.X * look.X + look.Z * look.Z), tl = Math.Sqrt(dx * dx + dz * dz);
         if (ll < 1e-6 && Math.Abs(look.Y) < 1e-6) return 0;
         double cur = Math.Atan2(look.Y, ll) * 180 / Math.PI;
         double want = Math.Clamp(tl < 1e-6 ? -40 : Math.Atan2(dy, tl) * 180 / Math.PI, -40, 10);
         double err = cur - want; // positif = kamera terlalu mendongak → mouse ke bawah
-        if (Math.Abs(err) < 3) return 0;
-        return (int)Math.Clamp(Math.Round(err * 0.5 * Math.Max(0.5, pxPerDeg)), -60, 60);
+        if (Math.Abs(err) < deadzone) return 0;
+        return (int)Math.Clamp(Math.Round(err * gain * Math.Max(0.5, pxPerDeg)), -max, max);
     }
 
     private static bool IsDash(SkillBinding k) => k.Name == "Dash";
