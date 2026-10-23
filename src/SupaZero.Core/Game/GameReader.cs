@@ -170,7 +170,7 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
     }
 
     /// <summary>
-    /// Lingkaran Create Room: cari teks "Start Here" (BillboardGui/SurfaceGui) di Workspace lalu ambil posisi part
+    /// Lingkaran Create Room: Workspace.Systems.QuqueRooms.*.JoinHitbox; cadangan: cari teks "Start Here" (BillboardGui/SurfaceGui) di Workspace lalu ambil posisi part
     /// induknya (Adornee bila diisi). Statis per server lobby → cache; kosong → scan ulang tiap 3 dtk.
     /// </summary>
     private IReadOnlyList<Settings.Vec3> ScanCircles(long ws)
@@ -181,6 +181,18 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         _circlesAt = now;
         var found = new List<Settings.Vec3>();
         if (ws == 0) return _circles = found;
+
+        // Utama: Workspace.Systems.QuqueRooms.<n>.JoinHitbox
+        long systems = reader.FindChild(ws, AnimeZeroPaths.Systems);
+        long rooms = systems != 0 ? reader.FindChild(systems, AnimeZeroPaths.QueueRooms) : 0;
+        foreach (long room in rooms != 0 ? reader.GetChildren(rooms, 64) : [])
+        {
+            long hit = reader.FindChild(room, AnimeZeroPaths.JoinHitbox);
+            if (hit != 0 && props.TryGetWorldPosition(hit, out float hx, out float hy, out float hz)) found.Add(new(hx, hy, hz));
+        }
+        if (found.Count > 0) return _circles = found;
+
+        // Cadangan: teks "Start Here" di Workspace.
         var q = new Queue<(long Node, int Depth)>();
         q.Enqueue((ws, 0));
         int seen = 0;

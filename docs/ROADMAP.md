@@ -14,7 +14,7 @@ Status: v0.2.0 (23 Okt 2026), AutoFarm. Belum diuji live.
 - Upgrade SkillTree: prioritas kolom, BuyButton, verifikasi token turun.
 
 ## Perlu verifikasi di RIE ([V] di `AnimeZeroPaths.cs`)
-- Teks HUD "Areas", kartu "Click to Teleport" + judul "Story", dan BillboardGui "Start Here" berada di/atas part lingkaran.
+- Teks HUD "Areas", kartu "Click to Teleport" + judul "Story", dan kartu teleport. (Lingkaran sudah terverifikasi: Systems.QuqueRooms.*.JoinHitbox.)
 - StartVote + Yes, EndScreen + Next/Retry/Leave, ResultText, BossBar.
 - `ModesList`, `MapsList`, `ActsList`: struktur entri, penanda terkunci ("*Lock*") dan terpilih ("*Select*").
 - `Workspace.World.Spawns/Areas[n]` benar-benar titik area ke-n.

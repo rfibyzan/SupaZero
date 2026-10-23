@@ -23,3 +23,9 @@ Catatan: tiap stage butuh pergerakan karakter; di HxH Act 1-3 ada boulder pengha
 - Ada vote mulai sebelum wave pertama Story.
 - Matchmaking bisa join room terbuka dari server lobby lain (toggle di queue).
 - Sumber: animezeroroblox.wiki/guide/game-modes, animezero-wiki.wiki, video "The BEST Beginner's Guide In Anime Zero" (MK, 9 Okt 2026).
+
+## Verifikasi RIE Byzan (23 Okt 2026)
+
+- Lingkaran Create Room = `Workspace.Systems.QuqueRooms.<n>.JoinHitbox` (Part, Anchored, CanCollide/CanTouch false, Size 18×25×25, Transparency 1). Contoh room 1: Position (-83.382, 5.926, 202.381).
+- Isi room: `Barrier` (Folder), `Capsule` (Model), `Inside`/`Outside`/`RingVFX` (Part), `RoomGui` (BillboardGui → Container).
+- `Workspace.Systems` juga berisi `AreasTeleportLocation`, `Cams`, `DeliverySpawns`, `GuideSpots`, `NPCS`.

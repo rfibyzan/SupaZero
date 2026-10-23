@@ -41,6 +41,10 @@ public static class AnimeZeroPaths
     public const string AreasButtonText = "Areas";
     public const string TeleportCardHint = "Click to Teleport";
     public const string StartCircleText = "Start Here";
+    /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026): Workspace.Systems.QuqueRooms.&lt;n&gt;.JoinHitbox (Part 18×25×25, CanCollide false).</summary>
+    public const string Systems = "Systems";
+    public const string QueueRooms = "QuqueRooms"; // typo asli game
+    public const string JoinHitbox = "JoinHitbox";
 
     public const string LobbyModesList = "ModesList";   // [V]
     public const string LobbyMapsList = "MapsList";
