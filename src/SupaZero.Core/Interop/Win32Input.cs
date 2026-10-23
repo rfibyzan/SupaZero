@@ -76,6 +76,15 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         return w > 0 && ht > 0 ? (w, ht) : null;
     }
 
+    public void MoveClient(double x, double y)
+    {
+        nint h = MainWindow();
+        if (h == 0) return;
+        var p = new Point { X = (int)Math.Round(x), Y = (int)Math.Round(y) };
+        if (!ClientToScreen(h, ref p)) return;
+        MoveAbsolute(p.X, p.Y);
+    }
+
     public void ScrollClient(double x, double y, int notches)
     {
         nint h = MainWindow();

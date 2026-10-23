@@ -15,6 +15,34 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
 public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting }
 
 /// <summary>Status satu kotak skill di HUD: Key dari keybind.Txt; Remaining detik cooldown (null = siap); Locked = MasteryLock tampil.</summary>
+/// <summary>Musuh di Workspace.enemies: posisi HumanoidRootPart + darah Humanoid.</summary>
+public sealed record EnemyInfo(string Name, Settings.Vec3 Pos, double Health, double MaxHealth)
+{
+    public bool Alive => Health > 0;
+}
+
+/// <summary>Kamera: posisi, LookVector, FieldOfView (vertikal, derajat), ViewportSize (= area klien).</summary>
+public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)
+{
+    /// <summary>Proyeksi titik dunia ke koordinat klien; null bila di belakang kamera. Asumsi kamera tanpa roll.</summary>
+    public (double X, double Y)? WorldToScreen(Settings.Vec3 p)
+    {
+        double fl = Math.Sqrt(Look.X * Look.X + Look.Y * Look.Y + Look.Z * Look.Z);
+        if (fl < 1e-6 || ViewW <= 0 || ViewH <= 0) return null;
+        double fx = Look.X / fl, fy = Look.Y / fl, fz = Look.Z / fl;
+        double rx = -fz, rz = fx, rl = Math.Sqrt(rx * rx + rz * rz); // right = look × up(0,1,0)
+        if (rl < 1e-6) return null;
+        rx /= rl; rz /= rl;
+        double ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy; // up = right × look
+        double dx = p.X - Pos.X, dy = p.Y - Pos.Y, dz = p.Z - Pos.Z;
+        double z = dx * fx + dy * fy + dz * fz;
+        if (z <= 0.1) return null;
+        double x = dx * rx + dz * rz, y = dx * ux + dy * uy + dz * uz;
+        double t = Math.Tan(Fov * Math.PI / 360), aspect = ViewW / ViewH;
+        return ((1 + x / (z * t * aspect)) * ViewW / 2, (1 - y / (z * t)) * ViewH / 2);
+    }
+}
+
 public sealed record SkillCooldown(string Key, double? Remaining, bool Locked)
 {
     public bool Ready => Remaining is null && !Locked;
@@ -38,6 +66,9 @@ public sealed record GameSnapshot
     // Karakter + kamera (untuk Navigator)
     public Settings.Vec3? PlayerPos { get; init; }
     public (double X, double Z)? CameraLook { get; init; }
+    public CameraInfo? Camera { get; init; }
+    /// <summary>Musuh hidup/mati di Workspace.enemies (kosong bila tidak terbaca).</summary>
+    public IReadOnlyList<EnemyInfo> Enemies { get; init; } = [];
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
     public Settings.Vec3? NextAreaPos { get; init; }
 

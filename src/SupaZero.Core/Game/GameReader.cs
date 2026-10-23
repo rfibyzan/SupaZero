@@ -82,6 +82,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Attached = true,
             PlayerPos = playerPos,
             CameraLook = ReadCameraLook(ws),
+            Camera = ReadCamera(ws),
+            Enemies = ReadEnemies(enemies),
             NextAreaPos = hud is { AreaTotal: > 0 } && hud.Area < hud.AreaTotal ? ReadAreaPos(ws, hud.Area + 1) : null,
             LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],
             LobbyMaps = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyMapsList), pg) : [],
@@ -455,6 +457,46 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v)
             ? (v <= 0 ? null : v) : 1;
     }
+
+    /// <summary>Musuh: Workspace.enemies.&lt;angka&gt; (Model) → HumanoidRootPart posisi, Humanoid Health/MaxHealth.</summary>
+    private List<EnemyInfo> ReadEnemies(long folder)
+    {
+        var list = new List<EnemyInfo>();
+        if (folder == 0) return list;
+        foreach (long m in reader.GetChildren(folder, 128))
+        {
+            long hrp = reader.FindChild(m, "HumanoidRootPart");
+            if (hrp == 0 || !props.TryGetWorldPosition(hrp, out float x, out float y, out float z)) continue;
+            double hp = 1, max = 1;
+            long hum = reader.FindChild(m, "Humanoid");
+            if (hum != 0)
+            {
+                var hp_ = props.Read(hum, "Humanoid");
+                if (hp_.TryGetValue("Health", out var h)) hp = Num(h, 1);
+                if (hp_.TryGetValue("MaxHealth", out var mh)) max = Num(mh, 1);
+            }
+            list.Add(new EnemyInfo(reader.GetName(m), new(x, y, z), hp, max));
+        }
+        return list;
+    }
+
+    private CameraInfo? ReadCamera(long ws)
+    {
+        if (ws == 0 || !reader.Offsets.TryResolve("Workspace.CurrentCamera", out long co)) return null;
+        if (!M.TryReadPointer(ws + co, out long cam) || cam == 0) return null;
+        var p = props.Read(cam, "Camera");
+        if (!p.TryGetValue("Position", out var pos) || !p.TryGetValue("LookVector", out var lv) || !p.TryGetValue("ViewportSize", out var vs)) return null;
+        var a = Vec(pos); var l = Vec(lv); var v = Nums(vs);
+        if (a is null || l is null || v.Length < 2) return null;
+        double fov = p.TryGetValue("FieldOfView", out var f) ? Num(f, 70) : 70;
+        return new CameraInfo(a, l, fov, v[0], v[1]);
+    }
+
+    private static double[] Nums(string s) => s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+        .Select(t => double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d) ? d : double.NaN)
+        .Where(d => !double.IsNaN(d)).ToArray();
+    private static Settings.Vec3? Vec(string s) { var n = Nums(s); return n.Length == 3 ? new(n[0], n[1], n[2]) : null; }
+    private static double Num(string s, double fallback) { var n = Nums(s); return n.Length > 0 ? n[0] : fallback; }
 
     /// <summary>Posisi HumanoidRootPart karakter: Player.ModelInstance → Character → HumanoidRootPart.</summary>
     private Settings.Vec3? ReadPlayerPos(long localPlayer)

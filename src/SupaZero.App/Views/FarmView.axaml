@@ -107,6 +107,12 @@
         <Border Classes="sep" Margin="0,2,0,4" />
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Jalan ke area berikutnya" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoNavigate}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Serang rubble saat tersangkut" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AttackWhenStuck}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Kejar musuh terdekat" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding ChaseEnemies}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Arahkan mouse ke musuh" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AimAtEnemy}" /></Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Jarak serang (stud)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding AttackRange}" Minimum="2" Maximum="40" Increment="1" FormatString="0" />
+        </Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
           <TextBlock Classes="label" Text="Radius sampai (stud)" />
           <NumericUpDown Grid.Column="1" Value="{Binding ArriveRadius}" Minimum="1" Maximum="50" Increment="1" FormatString="0" />

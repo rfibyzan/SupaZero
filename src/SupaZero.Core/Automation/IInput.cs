@@ -15,6 +15,9 @@ public interface IInput
     /// <summary>Ukuran area klien jendela Roblox (piksel), null bila tidak diketahui.</summary>
     (int W, int H)? ClientSize();
 
+    /// <summary>Geser kursor ke koordinat klien (tanpa klik).</summary>
+    void MoveClient(double x, double y);
+
     /// <summary>Klik kiri di posisi kursor sekarang.</summary>
     void ClickHere();
 

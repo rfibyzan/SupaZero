@@ -164,6 +164,9 @@ public sealed class FarmViewModel : ObservableObject
 
     public bool AutoNavigate { get => S.Navigation.AutoNavigate; set { S.Navigation = S.Navigation with { AutoNavigate = value }; _root.Save(); } }
     public bool AttackWhenStuck { get => S.Navigation.AttackWhenStuck; set { S.Navigation = S.Navigation with { AttackWhenStuck = value }; _root.Save(); } }
+    public bool ChaseEnemies { get => S.Navigation.ChaseEnemies; set { S.Navigation = S.Navigation with { ChaseEnemies = value }; _root.Save(); } }
+    public bool AimAtEnemy { get => S.Navigation.AimAtEnemy; set { S.Navigation = S.Navigation with { AimAtEnemy = value }; _root.Save(); } }
+    public decimal AttackRange { get => (decimal)S.Navigation.AttackRange; set { S.Navigation = S.Navigation with { AttackRange = (double)value }; _root.Save(); } }
     public decimal ArriveRadius { get => (decimal)S.Navigation.ArriveRadius; set { S.Navigation = S.Navigation with { ArriveRadius = (double)value }; _root.Save(); } }
 
     internal SkillBinding Skills(int i) => S.Combat.EffectiveSkills[i];

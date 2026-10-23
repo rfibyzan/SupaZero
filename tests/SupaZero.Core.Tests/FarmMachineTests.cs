@@ -65,6 +65,35 @@ public class FarmMachineTests
         Assert.Single(m.Step(snap, 10_700).OfType<KeyAction>()); // HUD bilang 3 siap lagi
     }
 
+    [Fact]
+    public void Camera_ProjectsEnemyFromSnapshot()
+    {
+        // Snapshot 23 Okt 2026: kamera (75.508,20.141,-330.377) look (0,-0.744,-0.668) FOV 70 viewport 1920x1009.
+        var cam = new CameraInfo(new(75.508, 20.141, -330.377), new(0, -0.744, -0.668), 70, 1920, 1009);
+        var p = cam.WorldToScreen(new(74.8, 3.001, -362));
+        Assert.NotNull(p);
+        Assert.InRange(p!.Value.X, 930, 960);   // sedikit kiri tengah
+        Assert.InRange(p.Value.Y, 200, 300);    // lebih jauh ke depan → bagian atas layar
+        Assert.Null(cam.WorldToScreen(new(75.5, 20, -300))); // di belakang kamera
+    }
+
+    [Fact]
+    public void Fight_ChasesAndAimsAtNearestEnemy()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
+            PlayerPos = new(75, 3, -320), CameraLook = (0, -1),
+            Camera = new CameraInfo(new(75.508, 20.141, -330.377), new(0, -0.744, -0.668), 70, 1920, 1009),
+            Enemies = [new("0", new(62.8, 3, -350), 100, 100), new("1", new(74.8, 3, -340), 100, 100), new("9", new(75, 3, -322), 0, 100)],
+        };
+        var a = m.Step(snap, 10_000);
+        var move = Assert.Single(a.OfType<MoveAction>());
+        Assert.Contains(VirtualKeys.W, move.Keys);
+        Assert.Contains("#1", Assert.Single(a.OfType<AimAction>()).Reason);
+    }
+
     [Theory]
     [InlineData("", null)]
     [InlineData("1.7", 1.7)]

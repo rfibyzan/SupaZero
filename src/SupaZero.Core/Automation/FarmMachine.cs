@@ -410,6 +410,22 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         Phase = MacroPhase.Fighting;
         Status = $"{area} · {(left < 0 ? "?" : left.ToString())} musuh";
         var actions = new List<MacroAction>();
+        // Tracking: musuh hidup terdekat → jalan mendekat sampai jarak serang, kursor diarahkan ke musuh.
+        if (s.PlayerPos is { } me && s.Enemies.Where(e => e.Alive)
+                .OrderBy(e => Navigator.Distance2D(me.X, me.Z, e.Pos.X, e.Pos.Z)).FirstOrDefault() is { } target)
+        {
+            double d = Navigator.Distance2D(me.X, me.Z, target.Pos.X, target.Pos.Z);
+            Status += $" · target #{target.Name} {d:0} stud";
+            if (S.Navigation.ChaseEnemies)
+            {
+                var walk = d > S.Navigation.AttackRange
+                    ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
+                actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
+            }
+            if (S.Navigation.AimAtEnemy && s.Camera?.WorldToScreen(target.Pos) is { } sp
+                && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
+                actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke musuh #{target.Name}"));
+        }
         if (now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
         {
             _lastAttack = now;

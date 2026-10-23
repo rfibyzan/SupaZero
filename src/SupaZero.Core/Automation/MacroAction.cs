@@ -9,6 +9,9 @@ public sealed record ClickAction(double X, double Y, string Reason) : MacroActio
 /// <summary>Scroll roda mouse di koordinat KLIEN (kursor digeser ke sana dulu). Notches &gt; 0 = ke atas, &lt; 0 = ke bawah.</summary>
 public sealed record ScrollAction(double X, double Y, int Notches, string Reason) : MacroAction(Reason);
 
+/// <summary>Geser kursor (tanpa klik) ke koordinat KLIEN, mis. mengarahkan ke musuh.</summary>
+public sealed record AimAction(double X, double Y, string Reason) : MacroAction(Reason);
+
 /// <summary>Klik kiri di posisi kursor sekarang (serangan dasar).</summary>
 public sealed record AttackAction(string Reason) : MacroAction(Reason);
 

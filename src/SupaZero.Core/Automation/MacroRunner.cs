@@ -116,6 +116,10 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 Log?.Invoke($"Scroll {sc.Reason} ({sc.X:0},{sc.Y:0}) x{Math.Abs(sc.Notches)}");
                 input.ScrollClient(sc.X, sc.Y, sc.Notches);
                 break;
+            case AimAction am:
+                if (input.ClientSize() is { } sz && am.X >= 0 && am.Y >= 0 && am.X < sz.W && am.Y < sz.H)
+                    input.MoveClient(am.X, am.Y);
+                break;
             case AttackAction:
                 input.ClickHere();
                 break;
