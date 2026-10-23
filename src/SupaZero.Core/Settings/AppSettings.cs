@@ -108,7 +108,7 @@ public sealed record NavigationSettings(
     bool ShiftLock = false,
     /// <summary>Piksel gerak mouse per derajat putaran kamera (shift lock), dikoreksi tiap tick.</summary>
     double TurnPixelsPerDegree = 4,
-    /// <summary>Saat skill 1/2/3 habis (cooldown) dan sudah dekat musuh: jalan melingkari musuh sambil lompat + basic attack.</summary>
+    /// <summary>Saat sudah dekat musuh: jalan melingkari musuh sambil lompat + basic attack.</summary>
     bool RoamWhenSkillsCooling = true);
 
 public enum UpgradeMode

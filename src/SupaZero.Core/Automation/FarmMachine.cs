@@ -471,8 +471,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _skillLast[due.Name] = now;
             actions.Add(new KeyAction((ushort)vk, 40, $"{due.Name} ({due.Key})"));
         }
-        else
-            Roam(s, S, tgt, now, actions);
+        // Sudah dekat: tetap bergerak melingkari musuh + lompat (baik saat pakai skill maupun basic attack saja).
+        Roam(s, S, tgt, now, actions);
         // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci.
         if (due is null && swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
                  && Ready("swap", now, 3000) && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk))
@@ -481,7 +481,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     }
 
     /// <summary>
-    /// Skill habis, tinggal basic attack: jalan melingkari musuh (radius ~0,7× jarak serang, ±80°/dtk)
+    /// Sudah dalam jarak serang: jalan melingkari musuh (radius ~0,7× jarak serang, ±80°/dtk)
     /// sambil lompat tiap 0,9–1,6 dtk, bukan diam di tempat.
     /// </summary>
     private void Roam(GameSnapshot s, AppSettings S, EnemyInfo? target, long now, List<MacroAction> actions)
@@ -491,7 +491,13 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         double r = Math.Max(2.5, S.Navigation.AttackRange * 0.7);
         if (_roamSince is not long t0 || now - _roamLast > 1500) { t0 = now; _roamSince = now; _roamAngle = Math.Atan2(p.Z - target.Pos.Z, p.X - target.Pos.X); }
         _roamLast = now;
-        double a = _roamAngle + Math.PI / 4 + (now - t0) / 1000.0 * (80 * Math.PI / 180); // target 45° di depan agar langsung bergerak
+        // Arah putar kanan/kiri berganti acak tiap 2,5–4,5 dtk.
+        if (now >= _roamFlipAt)
+        {
+            if (_roamFlipAt != 0) { _roamAngle += _roamDir * (now - t0) / 1000.0 * (80 * Math.PI / 180); _roamSince = t0 = now; _roamDir = -_roamDir; }
+            _roamFlipAt = now + 2500 + _rng.Next(2000);
+        }
+        double a = _roamAngle + _roamDir * (Math.PI / 4 + (now - t0) / 1000.0 * (80 * Math.PI / 180)); // 45° di depan agar langsung bergerak
         double gx = target.Pos.X + r * Math.Cos(a), gz = target.Pos.Z + r * Math.Sin(a);
         var keys = Navigator.KeysToward(p.X, p.Z, look.X, look.Z, gx, gz, 0.8);
         actions.RemoveAll(x => x is MoveAction);
@@ -503,7 +509,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         }
     }
     private long? _roamSince;
-    private long _roamLast, _nextRoamJump;
+    private long _roamLast, _nextRoamJump, _roamFlipAt;
+    private int _roamDir = 1;
     private double _roamAngle;
     private readonly Random _rng = new();
 

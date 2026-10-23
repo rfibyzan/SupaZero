@@ -112,10 +112,11 @@ public class FarmMachineTests
         var near = far with { PlayerPos = new(75, 3, -336) };
         var b = m.Step(near, 11_000);
         Assert.Contains(b, x => x is AttackAction);
-        Assert.Contains("(1)", Assert.Single(b.OfType<KeyAction>()).Reason);
+        Assert.Contains(b.OfType<KeyAction>(), k => k.Reason.Contains("(1)"));
+        Assert.Contains(b.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
 
         var cooling = near with { SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", null, true)] };
-        var c = m.Step(cooling, 12_000);
+        var c = m.Step(cooling, 13_000);
         Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
         // Skill habis + dekat musuh → roaming melingkar (bergerak) sambil lompat, tidak diam.
         Assert.Contains(c.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
