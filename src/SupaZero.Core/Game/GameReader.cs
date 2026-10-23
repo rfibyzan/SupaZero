@@ -65,6 +65,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         // Lobby
         long lobby = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.LobbyRoot) : 0;
         bool lobbyShown = lobby != 0 && IsShown(lobby, pg);
+        long queue = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.QueueRoot) : 0;
+        long qSkip = queue != 0 && !lobbyShown ? reader.FindChild(queue, AnimeZeroPaths.QueueSkipButton) : 0;
+        bool qShown = qSkip != 0 && IsShown(qSkip, pg);
+        long qCost = qShown ? reader.FindChild(qSkip, AnimeZeroPaths.QueueSkipCost) : 0;
 
         // SkillTree
         long tree = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.SkillTreeRoot) : 0;
@@ -96,6 +100,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             LeaveButton = endShown ? Rect(Find(end, AnimeZeroPaths.LeaveButton)) : null,
             BossBarVisible = boss != 0 && IsShown(boss, pg),
             LobbyMenuOpen = lobbyShown,
+            QueueSkip = qShown ? MenuRect(qSkip) : null,
+            QueueSkipCosts = qCost != 0 && IsShown(qCost, pg),
             LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
             LobbyActTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActTagPath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
             LobbyDifficultyTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyDifficultyTagPath))?.Trim('[', ']', ' ') : null,

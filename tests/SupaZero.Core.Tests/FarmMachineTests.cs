@@ -277,6 +277,17 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Queue_ClicksSkipOnlyWhenFree()
+    {
+        var (m, _) = New(s => { });
+        var skip = new GuiRect(639, 901, 315, 61);
+        var snap = new GameSnapshot { Attached = true, QueueSkip = skip };
+        var c = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(snap, 0))));
+        Assert.Equal("Skip Waiting", c.Reason);
+        Assert.Empty(Real(m.Step(snap with { QueueSkipCosts = true }, 5000)).OfType<ClickAction>());
+    }
+
+    [Fact]
     public void Lobby_NeverClicksOutsideWindow()
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Map = "Tidal High Rise" });

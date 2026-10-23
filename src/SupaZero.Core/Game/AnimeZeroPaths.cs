@@ -60,6 +60,11 @@ public static class AnimeZeroPaths
     public const string LobbyStartButton = "StaerButton"; // (sic) ~(1364,934)
     // Terverifikasi snapshot RIE Byzan (23 Okt 2026, root "UI Animation (Finished)".Quque.MainFrame, AbsolutePosition 0,58):
     // ScreenGui ini TIDAK perlu inset topbar (AbsolutePosition sudah koordinat klien) → rect menu memakai inset lobby (0).
+    // Layar tunggu setelah Start (snapshot S4 Byzan, 23 Okt 2026): PlayerGui."UI Animation (Finished)".Quque.StartNow
+    // (ImageButton "Skip Waiting", ~(796,931)), .Sub "Uses 1 Crystal" (Visible = berbayar); Quque.Leave ~(1124,931). MainFrame Visible=false.
+    public const string QueueRoot = "UI Animation (Finished).Quque";
+    public const string QueueSkipButton = "StartNow";
+    public const string QueueSkipCost = "Sub";
     public const string LobbyStartPath = "Content.RightHolder.Buttons.StaerButton.StaerButton";       // ImageButton
     public const string LobbyDifficultyContainer = "Content.RightHolder.RHS.Difficulty.Difficulty.Container"; // .<Easy|Medium|Hard|Nightmare>.<sama>.Hit
     public const string LobbyMapTitlePath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.MapLine.Title"; // "Hxh" / "ZZZ World"

@@ -65,6 +65,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             GameScreen.Unknown => Wait("Menunggu Roblox / DataModel."),
             GameScreen.Lobby => WalkToLobby(s, S, nowMs),
             GameScreen.LobbyMenu => LobbyMenu(s, S, nowMs),
+            GameScreen.QueueWaiting => QueueWait(s, nowMs),
             GameScreen.StartVote => Vote(s, S, nowMs),
             GameScreen.InRound => Fight(s, S, nowMs),
             GameScreen.Victory => Victory(s, S, nowMs),
@@ -98,6 +99,19 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (to == GameScreen.Victory) _retries = 0;
         if (to != GameScreen.LobbyMenu) { _diffAt = null; _scrolls.Clear(); }
         _stuckRef = null;
+    }
+
+    /// <summary>Layar tunggu room: klik "Skip Waiting" bila gratis; bila berbayar (Uses 1 Crystal) tunggu hitung mundur.</summary>
+    private IReadOnlyList<MacroAction> QueueWait(GameSnapshot s, long now)
+    {
+        if (s.QueueSkip is not { } r) return [];
+        if (s.QueueSkipCosts)
+            return Note("queue-cost", now, 8000, "Skip Waiting butuh 1 Crystal → tidak diklik, menunggu hitung mundur.");
+        if (!InWindow(s, r.CenterX, r.CenterY))
+            return Note("queue-out", now, 5000, $"Tombol Skip Waiting di luar jendela ({r.CenterX:0},{r.CenterY:0}).");
+        if (!Ready("queue-skip", now, 2000)) return [];
+        Status = "Menunggu room, klik Skip Waiting.";
+        return [new ClickAction(r.CenterX, r.CenterY, "Skip Waiting")];
     }
 
     private List<MacroAction> Wait(string why)

@@ -12,7 +12,7 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
         x >= X + margin && x <= X + W - margin && y >= Y + margin && y <= Y + H - margin;
 }
 
-public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat }
+public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting }
 
 public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect);
 
@@ -53,6 +53,10 @@ public sealed record GameSnapshot
     public string? LobbyActTag { get; init; }
     /// <summary>Difficulty terpilih dari MapLine.Tag ("[HARD]" → "Hard"), null bila tidak terbaca.</summary>
     public string? LobbyDifficultyTag { get; init; }
+    /// <summary>Tombol "Skip Waiting" di layar tunggu room (Quque.StartNow), null bila tidak tampil.</summary>
+    public GuiRect? QueueSkip { get; init; }
+    /// <summary>Label "Uses 1 Crystal" di tombol Skip Waiting tampil → skip berbayar.</summary>
+    public bool QueueSkipCosts { get; init; }
     public GuiRect? LobbyStart { get; init; }
     /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
     public GuiRect? LobbyMapsView { get; init; }
@@ -106,6 +110,7 @@ public sealed record GameSnapshot
             if (EndScreenVisible || IsDefeat) return IsDefeat ? GameScreen.Defeat : GameScreen.Victory;
             if (StartVoteVisible) return GameScreen.StartVote;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;
+            if (QueueSkip is not null) return GameScreen.QueueWaiting;
             if (InRound) return GameScreen.InRound;
             return GameScreen.Lobby;
         }
