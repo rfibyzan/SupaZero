@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             x:Class="SupaZero.App.Views.LobbyView"
+             x:DataType="vm:LobbyPageViewModel">
+  <Grid ColumnDefinitions="*,*" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
+    <Border Margin="0,0,8,0" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Lobby" />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto create room" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCreateLobby}" /></Grid>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   Text="Otomatis: Areas → Story (teleport) → jalan ke room kosong terdekat. Gagal join → lingkaran lain." />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Lewati room yang ada pemain lain" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding SkipOccupiedRooms}" /></Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Pindah lingkaran jika gagal join (dtk)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding JoinTimeoutSec}" Minimum="2" Maximum="30" Increment="1" FormatString="0" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto vote Start (Yes)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoVoteStart}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Retry saat DEFEAT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding RetryOnDefeat}" /></Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Maks retry per stage" />
+          <NumericUpDown Grid.Column="1" Value="{Binding MaxRetries}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

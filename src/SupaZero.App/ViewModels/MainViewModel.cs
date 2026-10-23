@@ -8,6 +8,10 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.ViewModels;
 
+/// <summary>Halaman tab yang memakai FarmViewModel bersama (Combat, Lobby).</summary>
+public sealed class CombatPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
+public sealed class LobbyPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
+
 public sealed class TabViewModel(string title, object content, bool showHeader = true)
 {
     public string Title { get; } = title;
@@ -65,7 +69,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Tabs =
         [
             new TabViewModel("General", General),
-            new TabViewModel("AutoFarm", Farm),
+            new TabViewModel("Combat", new CombatPageViewModel(Farm)),
+            new TabViewModel("Lobby", new LobbyPageViewModel(Farm)),
             new TabViewModel("Upgrade", Upgrade),
             new TabViewModel("Offsets", Offsets),
             new TabViewModel("Settings", SettingsPage),

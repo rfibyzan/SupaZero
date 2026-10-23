@@ -26,10 +26,11 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
     });
     public RelayCommand ToggleCommand => new(_ => root.Runner.Toggle());
     public System.Collections.ObjectModel.ObservableCollection<SupaZero.Core.Game.CalibrationItem> CalibrationItems { get; } = [];
-    private string _calibrationSummary = "Belum dikalibrasi. Tekan Kalibrasi di lobby atau saat di dalam stage.";
+    private string _calibrationSummary = "Belum dicek.";
+    public bool HasCalibration => CalibrationItems.Count > 0;
     public string CalibrationSummary { get => _calibrationSummary; private set => Set(ref _calibrationSummary, value); }
 
-    /// <summary>Kalibrasi cepat: satu bacaan memori, semua pengecekan ditampilkan dan ditulis ke log.</summary>
+    /// <summary>Kalibrasi cepat: satu bacaan memori; ringkasan + detail lipat di kartu, log cukup satu baris.</summary>
     public RelayCommand CalibrateCommand => new(_ =>
     {
         var snap = root.Runner.IsRunning ? root.Runner.LastSnapshot ?? root.ReadSnapshot() : root.ReadSnapshot();
@@ -37,10 +38,9 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
         var items = SupaZero.Core.Game.Calibration.Run(snap, root.Settings);
         CalibrationItems.Clear();
         foreach (var i in items) CalibrationItems.Add(i);
-        CalibrationSummary = $"{DateTime.Now:HH:mm:ss} · layar {snap.Screen} · {SupaZero.Core.Game.Calibration.Summary(items)}";
-        root.AddLog("Kalibrasi: " + SupaZero.Core.Game.Calibration.Summary(items));
-        foreach (var i in items.Where(i => i.State is SupaZero.Core.Game.CheckState.Warn or SupaZero.Core.Game.CheckState.Fail))
-            root.AddLog("  " + i);
+        CalibrationSummary = $"{DateTime.Now:HH:mm:ss} · {SupaZero.Core.Game.Calibration.Summary(items)}";
+        Raise(nameof(HasCalibration));
+        root.AddLog("Kalibrasi: " + SupaZero.Core.Game.Calibration.Summary(items) + " (detail di kartu Kalibrasi).");
     });
 
     public RelayCommand ClearLogCommand => new(_ => root.LogLines.Clear());
