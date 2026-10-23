@@ -57,6 +57,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
             try
             {
                 var snap = read();
+                if (input.ClientSize() is { } cs) snap = snap with { ClientW = cs.W, ClientH = cs.H };
                 LastSnapshot = snap;
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
                 bool fg = input.IsTargetForeground();
@@ -103,8 +104,17 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 foreach (ushort k in m.Keys.Where(k => _held.Add(k))) input.KeyDown(k);
                 break;
             case ClickAction c:
+                if (input.ClientSize() is { } size && (c.X < 0 || c.Y < 0 || c.X >= size.W || c.Y >= size.H))
+                {
+                    Log?.Invoke($"Klik {c.Reason} dibatalkan: ({c.X:0},{c.Y:0}) di luar jendela Roblox {size.W}x{size.H}.");
+                    break;
+                }
                 Log?.Invoke($"Klik {c.Reason} ({c.X:0},{c.Y:0})");
                 input.ClickClient(c.X, c.Y);
+                break;
+            case ScrollAction sc:
+                Log?.Invoke($"Scroll {sc.Reason} ({sc.X:0},{sc.Y:0}) x{Math.Abs(sc.Notches)}");
+                input.ScrollClient(sc.X, sc.Y, sc.Notches);
                 break;
             case AttackAction:
                 input.ClickHere();

@@ -59,6 +59,9 @@ public static class AnimeZeroPaths
     public const string LobbyActLine = "ActLine";       // .Tag = act terpilih
     public const string LobbyStartButton = "StaerButton"; // (sic) ~(1364,934)
     public const string LobbyLeaveButton = "Leave";       // ~(1639,934)
+    /// <summary>Resolusi acuan koordinat cadangan (Difficulty/Start) di atas; diskalakan ke ukuran klien jendela.</summary>
+    public const double RefW = 1920, RefH = 1080;
+    public const double StartRefX = 1364, StartRefY = 934;
     public static readonly (double X, double Y)[] DifficultyCenters = [(1033, 589), (1147, 589), (1261, 589), (1374, 589)];
 
     // SkillTree per unit

@@ -6,6 +6,10 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
     public double CenterX => X + W / 2;
     public double CenterY => Y + H / 2;
     public bool IsEmpty => W <= 0 || H <= 0;
+    public double Bottom => Y + H;
+    public double Right => X + W;
+    public bool Contains(double x, double y, double margin = 0) =>
+        x >= X + margin && x <= X + W - margin && y >= Y + margin && y <= Y + H - margin;
 }
 
 public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat }
@@ -48,6 +52,16 @@ public sealed record GameSnapshot
     public string? LobbyMapTag { get; init; }
     public string? LobbyActTag { get; init; }
     public GuiRect? LobbyStart { get; init; }
+    /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
+    public GuiRect? LobbyMapsView { get; init; }
+    public GuiRect? LobbyActsView { get; init; }
+    public GuiRect? LobbyModesView { get; init; }
+    /// <summary>Tombol difficulty yang terbaca dari teks Easy/Medium/Hard/Nightmare di menu Create Room.</summary>
+    public IReadOnlyList<LobbyEntry> LobbyDifficulties { get; init; } = [];
+
+    /// <summary>Ukuran area klien jendela Roblox (diisi MacroRunner). 0 = tidak diketahui.</summary>
+    public int ClientW { get; init; }
+    public int ClientH { get; init; }
 
     // Ronde
     public bool StartVoteVisible { get; init; }

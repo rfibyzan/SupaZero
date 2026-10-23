@@ -9,6 +9,12 @@ public interface IInput
     /// <summary>Klik kiri di koordinat klien jendela Roblox.</summary>
     void ClickClient(double x, double y);
 
+    /// <summary>Geser kursor ke koordinat klien lalu putar roda mouse. Notches &gt; 0 = ke atas.</summary>
+    void ScrollClient(double x, double y, int notches);
+
+    /// <summary>Ukuran area klien jendela Roblox (piksel), null bila tidak diketahui.</summary>
+    (int W, int H)? ClientSize();
+
     /// <summary>Klik kiri di posisi kursor sekarang.</summary>
     void ClickHere();
 

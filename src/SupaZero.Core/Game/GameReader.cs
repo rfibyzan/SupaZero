@@ -88,6 +88,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             LobbyMapTag = lobbyShown ? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
             LobbyActTag = lobbyShown ? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
             LobbyStart = lobbyShown ? Rect(Find(lobby, AnimeZeroPaths.LobbyStartButton)) : null,
+            LobbyMapsView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyMapsList)) : null,
+            LobbyActsView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyActsList)) : null,
+            LobbyModesView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyModesList)) : null,
+            LobbyDifficulties = lobbyShown ? ReadDifficulties(lobby, pg) : [],
             SkillTreeOpen = treeShown,
             Tokens = treeShown ? ParseInt(Text(reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeTokens))) : null,
             Slots = treeShown ? ReadSlots(tree, pg) : [],
@@ -489,6 +493,43 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             result.Add(new LobbyEntry(name.Trim(), locked, selected, Rect(c), mode));
         }
         return result;
+    }
+
+    /// <summary>Rect tampak daftar (ScrollingFrame / wadah entri). Entri di luar rect ini tersembunyi dan perlu di-scroll.</summary>
+    private GuiRect? ListView(long list)
+    {
+        if (list == 0) return null;
+        long box = EntryContainer(list);
+        return Rect(box) ?? Rect(list);
+    }
+
+    /// <summary>
+    /// Tombol difficulty: GuiObject terlihat bertuliskan Easy/Medium/Hard/Nightmare di dalam menu Create Room
+    /// (path belum diriset; posisi ref 1920x1080 jadi cadangan di FarmMachine).
+    /// </summary>
+    private List<LobbyEntry> ReadDifficulties(long lobby, long pg)
+    {
+        var found = new List<LobbyEntry>();
+        string[] names = Enum.GetNames<Settings.Difficulty>();
+        var queue = new Queue<(long Node, int Depth)>();
+        queue.Enqueue((lobby, 0));
+        int visited = 0;
+        while (queue.Count > 0 && visited < 4000)
+        {
+            var (n, d) = queue.Dequeue();
+            visited++;
+            string cls = reader.GetClassName(n);
+            if (n != lobby && PropertyReader.IsTextClass(cls) && Text(n) is { } t)
+            {
+                string clean = System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim();
+                string? hit = names.FirstOrDefault(x => x.Equals(clean, StringComparison.OrdinalIgnoreCase));
+                if (hit is not null && found.All(f => f.Name != hit) && IsShown(n, pg) && Rect(n) is { } r)
+                    found.Add(new LobbyEntry(hit, false, false, r));
+            }
+            if (d >= 10) continue;
+            foreach (long c in reader.GetChildren(n, 64)) queue.Enqueue((c, d + 1));
+        }
+        return found;
     }
 
     /// <summary>

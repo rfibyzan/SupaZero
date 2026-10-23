@@ -128,7 +128,8 @@ public class FarmMachineTests
         };
         var a = Real(m.Step(snap, 0));
         Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("pakai Act 1"));
-        Assert.Contains(a, x => x is ClickAction c && c.Reason.StartsWith("Start"));
+        Assert.Contains(a, x => x is ClickAction c && c.Reason.StartsWith("Difficulty"));
+        Assert.Contains(Real(m.Step(snap, 1000)), x => x is ClickAction c && c.Reason.StartsWith("Start"));
     }
 
     [Fact]
@@ -236,9 +237,34 @@ public class FarmMachineTests
         var wrong = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyActTag = "Act1", LobbyStart = Btn };
         Assert.IsType<NoteAction>(Assert.Single(Real(m.Step(wrong, 0))));
         var right = wrong with { LobbyActTag = "Act2" };
-        var a = Real(m.Step(right, 100));
-        Assert.Equal(2, a.Count);
-        var diff = Assert.IsType<ClickAction>(a[0]);
+        var diff = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(right, 100))));
         Assert.Equal(AnimeZeroPaths.DifficultyCenters[2].X, diff.X);
+        Assert.Empty(Real(m.Step(right, 300)));                       // tunggu difficulty terdaftar
+        var start = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(right, 900))));
+        Assert.Equal(Btn.CenterX, start.X);
+    }
+
+    [Fact]
+    public void Lobby_MapBelowList_ScrollsDown_ThenClicks()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Map = "Tidal High Rise" });
+        var view = new GuiRect(200, 300, 400, 300);                  // daftar tampak y 300..600
+        var hidden = new LobbyEntry("Tidal High Rise", false, false, new GuiRect(220, 900, 360, 80));
+        var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyMaps = [hidden], LobbyMapsView = view, ClientW = 1280, ClientH = 720 };
+        var sc = Assert.IsType<ScrollAction>(Assert.Single(Real(m.Step(snap, 0))));
+        Assert.True(sc.Notches < 0);
+        Assert.True(view.Contains(sc.X, sc.Y));
+        var shown = snap with { LobbyMaps = [hidden with { Rect = new GuiRect(220, 420, 360, 80) }] };
+        var click = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(shown, 1000))));
+        Assert.Equal(460, click.Y);
+    }
+
+    [Fact]
+    public void Lobby_NeverClicksOutsideWindow()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Map = "Tidal High Rise" });
+        var hidden = new LobbyEntry("Tidal High Rise", false, false, new GuiRect(220, 900, 360, 80));
+        var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyMaps = [hidden], ClientW = 1280, ClientH = 720 };
+        Assert.DoesNotContain(m.Step(snap, 0), a => a is ClickAction);
     }
 }

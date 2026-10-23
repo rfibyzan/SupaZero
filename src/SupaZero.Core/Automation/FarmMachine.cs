@@ -25,6 +25,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private GameScreen _lastScreen = GameScreen.Unknown;
     private Vec3? _stuckRef;
     private long _stuckSince;
+    private long? _diffAt;
+    private readonly Dictionary<string, int> _scrolls = new(StringComparer.Ordinal);
 
     public MacroPhase Phase { get; private set; } = MacroPhase.Idle;
     public int StagesCleared { get; private set; }
@@ -35,6 +37,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         _cooldowns.Clear();
         _roomBan.Clear();
+        _scrolls.Clear();
+        _diffAt = null;
         _roomTarget = null;
         _arrivedAt = null;
         _skillLast.Clear();
@@ -92,6 +96,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _pendingBuyConfirm = false;
         }
         if (to == GameScreen.Victory) _retries = 0;
+        if (to != GameScreen.LobbyMenu) { _diffAt = null; _scrolls.Clear(); }
         _stuckRef = null;
     }
 
@@ -220,7 +225,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (!f.AutoCreateLobby) return Wait("Menu Create Room terbuka (Auto create room mati).");
 
         // 1) Mode
-        if (s.LobbyModes.Count > 0 && Pick(s.LobbyModes, f.Mode, "mode", now) is { } modeAct) return modeAct;
+        if (s.LobbyModes.Count > 0 && Pick(s, s.LobbyModes, s.LobbyModesView, f.Mode, "mode", now) is { } modeAct) return modeAct;
         // 2) Map. Map kosong = map terpilih, tapi kalau mode map itu tidak cocok → map pertama (terbuka) dengan mode yang dipilih.
         string targetMap = f.Map;
         if (string.IsNullOrWhiteSpace(targetMap) && s.LobbyMaps.Any(m => m.Mode is not null))
@@ -239,7 +244,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             Status = $"Map terpilih '{s.LobbyMapTag ?? "?"}', target '{f.Map}'.";
             var entry = s.LobbyMaps.FirstOrDefault(e => Matches(e.Name, f.Map));
             if (entry is { Locked: true }) return Stop($"Map '{f.Map}' masih terkunci di akun ini.");
-            if (entry?.Rect is { } r) return Ready("lobby-map", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"Map {entry.Name}")] : [];
+            if (entry is not null && ClickEntry(s, entry, s.LobbyMapsView, "lobby-map", $"Map {entry.Name}", now) is { } mapAct) return mapAct;
             return Note("lobby-map", now, 5000, $"Map '{f.Map}' tidak ada di MapsList (terbaca: {string.Join(", ", s.LobbyMaps.Select(m => m.Name))}).");
         }
         // 3) Act. Daftar act tergantung map (Training cuma Act 1) → target disesuaikan dengan act yang ADA di ActsList.
@@ -266,28 +271,93 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             Status = $"Act terpilih '{s.LobbyActTag ?? "?"}', target Act {want}.";
             var entry = acts.FirstOrDefault(a => a.No == want).Entry;
             if (entry is { Locked: true }) return Stop($"Act {want} di map '{mapKey}' masih terkunci.");
-            if (entry?.Rect is { } r) return Ready("lobby-act", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"Act {want}")] : [];
+            if (entry is not null && ClickEntry(s, entry, s.LobbyActsView, "lobby-act", $"Act {want}", now) is { } actAct) return actAct;
             return Note("lobby-act", now, 5000, $"Act {want} tidak terbaca di ActsList (ActLine.Tag = '{s.LobbyActTag ?? "?"}').");
         }
         string wantAct = "Act " + want;
-        // 4) Difficulty + Start
-        var actions = new List<MacroAction>();
-        var (dx, dy) = AnimeZeroPaths.DifficultyCenters[(int)f.Difficulty];
-        if (Ready("lobby-diff", now, 6000)) actions.Add(new ClickAction(dx, dy, $"Difficulty {f.Difficulty}"));
-        if (s.LobbyStart is { } start && Ready("lobby-start", now, 3000))
-            actions.Add(new ClickAction(start.CenterX, start.CenterY, "Start (Create Room)"));
+        // 4) Difficulty (klik dulu, tunggu terdaftar) → Start
         Status = $"Create Room: {f.Mode} {(f.Map.Length > 0 ? f.Map : s.LobbyMapTag)} {wantAct} {f.Difficulty} → Start.";
-        return actions;
+        if (_diffAt is null || now - _diffAt.Value >= 8000)
+        {
+            var (dx, dy) = DifficultyPoint(s, f.Difficulty);
+            if (!InWindow(s, dx, dy))
+                return Note("lobby-diff", now, 5000, $"Tombol difficulty {f.Difficulty} di luar jendela Roblox ({dx:0},{dy:0}) → tidak diklik.");
+            _diffAt = now;
+            return [new ClickAction(dx, dy, $"Difficulty {f.Difficulty}")];
+        }
+        if (now - _diffAt.Value < 700) return [];
+        var (sx, sy) = s.LobbyStart is { } st ? (st.CenterX, st.CenterY) : Scaled(s, AnimeZeroPaths.StartRefX, AnimeZeroPaths.StartRefY);
+        if (!InWindow(s, sx, sy))
+            return Note("lobby-start", now, 5000, $"Tombol Start di luar jendela Roblox ({sx:0},{sy:0}) → tidak diklik.");
+        return Ready("lobby-start", now, 3000) ? [new ClickAction(sx, sy, s.LobbyStart is null ? "Start (posisi cadangan)" : "Start (Create Room)")] : [];
+    }
+
+    private static (double X, double Y) DifficultyPoint(GameSnapshot s, Difficulty d)
+    {
+        var hit = s.LobbyDifficulties.FirstOrDefault(e => e.Name.Equals(d.ToString(), StringComparison.OrdinalIgnoreCase));
+        if (hit?.Rect is { } r) return (r.CenterX, r.CenterY);
+        var (x, y) = AnimeZeroPaths.DifficultyCenters[(int)d];
+        return Scaled(s, x, y);
+    }
+
+    /// <summary>Koordinat acuan 1920x1080 → ukuran klien jendela sekarang (tanpa ukuran = apa adanya).</summary>
+    private static (double X, double Y) Scaled(GameSnapshot s, double x, double y) =>
+        s.ClientW > 0 && s.ClientH > 0 ? (x * s.ClientW / AnimeZeroPaths.RefW, y * s.ClientH / AnimeZeroPaths.RefH) : (x, y);
+
+    /// <summary>Titik ada di dalam area klien jendela Roblox (ukuran tidak diketahui = dianggap di dalam).</summary>
+    public static bool InWindow(GameSnapshot s, double x, double y) =>
+        s.ClientW <= 0 || s.ClientH <= 0 || (x >= 2 && y >= 2 && x <= s.ClientW - 2 && y <= s.ClientH - 2);
+
+    /// <summary>
+    /// Klik entri daftar (map/act/mode). Kalau entri berada di luar area tampak daftarnya (perlu di-scroll) atau di luar
+    /// jendela: scroll roda mouse di atas daftar ke arah entri, baca ulang, baru klik setelah terlihat. Tidak pernah
+    /// mengklik di luar jendela Roblox. null = entri tanpa rect.
+    /// </summary>
+    private List<MacroAction>? ClickEntry(GameSnapshot s, LobbyEntry e, GuiRect? view, string key, string label, long now)
+    {
+        if (e.Rect is not { } r) return null;
+        double margin = view is { } v0 ? Math.Min(8, Math.Min(v0.W, v0.H) / 4) : 0;
+        bool inView = view is not { } vw || vw.Contains(r.CenterX, r.CenterY, margin);
+        if (inView && InWindow(s, r.CenterX, r.CenterY))
+        {
+            _scrolls.Remove(key);
+            return Ready(key, now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, label)] : [];
+        }
+        if (view is not { } v)
+            return Note(key + "-out", now, 5000, $"{label} di luar jendela Roblox ({r.CenterX:0},{r.CenterY:0}) dan area daftar tidak terbaca → tidak diklik.");
+
+        int n = _scrolls.GetValueOrDefault(key);
+        if (n >= 40)
+            return Note(key + "-scroll", now, 5000, $"{label} tetap tidak terlihat setelah {n} kali scroll → tidak diklik. Cek ukuran jendela Roblox.");
+        // Bagian daftar yang benar-benar tampak = rect daftar ∩ jendela.
+        double top = v.Y, bottom = v.Bottom, left = v.X, right = v.Right;
+        if (s.ClientW > 0 && s.ClientH > 0)
+        {
+            top = Math.Max(top, 0); bottom = Math.Min(bottom, s.ClientH); left = Math.Max(left, 0); right = Math.Min(right, s.ClientW);
+            if (bottom - top < 8 || right - left < 8)
+                return Note(key + "-out", now, 5000, $"Daftar untuk {label} di luar jendela Roblox → tidak di-scroll/klik.");
+        }
+        // Target di bawah/kanan → scroll ke bawah (notch negatif); di atas/kiri → ke atas.
+        bool vertical = r.CenterY < top + margin || r.CenterY > bottom - margin;
+        double dist = vertical ? (r.CenterY > bottom - margin ? r.CenterY - (bottom - margin) : r.CenterY - (top + margin))
+                               : (r.CenterX > right - margin ? r.CenterX - (right - margin) : r.CenterX - (left + margin));
+        double span = Math.Max(40, (vertical ? bottom - top : right - left) * 0.5);
+        int notches = (int)Math.Clamp(Math.Ceiling(Math.Abs(dist) / span), 1, 3) * (dist > 0 ? -1 : 1);
+        double cx = (left + right) / 2, cy = (top + bottom) / 2;
+        if (!Ready(key + "-scroll", now, 450)) return [];
+        _scrolls[key] = n + 1;
+        Status = $"Scroll daftar ke {label}.";
+        return [new ScrollAction(cx, cy, notches, $"{label} belum terlihat → scroll {(notches < 0 ? "bawah" : "atas")}")];
     }
 
     /// <summary>Klik entri yang cocok bila belum terpilih. null = sudah benar / tidak ada data.</summary>
-    private List<MacroAction>? Pick(IReadOnlyList<LobbyEntry> list, string want, string what, long now)
+    private List<MacroAction>? Pick(GameSnapshot s, IReadOnlyList<LobbyEntry> list, GuiRect? view, string want, string what, long now)
     {
         var entry = list.FirstOrDefault(e => Matches(e.Name, want));
         if (entry is null || entry.Selected) return null;
         if (entry.Locked) return Stop($"{what} '{want}' masih terkunci di akun ini.");
         Status = $"Pilih {what} {want}.";
-        return entry.Rect is { } r && Ready("lobby-" + what, now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"{what} {entry.Name}")] : [];
+        return ClickEntry(s, entry, view, "lobby-" + what, $"{what} {entry.Name}", now) ?? [];
     }
 
     private List<MacroAction> Vote(GameSnapshot s, AppSettings S, long now)

@@ -11,7 +11,8 @@ namespace SupaZero.Core.Interop;
 public sealed partial class Win32Input(Func<int> processId) : IInput
 {
     private const uint InputMouse = 0, InputKeyboard = 1;
-    private const uint MouseMove = 0x0001, MouseLeftDown = 0x0002, MouseLeftUp = 0x0004, MouseAbsolute = 0x8000, MouseVirtualDesk = 0x4000;
+    private const uint MouseMove = 0x0001, MouseLeftDown = 0x0002, MouseLeftUp = 0x0004, MouseAbsolute = 0x8000, MouseVirtualDesk = 0x4000, MouseWheel = 0x0800;
+    private const int WheelDelta = 120;
     private const uint KeyUpFlag = 0x0002, ScanCodeFlag = 0x0008;
     private const int SmXVirtual = 76, SmYVirtual = 77, SmCxVirtual = 78, SmCyVirtual = 79;
 
@@ -25,6 +26,8 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
     [LibraryImport("user32.dll")] private static partial nint GetForegroundWindow();
     [LibraryImport("user32.dll")] private static partial uint GetWindowThreadProcessId(nint hWnd, out uint pid);
     [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool ClientToScreen(nint hWnd, ref Point p);
+    [StructLayout(LayoutKind.Sequential)] private struct Rect32 { public int Left, Top, Right, Bottom; }
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetClientRect(nint hWnd, out Rect32 r);
     [LibraryImport("user32.dll")] private static partial int GetSystemMetrics(int index);
     [LibraryImport("user32.dll")] private static partial uint MapVirtualKeyW(uint code, uint mapType);
 
@@ -63,6 +66,34 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         MouseButton(MouseLeftDown);
         Thread.Sleep(30);
         MouseButton(MouseLeftUp);
+    }
+
+    public (int W, int H)? ClientSize()
+    {
+        nint h = MainWindow();
+        if (h == 0 || !GetClientRect(h, out var r)) return null;
+        int w = r.Right - r.Left, ht = r.Bottom - r.Top;
+        return w > 0 && ht > 0 ? (w, ht) : null;
+    }
+
+    public void ScrollClient(double x, double y, int notches)
+    {
+        nint h = MainWindow();
+        if (h == 0 || notches == 0) return;
+        var p = new Point { X = (int)Math.Round(x), Y = (int)Math.Round(y) };
+        if (!ClientToScreen(h, ref p)) return;
+        // Roblox men-scroll ScrollingFrame yang ada di bawah kursor → kursor harus di atas daftar dulu (dengan hover).
+        MoveAbsolute(p.X - 4, p.Y);
+        Thread.Sleep(30);
+        MoveAbsolute(p.X, p.Y);
+        Thread.Sleep(HoverMs);
+        int step = Math.Sign(notches);
+        for (int i = 0; i < Math.Abs(notches); i++)
+        {
+            var w = new Input { Type = InputMouse, Data = new InputUnion { Mouse = new MouseInput { Flags = MouseWheel, MouseData = unchecked((uint)(step * WheelDelta)) } } };
+            SendInput(1, ref w, Marshal.SizeOf<Input>());
+            Thread.Sleep(40);
+        }
     }
 
     public void ClickHere()
