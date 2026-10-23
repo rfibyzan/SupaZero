@@ -118,6 +118,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             g.GuiInsetY = Settings.General.GuiInsetY;
             g.GuiScale = Settings.General.GuiScale;
+            g.AreasButtonPath = Settings.Farm.AreasButtonPath;
+            g.StoryCardPath = Settings.Farm.StoryCardPath;
         }
     }
 

@@ -101,6 +101,14 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
     private long _circlesWs, _circlesAt;
     private IReadOnlyList<Settings.Vec3> _circles = [];
 
+    /// <summary>Path RIE manual (opsional) untuk tombol Areas / kartu Story; menimpa deteksi teks. Boleh "game.Players.X.PlayerGui...." atau relatif PlayerGui.</summary>
+    public string? AreasButtonPath { get; set; }
+    public string? StoryCardPath { get; set; }
+
+    /// <summary>Path (relatif PlayerGui) node yang terakhir dipilih sebagai tombol Areas / kartu teleport, untuk log & dicocokkan di RIE.</summary>
+    public string? LastAreasPick { get; private set; }
+    public string? LastCardPick { get; private set; }
+
     /// <summary>Tombol "Areas" + kartu "Click to Teleport" di PlayerGui (scan teks terlihat, maks tiap 700 ms).</summary>
     private (GuiRect?, IReadOnlyList<LobbyEntry>) ScanHub(long pg)
     {
@@ -109,18 +117,113 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         _hubAt = now;
         GuiRect? areas = null;
         var cards = new List<LobbyEntry>();
+
+        long manualAreas = ResolveGuiPath(pg, AreasButtonPath);
+        if (manualAreas != 0 && IsShown(manualAreas, pg)) { areas = Rect(manualAreas); LastAreasPick = GuiPath(manualAreas, pg) + " (manual)"; }
+        long manualStory = ResolveGuiPath(pg, StoryCardPath);
+        if (manualStory != 0 && IsShown(manualStory, pg) && Rect(manualStory) is { } ms)
+        {
+            cards.Add(new LobbyEntry(nameof(Settings.FarmMode.Story), false, false, ms));
+            LastCardPick = GuiPath(manualStory, pg) + " (manual)";
+        }
+
         foreach (var (node, text) in VisibleTexts(pg, 5000))
         {
             if (areas is null && text.Trim().Equals(AnimeZeroPaths.AreasButtonText, StringComparison.OrdinalIgnoreCase))
-                areas = Rect(ClickableAncestor(node));
+            {
+                long btn = ButtonFor(node);
+                areas = Rect(btn);
+                LastAreasPick = GuiPath(btn, pg);
+            }
             else if (text.Contains(AnimeZeroPaths.TeleportCardHint, StringComparison.OrdinalIgnoreCase))
             {
-                long card = ClickableAncestor(node);
-                string? title = SiblingTitle(reader.GetParent(node), node);
-                if (title is not null) cards.Add(new LobbyEntry(title.Trim(), false, false, Rect(card)));
+                string? title = CardTitle(node);
+                if (title is null || (manualStory != 0 && title.Contains("Story", StringComparison.OrdinalIgnoreCase))) continue;
+                long card = ButtonFor(node);
+                if (Rect(card) is not { } cr) continue;
+                cards.Add(new LobbyEntry(title.Trim(), false, false, cr));
+                if (title.Contains("Story", StringComparison.OrdinalIgnoreCase)) LastCardPick = GuiPath(card, pg);
             }
         }
         return _hub = (areas, cards);
+    }
+
+    private long ResolveGuiPath(long pg, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || pg == 0) return 0;
+        path = path.Trim();
+        int i = path.IndexOf(".PlayerGui.", StringComparison.OrdinalIgnoreCase);
+        if (i >= 0) path = path[(i + ".PlayerGui.".Length)..];
+        return reader.ResolvePath(pg, path);
+    }
+
+    private string GuiPath(long node, long pg)
+    {
+        var parts = new List<string>();
+        for (long cur = node; cur != 0 && cur != pg && parts.Count < 16; cur = reader.GetParent(cur)) parts.Add(reader.GetName(cur));
+        parts.Reverse();
+        return "PlayerGui." + string.Join('.', parts);
+    }
+
+    private static bool IsButton(string cls) => cls is "ImageButton" or "TextButton";
+
+    private static bool Contains(GuiRect r, double x, double y, double pad = 0) =>
+        x >= r.X - pad && x <= r.X + r.W + pad && y >= r.Y - pad && y <= r.Y + r.H + pad;
+
+    /// <summary>
+    /// Tombol untuk sebuah label teks. Urutan: label itu sendiri bila tombol → ancestor tombol (maks 4 level) yang
+    /// menutupi label dan tidak kebesaran → tombol terdekat di sekitar label (saudara / sepupu, mis. ikon di atas teks)
+    /// → rect label itu sendiri. TIDAK pernah memakai frame wadah (dulu bisa jatuh ke tengah sidebar = tombol lain).
+    /// </summary>
+    private long ButtonFor(long label)
+    {
+        if (IsButton(reader.GetClassName(label))) return label;
+        var lr = Rect(label);
+        if (lr is null) return label;
+        double cx = lr.Value.CenterX, cy = lr.Value.CenterY;
+        double maxArea = Math.Max(lr.Value.W * lr.Value.H * 40, 160 * 160);
+
+        long cur = reader.GetParent(label);
+        for (int i = 0; i < 4 && cur != 0; i++, cur = reader.GetParent(cur))
+        {
+            if (!IsButton(reader.GetClassName(cur))) continue;
+            if (Rect(cur) is { } r && Contains(r, cx, cy, 4) && r.W * r.H <= maxArea) return cur;
+        }
+
+        // Tombol di sekitar: cek keturunan induk & kakek (maks 2 level ke bawah), ambil yang paling dekat.
+        long best = 0;
+        double bestD = Math.Max(lr.Value.H * 2.5, 40);
+        long scope = reader.GetParent(label);
+        for (int up = 0; up < 2 && scope != 0; up++, scope = reader.GetParent(scope))
+        {
+            foreach (long c in Descendants(scope, 2))
+            {
+                if (c == label || !IsButton(reader.GetClassName(c)) || Rect(c) is not { } r) continue;
+                if (r.W * r.H > maxArea) continue;
+                double d = Contains(r, cx, cy) ? 0 : Math.Sqrt(Math.Pow(r.CenterX - cx, 2) + Math.Pow(r.CenterY - cy, 2));
+                if (d < bestD) { bestD = d; best = c; }
+            }
+            if (best != 0) return best;
+        }
+        return label;
+    }
+
+    private IEnumerable<long> Descendants(long root, int depth)
+    {
+        foreach (long c in reader.GetChildren(root, 64))
+        {
+            yield return c;
+            if (depth > 1) foreach (long d in Descendants(c, depth - 1)) yield return d;
+        }
+    }
+
+    /// <summary>Judul kartu teleport: teks lain di kartu yang sama (cari di induk lalu kakek).</summary>
+    private string? CardTitle(long hint)
+    {
+        long scope = reader.GetParent(hint);
+        for (int up = 0; up < 3 && scope != 0; up++, scope = reader.GetParent(scope))
+            if (SiblingTitle(scope, hint) is { } t) return t;
+        return null;
     }
 
     /// <summary>BFS PlayerGui yang melewati ScreenGui mati / GuiObject tak terlihat; hasil = (node teks, isi teks).</summary>

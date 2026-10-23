@@ -85,6 +85,11 @@ public sealed class FarmViewModel : ObservableObject
     public string DetectedText => _root.Snapshot.StartRooms is { Count: > 0 } r
         ? $"{r.Count} room: {r.Count(x => !x.Occupied)} kosong, {r.Count(x => x.Occupied)} terisi"
         : _root.Snapshot.StartCircles.Count is int n and > 0 ? $"Terdeteksi {n} lingkaran \"Start Here\"" : "Lingkaran belum terdeteksi";
+    public string AreasButtonPath { get => S.Farm.AreasButtonPath; set { Farm(f => f with { AreasButtonPath = value ?? "" }); _root.ApplyGuiCalibration(); } }
+    public string StoryCardPath { get => S.Farm.StoryCardPath; set { Farm(f => f with { StoryCardPath = value ?? "" }); _root.ApplyGuiCalibration(); } }
+    public string HubPickText => _root.Session.Game is { } g
+        ? $"Areas → {g.LastAreasPick ?? "-"}\nStory → {g.LastCardPick ?? "-"}"
+        : "Areas → -\nStory → -";
     public bool SkipOccupiedRooms { get => S.Farm.SkipOccupiedRooms; set => Farm(f => f with { SkipOccupiedRooms = value }); }
     public decimal JoinTimeoutSec { get => S.Farm.JoinTimeoutSec; set => Farm(f => f with { JoinTimeoutSec = (int)value }); }
 
@@ -119,6 +124,7 @@ public sealed class FarmViewModel : ObservableObject
     public void Refresh()
     {
         Raise(nameof(DetectedText));
+        Raise(nameof(HubPickText));
         var maps = _root.Snapshot.LobbyMaps;
         if (maps.Count == 0) return;
         var known = maps.Select(m => new KnownMap(m.Name, m.Locked)).ToList();

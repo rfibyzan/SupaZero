@@ -51,6 +51,10 @@
         </Border>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
                    Text="Otomatis: Areas → Story (teleport) → jalan ke room kosong terdekat (QuqueRooms). Gagal join → lingkaran lain. Rekam posisi hanya cadangan." />
+        <TextBlock Classes="label" Text="Tombol teleport (path RIE, opsional)" Margin="0,4,0,0" />
+        <TextBox Text="{Binding AreasButtonPath}" Watermark="Path tombol Areas, mis. PlayerGui.HUD.Left.Areas" FontSize="12" />
+        <TextBox Text="{Binding StoryCardPath}" Watermark="Path kartu Story (tombol yang diklik)" FontSize="12" />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding HubPickText}" />
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Lewati room yang ada pemain lain" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding SkipOccupiedRooms}" /></Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
           <TextBlock Classes="label" Text="Pindah lingkaran jika gagal join (dtk)" />

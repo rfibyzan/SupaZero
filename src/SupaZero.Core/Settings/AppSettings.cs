@@ -56,6 +56,9 @@ public sealed record FarmSettings(
     Vec3? LobbyCircle = null,
     /// <summary>Lewati room yang sudah dibuat pemain lain ("Join Here" / "Players x/y").</summary>
     bool SkipOccupiedRooms = true,
+    /// <summary>Path RIE tombol Areas / kartu Story (opsional, menimpa deteksi teks). Contoh: PlayerGui.HUD.Left.Areas</summary>
+    string AreasButtonPath = "",
+    string StoryCardPath = "",
     /// <summary>Sudah di lingkaran tapi menu Create Room tidak terbuka selama ini (detik) → coba lingkaran lain.</summary>
     int JoinTimeoutSec = 5,
     bool AutoVoteStart = true,
