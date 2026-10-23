@@ -82,19 +82,16 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:SkillRowViewModel">
               <Border Classes="card" Padding="0" Margin="0,0,0,6">
-                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                   <Border Background="{DynamicResource OfAccentDim}" CornerRadius="8,0,0,8" MinWidth="48" Padding="10,8"
                           BorderBrush="{DynamicResource OfBorder}" BorderThickness="0,0,1,0">
                     <TextBlock Text="{Binding KeyText}" Classes="accent" FontSize="15" FontWeight="Bold"
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                   </Border>
                   <TextBlock Grid.Column="1" Classes="label" Text="{Binding Name}" Margin="10,0" />
-                  <NumericUpDown Grid.Column="2" Value="{Binding CooldownMs}" Minimum="200" Maximum="60000" Increment="250"
-                                 FormatString="0 ms" Width="96" ShowButtonSpinner="False" Margin="0,0,6,0" VerticalAlignment="Center"
-                                 ToolTip.Tip="Jeda antar-tekan (ms)" />
-                  <Button Grid.Column="3" Content="{Binding RebindText}" Command="{Binding RebindCommand}" Padding="10,4" MinWidth="78"
+                  <Button Grid.Column="2" Content="{Binding RebindText}" Command="{Binding RebindCommand}" Padding="10,4" MinWidth="78"
                           HorizontalContentAlignment="Center" VerticalAlignment="Center" />
-                  <ToggleSwitch Grid.Column="4" IsChecked="{Binding Enabled}" Margin="8,0,4,0" VerticalAlignment="Center" />
+                  <ToggleSwitch Grid.Column="3" IsChecked="{Binding Enabled}" Margin="8,0,4,0" VerticalAlignment="Center" />
                 </Grid>
               </Border>
             </DataTemplate>
