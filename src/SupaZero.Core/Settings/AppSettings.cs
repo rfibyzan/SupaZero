@@ -163,8 +163,17 @@ public sealed class AppSettings
         path ??= DefaultPath;
         try
         {
-            if (File.Exists(path))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), Json) ?? new AppSettings();
+            if (File.Exists(path) && JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), Json) is { } loaded)
+            {
+                // Toggle navigasi sudah dihapus dari UI → selalu aktif; radius sampai dibatasi 2..20 stud.
+                var n = loaded.Navigation;
+                loaded.Navigation = n with
+                {
+                    AutoNavigate = true, AttackWhenStuck = true, ChaseEnemies = true, AimAtEnemy = true, RoamWhenSkillsCooling = true,
+                    ArriveRadius = n.ArriveRadius is >= 2 and <= 20 ? n.ArriveRadius : 6,
+                };
+                return loaded;
+            }
         }
         catch { /* file rusak → default */ }
         return new AppSettings();

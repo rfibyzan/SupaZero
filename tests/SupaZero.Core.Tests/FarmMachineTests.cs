@@ -119,6 +119,7 @@ public class FarmMachineTests
         // Semua cooldown → berhenti serang dulu (animasi selesai), T baru ditekan setelah 900 ms.
         var c0 = m.Step(cooling, 12_100);
         Assert.DoesNotContain(c0, x => x is AttackAction);
+        Assert.Contains(c0.OfType<KeyAction>(), k => k.Reason.Contains("menghindar")); // skill habis → Dash sambil roaming
         Assert.DoesNotContain(c0.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
         var c = m.Step(cooling, 13_000);
         Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));

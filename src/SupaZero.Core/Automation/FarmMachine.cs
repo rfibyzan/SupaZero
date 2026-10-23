@@ -137,6 +137,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     /// <summary>Lingkaran lebih jauh dari ini → teleport dulu lewat tombol Areas.</summary>
     public const double TeleportIfFartherThan = 45;
+    /// <summary>Lingkaran Create Room harus benar-benar diinjak (JoinHitbox 18 stud) → radius tetap, tidak ikut "Radius sampai".</summary>
+    public const double LobbyArriveRadius = 3;
 
     /// <summary>
     /// Lobby: lingkaran "Start Here" terdekat ≤ 45 stud → jalan ke sana. Lebih jauh / tidak terbaca → tombol Areas →
@@ -218,7 +220,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (target is { } t && dist <= maxWalk)
         {
             _roomTarget = t.Id;
-            var walk = WalkTo(s, t.Pos, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
+            var walk = WalkTo(s, t.Pos, LobbyArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
             if (walk.Count > 0) { _arrivedAt = null; return [.. pre, .. walk]; }
 
             _arrivedAt ??= now;
@@ -570,6 +572,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             actions.Add(new NoteAction($"Semua skill cooldown, tapi {off.Name} ({off.Key}) mati di kartu Combat → nyalakan agar power berganti."));
         // Sudah dekat: tetap bergerak melingkari musuh + lompat (baik saat pakai skill maupun basic attack saja).
         Roam(s, S, tgt, now, actions);
+        // Skill 1/2/3 habis (cooldown semua / tidak ada yang siap): Dash (Q) searah roaming agar tidak diam jadi sasaran.
+        bool skillsOut = s.SkillCooldowns.Count > 0 ? s.SkillCooldowns.All(c => !c.Ready) : due is null;
+        // Jangan Dash ≤ 500 ms sebelum T ditekan (animasi Dash bisa menelan T) atau di tick yang sama.
+        bool swapSoon = _swapPrepSince is long ps && now >= _swapRestUntil && Math.Max(ps + SwapPrepMs, _swapLastPress + 1200) - now < 500;
+        bool swapNow = swap is not null && actions.Any(a => a is KeyAction k && k.Reason.StartsWith(swap.Name, StringComparison.Ordinal));
+        if (skillsOut && dash is not null && !s.DashCooling && !swapSoon && !swapNow
+            && actions.OfType<MoveAction>().Any(m => m.Keys.Count > 0) && Ready("dash-roam", now, Math.Max(1500, dash.CooldownMs))
+            && HotkeyMap.TryGetVirtualKey(dash.Key, out uint rvk))
+            actions.Add(new KeyAction((ushort)rvk, 40, $"{dash.Name} ({dash.Key}) menghindar, skill habis"));
         return actions;
     }
 
