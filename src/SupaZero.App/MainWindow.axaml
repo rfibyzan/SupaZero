@@ -3,16 +3,15 @@
         xmlns:vm="using:SupaZero.App.ViewModels"
         x:Class="SupaZero.App.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="SupaZero" Width="980" Height="700" MinWidth="780" MinHeight="520"
+        Title="SupaZero" Icon="/Assets/logo.ico" Width="980" Height="700" MinWidth="780" MinHeight="520"
         Background="{DynamicResource OfBg}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="44">
   <!-- Tata letak sama dengan SupaFisch: judul + badge, strip tab atas, strip koneksi, header halaman + Stopped/Running. -->
   <Grid RowDefinitions="44,Auto,Auto,Auto,*">
     <StackPanel Orientation="Horizontal" Spacing="10" Margin="14,0" VerticalAlignment="Center" IsHitTestVisible="False">
-      <Border Classes="badge" Width="26" Height="26">
-        <TextBlock Text="Z" FontWeight="Black" FontSize="15" Foreground="{DynamicResource OfOnAccent}"
-                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+      <Border Width="26" Height="26" CornerRadius="6" ClipToBounds="True">
+        <Image Source="/Assets/logo.png" Stretch="UniformToFill" />
       </Border>
       <TextBlock Text="SupaZero" FontWeight="SemiBold" VerticalAlignment="Center" />
     </StackPanel>
