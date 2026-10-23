@@ -14,6 +14,12 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
 
 public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting }
 
+/// <summary>Status satu kotak skill di HUD: Key dari keybind.Txt; Remaining detik cooldown (null = siap); Locked = MasteryLock tampil.</summary>
+public sealed record SkillCooldown(string Key, double? Remaining, bool Locked)
+{
+    public bool Ready => Remaining is null && !Locked;
+}
+
 public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect);
 
 /// <summary>Satu entri daftar (map/act/mode) di Create Lobby.</summary>
@@ -84,6 +90,9 @@ public sealed record GameSnapshot
     public GuiRect? NextButton { get; init; }
     public GuiRect? RetryButton { get; init; }
     public GuiRect? LeaveButton { get; init; }
+
+    /// <summary>Kotak skill HUD (HUD.HUD.BottomLeftHolder.main.skills.skillBox), kosong bila tidak terbaca.</summary>
+    public IReadOnlyList<SkillCooldown> SkillCooldowns { get; init; } = [];
 
     // Upgrade
     public bool SkillTreeOpen { get; init; }

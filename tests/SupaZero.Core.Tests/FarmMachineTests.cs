@@ -51,6 +51,28 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Fight_UsesHudCooldowns()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left"),
+            SkillCooldowns = [new("1", 1.7, false), new("2", null, true), new("3", null, false)],
+        };
+        var k = Assert.Single(m.Step(snap, 10_000).OfType<KeyAction>());
+        Assert.Contains("(3)", k.Reason);
+        Assert.Empty(m.Step(snap, 10_200).OfType<KeyAction>()); // 1 cooldown, 2 terkunci, 3 baru dipakai
+        Assert.Single(m.Step(snap, 10_700).OfType<KeyAction>()); // HUD bilang 3 siap lagi
+    }
+
+    [Theory]
+    [InlineData("", null)]
+    [InlineData("1.7", 1.7)]
+    [InlineData("2", 2.0)]
+    [InlineData("0", null)]
+    public void ParseCooldown_Works(string text, double? expected) => Assert.Equal(expected, GameReader.ParseCooldown(text));
+
+    [Fact]
     public void AreaCleared_WalksTowardNextArea()
     {
         var (m, _) = New();

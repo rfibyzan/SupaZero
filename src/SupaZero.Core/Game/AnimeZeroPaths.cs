@@ -60,6 +60,15 @@ public static class AnimeZeroPaths
     public const string LobbyStartButton = "StaerButton"; // (sic) ~(1364,934)
     // Terverifikasi snapshot RIE Byzan (23 Okt 2026, root "UI Animation (Finished)".Quque.MainFrame, AbsolutePosition 0,58):
     // ScreenGui ini TIDAK perlu inset topbar (AbsolutePosition sudah koordinat klien) → rect menu memakai inset lobby (0).
+    // HUD skill (snapshot training Sukuna, 23 Okt 2026): PlayerGui.HUD.HUD.BottomLeftHolder.main.skills berisi tiga
+    // ImageButton "skillBox" (urutan anak ≠ urutan tombol). Tombol = skillBox.keybind.Txt ("1"/"2"/"3");
+    // cooldown = skillBox.Frame.cd.Txt (kosong = siap, angka = sisa detik, mis. "1.7"); terkunci = skillBox.Frame.MasteryLock Visible.
+    public const string HudSkills = "HUD.HUD.BottomLeftHolder.main.skills";
+    public const string HudSkillBox = "skillBox";
+    public const string HudSkillKey = "keybind.Txt";
+    public const string HudSkillCd = "Frame.cd.Txt";
+    public const string HudSkillLock = "Frame.MasteryLock";
+
     // Layar tunggu setelah Start (snapshot S4 Byzan, 23 Okt 2026): PlayerGui."UI Animation (Finished)".Quque.StartNow
     // (ImageButton "Skip Waiting", ~(796,931)), .Sub "Uses 1 Crystal" (Visible = berbayar); Quque.Leave ~(1124,931). MainFrame Visible=false.
     public const string QueueRoot = "UI Animation (Finished).Quque";

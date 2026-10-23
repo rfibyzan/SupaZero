@@ -415,10 +415,14 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _lastAttack = now;
             actions.Add(new AttackAction("Serangan dasar"));
         }
-        // Satu skill per tick: yang paling lama tidak dipakai dan sudah lewat cooldown.
+        // Satu skill per tick: yang paling lama tidak dipakai dan siap. Bila HUD terbaca, cooldown/kunci dari HUD
+        // (jeda minimal 400 ms agar HUD sempat berubah); bila tidak, pakai CooldownMs dari pengaturan.
+        var hudCd = s.SkillCooldowns.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
         var due = S.Combat.EffectiveSkills
             .Where(k => k.Enabled && HotkeyMap.TryGetVirtualKey(k.Key, out _))
-            .Where(k => !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs))
+            .Where(k => hudCd.TryGetValue(k.Key, out var c)
+                ? c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400)
+                : !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs))
             .OrderBy(k => _skillLast.TryGetValue(k.Name, out long t) ? t : long.MinValue)
             .FirstOrDefault();
         if (due is not null && HotkeyMap.TryGetVirtualKey(due.Key, out uint vk))

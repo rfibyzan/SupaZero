@@ -101,6 +101,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             BossBarVisible = boss != 0 && IsShown(boss, pg),
             LobbyMenuOpen = lobbyShown,
             QueueSkip = qShown ? MenuRect(qSkip) : null,
+            SkillCooldowns = ReadSkillCooldowns(pg),
             QueueSkipCosts = qCost != 0 && IsShown(qCost, pg),
             LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
             LobbyActTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActTagPath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
@@ -424,6 +425,35 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             }
         }
         return list;
+    }
+
+    /// <summary>Cooldown skill dari HUD: tiap skillBox → (tombol, sisa detik atau null bila siap, terkunci).</summary>
+    private List<SkillCooldown> ReadSkillCooldowns(long pg)
+    {
+        var list = new List<SkillCooldown>();
+        long skills = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudSkills) : 0;
+        if (skills == 0 || !IsShown(skills, pg)) return list;
+        foreach (long box in reader.GetChildren(skills, 16))
+        {
+            if (reader.GetName(box) != AnimeZeroPaths.HudSkillBox) continue;
+            long keyNode = reader.ResolvePath(box, AnimeZeroPaths.HudSkillKey);
+            string? key = keyNode != 0 ? Text(keyNode)?.Trim() : null;
+            if (string.IsNullOrEmpty(key)) continue;
+            long cdNode = reader.ResolvePath(box, AnimeZeroPaths.HudSkillCd);
+            string? cd = cdNode != 0 ? Text(cdNode)?.Trim() : null;
+            long lockNode = reader.ResolvePath(box, AnimeZeroPaths.HudSkillLock);
+            list.Add(new SkillCooldown(key, ParseCooldown(cd), lockNode != 0 && IsShown(lockNode, pg)));
+        }
+        return list;
+    }
+
+    /// <summary>"" → null (siap); "1.7"/"2" → detik; teks lain yang tak terbaca dianggap cooldown 1 dtk.</summary>
+    public static double? ParseCooldown(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        string t = text.Trim().TrimEnd('s', 'S').Replace(',', '.');
+        return double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v)
+            ? (v <= 0 ? null : v) : 1;
     }
 
     /// <summary>Posisi HumanoidRootPart karakter: Player.ModelInstance → Character → HumanoidRootPart.</summary>
