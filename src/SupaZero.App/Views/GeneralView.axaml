@@ -4,7 +4,7 @@
              x:Class="SupaZero.App.Views.GeneralView"
              x:DataType="vm:GeneralViewModel">
   <!-- Sama dengan General SupaFisch: kiri hotkey + status ronde, kanan kontrol macro, bawah Log. -->
-  <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto">
+  <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto,Auto">
     <StackPanel Spacing="8" Margin="0,0,8,0">
       <Border Classes="card" Padding="0">
         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -65,6 +65,29 @@
     </StackPanel>
 
     <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="card" Margin="0,8,0,0">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Classes="h2" Text="Kalibrasi" />
+            <TextBlock Classes="muted" FontSize="11" Text="{Binding CalibrationSummary}" TextWrapping="Wrap" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="accent" Content="Kalibrasi" Command="{Binding CalibrateCommand}" Padding="14,4" VerticalAlignment="Center" />
+        </Grid>
+        <ItemsControl ItemsSource="{Binding CalibrationItems}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="22,170,*" MinHeight="20">
+                <TextBlock Text="{Binding Icon}" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Classes="label" Text="{Binding Name}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding Value}" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="card" Margin="0,8,0,0">
       <StackPanel Spacing="6">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Classes="h2" Text="Log" VerticalAlignment="Center" />

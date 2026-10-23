@@ -25,6 +25,24 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
         RaiseHotkey();
     });
     public RelayCommand ToggleCommand => new(_ => root.Runner.Toggle());
+    public System.Collections.ObjectModel.ObservableCollection<SupaZero.Core.Game.CalibrationItem> CalibrationItems { get; } = [];
+    private string _calibrationSummary = "Belum dikalibrasi. Tekan Kalibrasi di lobby atau saat di dalam stage.";
+    public string CalibrationSummary { get => _calibrationSummary; private set => Set(ref _calibrationSummary, value); }
+
+    /// <summary>Kalibrasi cepat: satu bacaan memori, semua pengecekan ditampilkan dan ditulis ke log.</summary>
+    public RelayCommand CalibrateCommand => new(_ =>
+    {
+        var snap = root.Runner.IsRunning ? root.Runner.LastSnapshot ?? root.ReadSnapshot() : root.ReadSnapshot();
+        if (snap.Equipped.Count == 0 && root.Powers.SavedLoadout() is { Count: > 0 } saved) snap = snap with { Equipped = saved };
+        var items = SupaZero.Core.Game.Calibration.Run(snap, root.Settings);
+        CalibrationItems.Clear();
+        foreach (var i in items) CalibrationItems.Add(i);
+        CalibrationSummary = $"{DateTime.Now:HH:mm:ss} · layar {snap.Screen} · {SupaZero.Core.Game.Calibration.Summary(items)}";
+        root.AddLog("Kalibrasi: " + SupaZero.Core.Game.Calibration.Summary(items));
+        foreach (var i in items.Where(i => i.State is SupaZero.Core.Game.CheckState.Warn or SupaZero.Core.Game.CheckState.Fail))
+            root.AddLog("  " + i);
+    });
+
     public RelayCommand ClearLogCommand => new(_ => root.LogLines.Clear());
 
     public void ApplyHotkey()
