@@ -98,7 +98,7 @@
         <Border Classes="sep" Margin="0,2,0,4" />
         <Grid ColumnDefinitions="*,150" MinHeight="34">
           <TextBlock Classes="label" Text="Jarak serang (stud)" />
-          <NumericUpDown Grid.Column="1" Value="{Binding AttackRange}" Minimum="2" Maximum="40" Increment="1" FormatString="0" />
+          <NumericUpDown Grid.Column="1" Value="{Binding AttackRange}" Minimum="2" Maximum="150" Increment="1" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
           <TextBlock Classes="label" Text="Radius sampai (stud)" />
