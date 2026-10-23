@@ -13,7 +13,7 @@ public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory,
 public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect);
 
 /// <summary>Satu entri daftar (map/act/mode) di Create Lobby.</summary>
-public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect? Rect);
+public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect? Rect, string? Mode = null);
 
 /// <summary>Satu bacaan keadaan game (read-only) per tick macro.</summary>
 /// <summary>Satu room antrean (Workspace.Systems.QuqueRooms.&lt;n&gt;). Occupied = RoomGui menampilkan "Join Here"/"Players x/y" (sudah ada pemain lain).</summary>

@@ -221,7 +221,19 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
         // 1) Mode
         if (s.LobbyModes.Count > 0 && Pick(s.LobbyModes, f.Mode.ToString(), "mode", now) is { } modeAct) return modeAct;
-        // 2) Map
+        // 2) Map. Map kosong = map terpilih, tapi kalau mode map itu tidak cocok → map pertama (terbuka) dengan mode yang dipilih.
+        string targetMap = f.Map;
+        if (string.IsNullOrWhiteSpace(targetMap) && s.LobbyMaps.Any(m => m.Mode is not null))
+        {
+            var cur = s.LobbyMaps.FirstOrDefault(m => Matches(s.LobbyMapTag, m.Name)) ?? s.LobbyMaps.FirstOrDefault(m => m.Selected);
+            if (cur?.Mode is { } cm && !Matches(cm, f.Mode.ToString()))
+            {
+                var byMode = s.LobbyMaps.FirstOrDefault(m => !m.Locked && m.Mode is { } mm && Matches(mm, f.Mode.ToString()));
+                if (byMode is null) return Stop($"Tidak ada map terbuka untuk mode {f.Mode}.");
+                targetMap = byMode.Name;
+            }
+        }
+        f = f with { Map = targetMap };
         if (!string.IsNullOrWhiteSpace(f.Map) && !Matches(s.LobbyMapTag, f.Map))
         {
             Status = $"Map terpilih '{s.LobbyMapTag ?? "?"}', target '{f.Map}'.";

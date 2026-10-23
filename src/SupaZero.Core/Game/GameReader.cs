@@ -461,11 +461,17 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         {
             string cls = reader.GetClassName(c);
             if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg) || IsListChrome(reader.GetName(c))) continue;
-            string name = FirstText(c, 0) ?? reader.GetName(c);
+            // Kartu map: judul ("Hxh"), label "Mode: Story", badge "NEW!".
+            var texts = Texts(c, 0).ToList();
+            string? mode = texts.Select(t => t.Trim()).FirstOrDefault(t => t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase)) is { } mt
+                ? System.Text.RegularExpressions.Regex.Replace(mt[5..], "<[^>]+>", "").Trim() : null;
+            string name = texts.Select(t => System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim())
+                .FirstOrDefault(t => t.Length > 0 && !t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase) && !t.Equals("NEW!", StringComparison.OrdinalIgnoreCase))
+                ?? reader.GetName(c);
             if (string.IsNullOrWhiteSpace(name)) continue;
             bool locked = name.Contains("lock", StringComparison.OrdinalIgnoreCase) || HasShownDescendant(c, pg, "lock", 0);
             bool selected = HasShownDescendant(c, pg, "select", 0);
-            result.Add(new LobbyEntry(name.Trim(), locked, selected, Rect(c)));
+            result.Add(new LobbyEntry(name.Trim(), locked, selected, Rect(c), mode));
         }
         return result;
     }
@@ -497,6 +503,14 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         name.Contains("Scroll", StringComparison.OrdinalIgnoreCase) || name.StartsWith("UI", StringComparison.Ordinal) ||
         name.StartsWith('_') || name.Contains("Padding", StringComparison.OrdinalIgnoreCase) || name.Contains("Divider", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("Template", StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerable<string> Texts(long node, int depth)
+    {
+        if (PropertyReader.IsTextClass(reader.GetClassName(node)) && Text(node) is { Length: > 0 } t) yield return t;
+        if (depth >= 3) yield break;
+        foreach (long c in reader.GetChildren(node, 32))
+            foreach (var s in Texts(c, depth + 1)) yield return s;
+    }
 
     private string? FirstText(long node, int depth)
     {

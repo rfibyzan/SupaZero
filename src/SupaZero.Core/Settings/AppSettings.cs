@@ -44,7 +44,7 @@ public sealed record Vec3(double X, double Y, double Z)
 }
 
 /// <summary>Satu map yang terbaca dari MapsList di Create Lobby (disimpan agar dropdown tetap terisi di luar lobby).</summary>
-public sealed record KnownMap(string Name, bool Locked);
+public sealed record KnownMap(string Name, bool Locked, string? Mode = null);
 
 /// <summary>Pengaturan AutoFarm. Map kosong = pakai map yang sudah terpilih di lobby.</summary>
 public sealed record FarmSettings(
@@ -69,7 +69,9 @@ public sealed record FarmSettings(
     int MaxRetriesPerStage = 3,
     List<KnownMap>? KnownMaps = null,
     /// <summary>Act terakhir yang tuntas per map (mode "Semua act").</summary>
-    Dictionary<string, int>? ActProgress = null);
+    Dictionary<string, int>? ActProgress = null,
+    /// <summary>Act yang tersedia per map (terbaca dari ActsList saat map itu terpilih).</summary>
+    Dictionary<string, List<int>>? KnownActs = null);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 public sealed record SkillBinding(string Name, string Key, bool Enabled, int CooldownMs);

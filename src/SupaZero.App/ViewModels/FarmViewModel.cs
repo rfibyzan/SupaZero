@@ -34,7 +34,7 @@ public sealed class SkillRowViewModel(FarmViewModel owner, int index) : Observab
 
 public sealed class FarmViewModel : ObservableObject
 {
-    private const string CurrentMapLabel = "(map yang terpilih di lobby)";
+    private const string CurrentMapLabel = "(otomatis sesuai mode)";
     private readonly MainViewModel _root;
 
     public FarmViewModel(MainViewModel root)
@@ -51,14 +51,52 @@ public sealed class FarmViewModel : ObservableObject
     private void Farm(Func<FarmSettings, FarmSettings> f) { S.Farm = f(S.Farm); _root.Save(); }
 
     public IReadOnlyList<string> Modes { get; } = Enum.GetNames<FarmMode>();
-    public IReadOnlyList<string> Acts { get; } = ["Semua act (1 → 5)", "Act 1", "Act 2", "Act 3", "Act 4", "Act 5"];
+    private const string AllActsLabel = "Semua act (berurutan)";
+    public ObservableCollection<string> Acts { get; } = [];
     public IReadOnlyList<string> Difficulties { get; } = Enum.GetNames<Difficulty>();
     public IReadOnlyList<string> AfterWins { get; } = ["Otomatis", "Next", "Retry", "Leave"];
     public ObservableCollection<string> Maps { get; } = [];
     public ObservableCollection<SkillRowViewModel> SkillRows { get; } = [];
 
-    public int ModeIndex { get => (int)S.Farm.Mode; set => Farm(f => f with { Mode = (FarmMode)Math.Clamp(value, 0, Modes.Count - 1) }); }
-    public int ActIndex { get => Math.Clamp(S.Farm.Act, 0, Acts.Count - 1); set => Farm(f => f with { Act = Math.Clamp(value, 0, Acts.Count - 1) }); }
+    public int ModeIndex
+    {
+        get => (int)S.Farm.Mode;
+        set
+        {
+            var mode = (FarmMode)Math.Clamp(value, 0, Modes.Count - 1);
+            if (mode == S.Farm.Mode) return;
+            // Map yang tidak cocok dengan mode baru → kembali ke "map terpilih" (macro pilih map sesuai mode sendiri).
+            bool keep = S.Farm.KnownMaps?.FirstOrDefault(m => m.Name == S.Farm.Map) is { Mode: { } mm } && mm.Equals(mode.ToString(), StringComparison.OrdinalIgnoreCase);
+            Farm(f => f with { Mode = mode, Map = keep ? f.Map : "" });
+            RebuildMaps();
+        }
+    }
+
+    /// <summary>Act untuk map terpilih: dari ActsList yang pernah terbaca, kalau belum → 1–5.</summary>
+    private List<int> ActNumbers() =>
+        S.Farm.Map.Length > 0 && S.Farm.KnownActs?.GetValueOrDefault(S.Farm.Map) is { Count: > 0 } a ? a : [1, 2, 3, 4, 5];
+
+    public int ActIndex
+    {
+        get => S.Farm.Act == 0 ? 0 : Math.Max(0, ActNumbers().IndexOf(S.Farm.Act) + 1);
+        set
+        {
+            if (value < 0) return;
+            var nums = ActNumbers();
+            int act = value == 0 ? 0 : nums[Math.Clamp(value - 1, 0, nums.Count - 1)];
+            if (act != S.Farm.Act) Farm(f => f with { Act = act });
+        }
+    }
+
+    private void RebuildActs()
+    {
+        var nums = ActNumbers();
+        if (S.Farm.Act > 0 && !nums.Contains(S.Farm.Act)) Farm(f => f with { Act = nums.Where(n => n <= f.Act).DefaultIfEmpty(nums[0]).Max() });
+        Acts.Clear();
+        Acts.Add(AllActsLabel);
+        foreach (int n in nums) Acts.Add("Act " + n);
+        Raise(nameof(ActIndex));
+    }
     public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
         ? "Tuntas: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
         : "Semua act: mulai dari Act 1, lanjut otomatis tiap menang. Act yang tidak ada di map disesuaikan otomatis.";
@@ -73,12 +111,12 @@ public sealed class FarmViewModel : ObservableObject
         {
             if (value is null) return;
             string name = value == CurrentMapLabel ? string.Empty : Strip(value);
-            if (name != S.Farm.Map) Farm(f => f with { Map = name });
+            if (name != S.Farm.Map) { Farm(f => f with { Map = name }); RebuildActs(); }
         }
     }
 
-    public string MapsHint => S.Farm.KnownMaps is { Count: > 0 } k
-        ? $"{k.Count(m => !m.Locked)} terbuka, {k.Count(m => m.Locked)} terkunci (terbaca dari menu Create Room)."
+    public string MapsHint => S.Farm.KnownMaps?.Where(m => m.Mode is null || m.Mode.Equals(S.Farm.Mode.ToString(), StringComparison.OrdinalIgnoreCase)).ToList() is { Count: > 0 } k
+        ? $"Map {S.Farm.Mode}: {k.Count(m => !m.Locked)} terbuka, {k.Count(m => m.Locked)} terkunci."
         : "Buka menu Create Room sekali di game: daftar map + status terkunci akan terbaca otomatis.";
 
     public bool AutoCreateLobby { get => S.Farm.AutoCreateLobby; set => Farm(f => f with { AutoCreateLobby = value }); }
@@ -129,9 +167,22 @@ public sealed class FarmViewModel : ObservableObject
     {
         Raise(nameof(DetectedText));
         Raise(nameof(HubPickText));
-        var maps = _root.Snapshot.LobbyMaps;
+        var snap = _root.Snapshot;
+        if (snap.LobbyMapTag is { Length: > 0 } tag && snap.LobbyActs.Count > 0)
+        {
+            var nums = snap.LobbyActs.Select(a => SupaZero.Core.Automation.FarmMachine.ActNumber(a.Name)).Where(n => n > 0).Distinct().Order().ToList();
+            string map = snap.LobbyMaps.FirstOrDefault(m => tag.Contains(m.Name, StringComparison.OrdinalIgnoreCase))?.Name ?? tag.Trim();
+            var ka = new Dictionary<string, List<int>>(S.Farm.KnownActs ?? new(), StringComparer.OrdinalIgnoreCase);
+            if (nums.Count > 0 && !(ka.GetValueOrDefault(map) is { } old0 && old0.SequenceEqual(nums)))
+            {
+                ka[map] = nums;
+                Farm(f => f with { KnownActs = ka });
+                RebuildActs();
+            }
+        }
+        var maps = snap.LobbyMaps;
         if (maps.Count == 0) return;
-        var known = maps.Select(m => new KnownMap(m.Name, m.Locked)).ToList();
+        var known = maps.Select(m => new KnownMap(m.Name, m.Locked, m.Mode)).ToList();
         if (S.Farm.KnownMaps is { } old && old.SequenceEqual(known)) return;
         Farm(f => f with { KnownMaps = known });
         RebuildMaps();
@@ -145,10 +196,14 @@ public sealed class FarmViewModel : ObservableObject
         if (IsJunk(S.Farm.Map)) Farm(f => f with { Map = "" });
         Maps.Clear();
         Maps.Add(CurrentMapLabel);
-        foreach (var m in S.Farm.KnownMaps ?? []) Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
+        string mode = S.Farm.Mode.ToString();
+        foreach (var m in S.Farm.KnownMaps ?? [])
+            if (m.Mode is null || m.Mode.Equals(mode, StringComparison.OrdinalIgnoreCase))
+                Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
         if (S.Farm.Map.Length > 0 && !Maps.Any(m => Strip(m) == S.Farm.Map)) Maps.Add(S.Farm.Map);
         Raise(nameof(SelectedMap));
         Raise(nameof(MapsHint));
+        RebuildActs();
     }
 
     private static bool IsJunk(string n) => n is "ScrollingBar" or "List" or "UIListLayout" or "UIGridLayout";
