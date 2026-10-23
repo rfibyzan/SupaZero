@@ -26,6 +26,19 @@
   </UserControl.Styles>
 
   <StackPanel Spacing="8">
+    <TextBlock Classes="caps" Text="DISCORD WEBHOOK" Margin="2,0,0,0" />
+    <Border Classes="card">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="URL webhook" /><TextBox Grid.Column="1" Text="{Binding WebhookUrl}" PasswordChar="•" Watermark="https://discord.com/api/webhooks/..." /></Grid>
+        <TextBlock Classes="muted" FontSize="11" Margin="140,0,0,0" Text="{Binding WebhookStatus}" />
+        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Mention (opsional)" /><TextBox Grid.Column="1" Text="{Binding WebhookMention}" Watermark="&lt;@id discord kamu&gt;" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat menang (dengan drop)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnVictory}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat kalah" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnDefeat}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat macro berhenti / Story tamat" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnStop}" /></Grid>
+        <Button HorizontalAlignment="Left" Content="Tes webhook" Command="{Binding TestWebhookCommand}" />
+      </StackPanel>
+    </Border>
+
     <TextBlock Classes="caps" Text="APPEARANCE" Margin="2,0,0,0" />
     <Border Classes="card">
       <Grid ColumnDefinitions="*,Auto" MinHeight="30">

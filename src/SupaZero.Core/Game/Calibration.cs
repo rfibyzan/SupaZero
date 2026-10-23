@@ -96,6 +96,18 @@ public static class Calibration
         }
 
         // Layar khusus
+        if (s.Screen == GameScreen.Lobby && s.PlayerPos is { } lp)
+        {
+            var rooms = s.StartRooms.Select(x => (Name: $"room {x.Id}{(x.Occupied ? " (terisi)" : "")}", x.Pos))
+                .Concat(s.StartCircles.Select((c, i) => (Name: $"Start Here {i + 1}", Pos: c))).ToList();
+            if (rooms.Count == 0) Add("Lingkaran room", CheckState.Fail, "QuqueRooms / Start Here tidak terbaca");
+            else
+            {
+                var n = rooms.OrderBy(x => Dist(lp, x.Pos)).First();
+                double d = Dist(lp, n.Pos);
+                Add("Lingkaran room", d <= 45 ? CheckState.Ok : CheckState.Warn, $"{rooms.Count} terbaca · terdekat {n.Name} {d:0} stud{(d > 45 ? " (jauh → teleport)" : "")}");
+            }
+        }
         if (s.Screen == GameScreen.Lobby)
             Add("Lobby", s.AreasButton is not null || s.StartRooms.Count > 0 ? CheckState.Ok : CheckState.Warn,
                 $"Tombol Areas {(s.AreasButton is null ? "tidak" : "")} terbaca · {s.StartRooms.Count} room · {s.TeleportCards.Count} kartu teleport".Replace("  ", " "));

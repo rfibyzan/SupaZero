@@ -57,8 +57,20 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         var S = settings();
         var screen = s.Screen;
-        if (screen != _lastScreen) OnScreenChanged(_lastScreen, screen);
+        if (screen != _lastScreen)
+        {
+            if (screen is GameScreen.StartVote || (screen == GameScreen.InRound && _lastScreen != GameScreen.InRound && _roundStart is null)) _roundStart = nowMs;
+            int actBefore = _selectedAct;
+            OnScreenChanged(_lastScreen, screen);
+            if (screen is GameScreen.Victory or GameScreen.Defeat)
+            {
+                RoundEnded?.Invoke(new Notify.RoundReport(screen == GameScreen.Victory, _selectedMap, actBefore, _lastHud?.Difficulty,
+                    _roundStart is long rs ? TimeSpan.FromMilliseconds(nowMs - rs) : null, StagesCleared, s.ResultText, s.Drops));
+                _roundStart = null;
+            }
+        }
         _lastScreen = screen;
+        if (s.Hud is not null) _lastHud = s.Hud;
 
         var actions = screen switch
         {
@@ -132,6 +144,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     /// </summary>
     private readonly Dictionary<string, long> _roomBan = new(StringComparer.Ordinal);
     private string? _roomTarget;
+    private long? _teleportAt;
     private long? _arrivedAt;
 
     private static string Label(string id) => id.StartsWith("room:") ? "room " + id[5..] : id == "manual" ? "lingkaran rekaman" : "lingkaran";
@@ -188,7 +201,10 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _arrivedAt = null;
         }
 
-        if (target is { } t && dist <= TeleportIfFartherThan)
+        // Baru teleport (≤ 30 dtk): spawn bisa agak jauh dari lingkaran → tetap jalan (sampai 200 stud), jangan teleport ulang.
+        bool justTeleported = _teleportAt is long ta && now - ta < 30_000;
+        double maxWalk = justTeleported ? 200 : TeleportIfFartherThan;
+        if (target is { } t && dist <= maxWalk)
         {
             _roomTarget = t.Id;
             var walk = WalkTo(s, t.Pos, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
@@ -209,6 +225,12 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         }
         _roomTarget = null;
         _arrivedAt = null;
+        if (target is { } far)
+            pre.AddRange(Note("room-far", now, 5000, $"{Label(far.Id)} terdekat {dist:0} stud (> {maxWalk:0}) → teleport lewat Areas."));
+        else if (s.PlayerPos is null)
+            pre.AddRange(Note("lobby-nopos", now, 5000, "Posisi karakter tidak terbaca di lobby → tidak bisa jalan ke lingkaran."));
+        else if (cands.Count == 0)
+            pre.AddRange(Note("lobby-norooms", now, 5000, "Lingkaran room (QuqueRooms / Start Here) tidak terbaca."));
         if (target is null && s.StartRooms.Count > 0 && s.StartRooms.All(r => r.Occupied) && f.SkipOccupiedRooms)
         {
             Status = "Semua room terisi pemain lain, menunggu yang kosong.";
@@ -221,12 +243,14 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (card?.Rect is { } cr)
         {
             Status = $"Teleport: Areas → {card.Name}";
-            return Ready("tp-card", now, 2500) ? [new MoveAction([], "Teleport"), new ClickAction(cr.CenterX, cr.CenterY, $"Teleport {card.Name}")] : [];
+            if (!Ready("tp-card", now, 2500)) return pre;
+            _teleportAt = now;
+            return [.. pre, new MoveAction([], "Teleport"), new ClickAction(cr.CenterX, cr.CenterY, $"Teleport {card.Name}")];
         }
         if (s.AreasButton is { } ab)
         {
             Status = "Buka Areas untuk teleport.";
-            return Ready("areas", now, 1500) ? [new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")] : [];
+            return Ready("areas", now, 1500) ? [.. pre, new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")] : pre;
         }
         Status = "Lingkaran Create Room dan tombol Areas tidak terbaca.";
         return [new MoveAction([], "Tunggu"), .. Note("no-hub", now, 8000, "Tombol Areas / lingkaran 'Start Here' tidak terbaca. Cek di RIE atau rekam posisi lingkaran manual.")];
@@ -727,6 +751,10 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private readonly List<MacroAction> _pending = [];
     private int _selectedAct;
     private string _selectedMap = "";
+    private long? _roundStart;
+    private HudInfo? _lastHud;
+    /// <summary>Dipanggil sekali saat layar berubah ke Victory/Defeat (untuk webhook).</summary>
+    public Action<Notify.RoundReport>? RoundEnded { get; set; }
 
     /// <summary>Nomor act dari teks "Act 3", "Training [Act 1]", "Act 1 Training". 0 = tidak ada.</summary>
     public static int ActNumber(string? text)

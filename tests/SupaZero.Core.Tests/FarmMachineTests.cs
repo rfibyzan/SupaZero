@@ -182,6 +182,11 @@ public class FarmMachineTests
         Assert.Equal("Tombol Areas", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
         var panel = hub with { TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))] };
         Assert.Equal("Teleport Story", Real(m.Step(panel, 5000)).OfType<ClickAction>().Single().Reason);
+        // Setelah teleport, lingkaran 80 stud (panel teleport masih tampil) → jalan, bukan teleport ulang.
+        var after = panel with { PlayerPos = new Vec3(220, 0, 0) };
+        var walk = Real(m.Step(after, 7000));
+        Assert.DoesNotContain(walk, x => x is ClickAction);
+        Assert.Contains(walk.OfType<MoveAction>(), mv => mv.Keys.Count > 0);
     }
 
     [Fact]

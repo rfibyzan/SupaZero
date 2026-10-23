@@ -42,6 +42,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             AddLog($"Tuntas: {map} Act {act}.");
         });
         Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); });
+        // Discord webhook: hasil ronde + macro berhenti.
+        Runner.Machine.RoundEnded = r =>
+        {
+            var w = Settings.Webhook;
+            if ((r.Victory ? w.OnVictory : w.OnDefeat) && SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(w.Url))
+                _ = SendWebhook(SupaZero.Core.Notify.DiscordWebhook.ForRound(r));
+        };
+        Runner.RunningChanged += running =>
+        {
+            var w = Settings.Webhook;
+            if (!running && w.OnStop && SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(w.Url))
+                _ = SendWebhook(new("Macro berhenti", Runner.LastStopReason ?? "Dihentikan manual.", SupaZero.Core.Notify.DiscordWebhook.Gray,
+                    [new("Stage selesai", Runner.Machine.StagesCleared.ToString(), true)]));
+        };
 
         General = new GeneralViewModel(this);
         Farm = new FarmViewModel(this);
@@ -187,6 +201,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SyncPowers();
         General.Refresh();
         Farm.Refresh();
+    }
+
+    public async Task SendWebhook(SupaZero.Core.Notify.DiscordWebhook.Embed embed)
+    {
+        var err = await SupaZero.Core.Notify.DiscordWebhook.SendAsync(Settings.Webhook.Url, embed, Settings.Webhook.Mention);
+        Dispatcher.UIThread.Post(() => AddLog(err is null ? $"Webhook terkirim: {embed.Title}." : err));
     }
 
     public void AddLog(string line)

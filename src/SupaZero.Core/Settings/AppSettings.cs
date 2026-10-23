@@ -75,6 +75,9 @@ public sealed record FarmSettings(
     Dictionary<string, List<int>>? KnownActs = null);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
+/// <summary>Discord webhook: notifikasi menang/kalah (dengan drop) dan macro berhenti.</summary>
+public sealed record WebhookSettings(string Url = "", bool OnVictory = true, bool OnDefeat = true, bool OnStop = true, string Mention = "");
+
 public sealed record SkillBinding(string Name, string Key, bool Enabled, int CooldownMs);
 
 public sealed record CombatSettings(
@@ -137,6 +140,7 @@ public sealed class AppSettings
     public CombatSettings Combat { get; set; } = new();
     public NavigationSettings Navigation { get; set; } = new();
     public UpgradeSettings Upgrade { get; set; } = new();
+    public WebhookSettings Webhook { get; set; } = new();
     public string? OffsetsPath { get; set; }
     /// <summary>Nama power (id karakter → nama tampil) dan trait per power yang sudah terbaca dari game.</summary>
     public Dictionary<string, string> PowerNames { get; set; } = new();

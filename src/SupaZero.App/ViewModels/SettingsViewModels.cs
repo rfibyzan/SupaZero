@@ -57,6 +57,17 @@ public sealed class SettingsPageViewModel : ObservableObject
 
     public static Action<bool>? TransparencyChanged { get; set; }
 
+    // ── Discord webhook
+    public string WebhookUrl { get => S.Webhook.Url; set { S.Webhook = S.Webhook with { Url = value?.Trim() ?? "" }; _root.Save(); Raise(nameof(WebhookStatus)); } }
+    public string WebhookMention { get => S.Webhook.Mention; set { S.Webhook = S.Webhook with { Mention = value ?? "" }; _root.Save(); } }
+    public bool WebhookOnVictory { get => S.Webhook.OnVictory; set { S.Webhook = S.Webhook with { OnVictory = value }; _root.Save(); } }
+    public bool WebhookOnDefeat { get => S.Webhook.OnDefeat; set { S.Webhook = S.Webhook with { OnDefeat = value }; _root.Save(); } }
+    public bool WebhookOnStop { get => S.Webhook.OnStop; set { S.Webhook = S.Webhook with { OnStop = value }; _root.Save(); } }
+    public string WebhookStatus => S.Webhook.Url.Length == 0 ? "Kosong = webhook mati."
+        : SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(S.Webhook.Url) ? "URL valid." : "URL tidak valid (https://discord.com/api/webhooks/...).";
+    public RelayCommand TestWebhookCommand => new(_ => _ = _root.SendWebhook(new("Tes webhook", "SupaZero terhubung ke Discord.",
+        SupaZero.Core.Notify.DiscordWebhook.Blue, [new("Stage selesai", _root.Runner.Machine.StagesCleared.ToString(), true)])));
+
     public bool TransparentUi
     {
         get => S.General.TransparentUi;

@@ -121,6 +121,8 @@ public sealed record GameSnapshot
     public bool EndScreenVisible { get; init; }
     public string? ResultText { get; init; }
     public GuiRect? NextButton { get; init; }
+    /// <summary>Drop di layar hasil (nama ×jumlah). Kosong sampai path GUI drop diverifikasi lewat snapshot RIE.</summary>
+    public IReadOnlyList<string> Drops { get; init; } = [];
     public GuiRect? RetryButton { get; init; }
     public GuiRect? LeaveButton { get; init; }
 

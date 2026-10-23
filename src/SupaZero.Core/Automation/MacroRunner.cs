@@ -30,12 +30,16 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     {
         if (IsRunning) return;
         Machine.Reset();
+        LastStopReason = null;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         _loop = Task.Run(() => Loop(token), token);
         Log?.Invoke("Macro mulai.");
         RunningChanged?.Invoke(true);
     }
+
+    /// <summary>Alasan StopAction terakhir (null = dihentikan manual).</summary>
+    public string? LastStopReason { get; set; }
 
     public void Stop()
     {
@@ -140,6 +144,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 return;
             case StopAction s:
                 Log?.Invoke(s.Reason);
+                LastStopReason = s.Reason;
                 Stop();
                 return;
         }
