@@ -233,7 +233,7 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(ModeIndex));
     }
 
-    private static bool IsJunk(string n) => n is "ScrollingBar" or "List" or "UIListLayout" or "UIGridLayout";
+    private static bool IsJunk(string n) => n is "ScrollingBar" or "List" or "UIListLayout" or "UIGridLayout" or "FadeSpacer";
 
     private static string Strip(string s) => s.Replace(" (terkunci)", string.Empty).Trim();
 }

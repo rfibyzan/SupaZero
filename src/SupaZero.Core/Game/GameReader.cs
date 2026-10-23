@@ -461,7 +461,20 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         {
             string cls = reader.GetClassName(c);
             if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg) || IsListChrome(reader.GetName(c))) continue;
-            // Kartu map: judul ("Hxh"), label "Mode: Story", badge "NEW!".
+            // Kartu map terverifikasi RIE (23 Okt 2026): MapsList.List.ScrollingFrame.<Id>.<Id>.Txt = judul,
+            // .Holder.Lvl.Label = "Mode: ", .Holder.Lvl.Value = "Story"/"Raid"/"Tidal High Rise"/...
+            long inner = reader.FindChild(c, reader.GetName(c));
+            long title = inner != 0 ? reader.FindChild(inner, "Txt") : 0;
+            if (inner != 0 && Text(title) is { Length: > 0 } cardTitle)
+            {
+                string cardName = System.Text.RegularExpressions.Regex.Replace(cardTitle, "<[^>]+>", "").Trim();
+                string? cardMode = Text(reader.ResolvePath(inner, "Holder.Lvl.Value"))?.Trim();
+                bool cardLocked = HasShownDescendant(c, pg, "lock", 0);
+                result.Add(new LobbyEntry(cardName, cardLocked, HasShownDescendant(c, pg, "select", 0), Rect(c), string.IsNullOrEmpty(cardMode) ? null : cardMode));
+                continue;
+            }
+            if (reader.GetName(c).Contains("Spacer", StringComparison.OrdinalIgnoreCase)) continue;
+            // Cadangan (daftar mode/act): judul = teks pertama.
             var texts = Texts(c, 0).ToList();
             var clean = texts.Select(t => System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim()).ToList();
             int mi = clean.FindIndex(t => t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase));
