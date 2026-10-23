@@ -34,12 +34,12 @@ public sealed class OverlayViewModel(MainViewModel root) : ObservableObject
         Stage = $"{f.Mode} · {map}{(act > 0 ? $" · Act {act}" : "")} · {s.Hud?.Difficulty ?? f.Difficulty.ToString()}";
 
         Area = s.Screen == GameScreen.InRound && s.Hud is { } h
-            ? $"Area {h.Area}/{h.AreaTotal} · {(s.EnemyCount >= 0 ? s.EnemyCount : h.EnemiesLeft)} musuh"
+            ? $"{(s.RunWave is { Length: > 0 } w ? w + " · " : "")}Area {h.Area}/{h.AreaTotal} · {(s.EnemyCount >= 0 ? s.EnemyCount : h.EnemiesLeft)} musuh{(s.BossImmune ? " · boss IMMUNE" : "")}"
             : ScreenText(s.Screen);
 
         Target = "-";
         if (s.Screen == GameScreen.InRound && s.PlayerPos is { } p
-            && s.Enemies.Where(e => e.Alive).OrderBy(e => Navigator.Distance2D(p.X, p.Z, e.Pos.X, e.Pos.Z)).FirstOrDefault() is { } e)
+            && FarmMachine.Targets(s).OrderBy(e => Navigator.Distance2D(p.X, p.Z, e.Pos.X, e.Pos.Z)).FirstOrDefault() is { } e)
         {
             double d = Navigator.Distance2D(p.X, p.Z, e.Pos.X, e.Pos.Z);
             int hp = e.MaxHealth > 0 ? (int)Math.Round(100 * e.Health / e.MaxHealth) : 0;
@@ -78,6 +78,8 @@ public sealed class OverlayViewModel(MainViewModel root) : ObservableObject
         GameScreen.Victory => "Menang",
         GameScreen.Defeat => "Kalah",
         GameScreen.InRound => "Dalam stage",
+        GameScreen.BlessingPick => "Pilih Mirror Blessing",
+        GameScreen.TrialsMenu => "Panel Trials",
         _ => "Menunggu Roblox",
     };
 }

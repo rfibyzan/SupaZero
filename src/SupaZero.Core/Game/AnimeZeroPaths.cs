@@ -94,6 +94,56 @@ public static class AnimeZeroPaths
     public const string BuyFrame = "BuyFrame";
     public const string BuyButton = "BuyButton";
 
+
+    // ---- Mode non-Story (snapshot RIE Byzan, 24 Okt 2026) ----
+    // Drop Target: kartu RewardN.RewardN.Main (.TxtShadow.Txt = nama, .TargetPill tampil hanya di Hard/Nightmare,
+    // .TargetPill.Pill."Txt(Shadow)".Txt = "TARGET x3" / "UNTARGET" (= sedang ditarget), .TargetPill.Hit = tombol).
+    public const string LobbyRewardsScroll = "Content.RightHolder.RHS.Rewards.Rewards.Container.ScrollingFrame";
+    public const string LobbyRewardsTip = "Content.RightHolder.RHS.Rewards.Rewards.Header.TargetTip"; // "Tap a material to target it: x3 drop chance for it"
+    // Mirror Blessing: FateBlessings.Picker (ScreenGui 0,58 → koordinat klien). OfferN.Body: Rarity.Txt, TextHolder.Heading/Value, PickButton.
+    public const string BlessingPicker = "FateBlessings.Picker";
+    // HUD raid: RunSide.Container.Title "Wave 1/5" / "Boss Wave", .Alive.Value "09", .NextBoss.Value "Wave 5"/"Now!".
+    public const string RunSideContainer = "RunSide.Container";
+    // BossBar: Header.Title "Evil Astx", Header.Tag "[IMMUNE]" (wave 1-4) → "[BOSS]" (wave boss), Header.Percent.
+    public const string BossHeader = "BossBar.Container.Header";
+    // Panel Trials: Tabs.RoomRewards (tab Floor Rewards), RoomRewards.CurrentRoom.Title "Floor 1",
+    // RoomRewards.HighestRoom.Title "None yet", LeftButtons.Decrease/Increase, Buttons.StaerButton.StaerButton,
+    // Rewards.Container.ScrollingFrame.RewardN.Main (TargetPill sama dengan lobby).
+    public const string TrialsRoot = "UI Animation (Finished).Trials.MainFrame";
+    // EndScreen: Holder.ConstraintedHolder.ButtonsHolder.{Retry,Next,Leave}Button.Button (Next hanya Story/Trials),
+    // NextButton.MainText "Next Floor: 0/1". Drop: Holder.RewardsFrame.CutFrame.Holder.<money|gems|traitRerolls|luckySpins|materialNNN|unitX>.
+    public const string EndButtonsHolder = "Holder.ConstraintedHolder.ButtonsHolder";
+    public const string EndDropsHolder = "Holder.RewardsFrame.CutFrame.Holder";
+
+    public static string DropLabel(string key) => key switch
+    {
+        "money" => "Coins",
+        "gems" => "Gems",
+        "traitRerolls" => "Trait Rerolls",
+        "luckySpins" => "Lucky Spins",
+        _ when key.StartsWith("unit", StringComparison.Ordinal) => "Unit " + key[4..],
+        _ => key,
+    };
+
+    /// <summary>Icon kartu Rewards → nama material (dari snapshot Create Room/Trials). Ditambah otomatis saat menu terbaca.</summary>
+    public static readonly IReadOnlyDictionary<string, string> MaterialIcons = new Dictionary<string, string>
+    {
+        ["rbxassetid://119252600098664"] = "Magic Pendant",
+        ["rbxassetid://109913321338481"] = "Cursed Relic",
+        ["rbxassetid://132677360974573"] = "Soul Fragment",
+        ["rbxassetid://106984976173853"] = "Eyeball",
+        ["rbxassetid://139900035439195"] = "Shinobi Scroll",
+        ["rbxassetid://111269245025211"] = "Caprese",
+        ["rbxassetid://138199229130273"] = "Ham",
+        ["rbxassetid://78497914687710"] = "Omurice",
+        ["rbxassetid://97090308752380"] = "Curse Ball",
+        ["rbxassetid://99397651593848"] = "Forbidden Fruit",
+        ["rbxassetid://111585695829783"] = "Pure Quill",
+        ["rbxassetid://132113369360174"] = "Mana Feather",
+        ["rbxassetid://102816679609155"] = "Fine Cloth",
+        ["rbxassetid://118619358407255"] = "Pure Sword Shards",
+    };
+
     /// <summary>Resolusi referensi koordinat fallback di atas (layar 1920x1080).</summary>
     public const double RefWidth = 1920, RefHeight = 1080;
 }

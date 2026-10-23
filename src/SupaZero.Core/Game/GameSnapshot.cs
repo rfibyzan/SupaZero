@@ -12,7 +12,7 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
         x >= X + margin && x <= X + W - margin && y >= Y + margin && y <= Y + H - margin;
 }
 
-public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting }
+public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting, BlessingPick, TrialsMenu }
 
 /// <summary>Status satu kotak skill di HUD: Key dari keybind.Txt; Remaining detik cooldown (null = siap); Locked = MasteryLock tampil.</summary>
 /// <summary>Musuh di Workspace.enemies: posisi HumanoidRootPart + darah Humanoid.</summary>
@@ -56,6 +56,23 @@ public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect
 /// <summary>Satu bacaan keadaan game (read-only) per tick macro.</summary>
 /// <summary>Satu room antrean (Workspace.Systems.QuqueRooms.&lt;n&gt;). Occupied = RoomGui menampilkan "Join Here"/"Players x/y" (sudah ada pemain lain).</summary>
 public sealed record StartRoom(string Id, Settings.Vec3 Pos, bool Occupied, int? Players = null, int? MaxPlayers = null);
+
+/// <summary>Kartu reward (Create Room / Trials). Targetable = pill TARGET tampil (Hard/Nightmare); Targeted = pill bertuliskan UNTARGET.</summary>
+public sealed record RewardCard(string Name, bool Targetable, bool Targeted, GuiRect? Hit, string? Chance);
+
+/// <summary>Kartu Mirror Blessing (FateBlessings.Picker.Holder.List.OfferN).</summary>
+public sealed record BlessingOffer(string Name, string Rarity, string? Value, GuiRect? Pick);
+
+/// <summary>Panel Trials (UI Animation (Finished).Trials.MainFrame). FloorTabOpen = tab Floor Rewards aktif.</summary>
+public sealed record TrialsInfo(GuiRect? FloorTab, bool FloorTabOpen, int? SelectedFloor, int? HighestFloor,
+    GuiRect? Decrease, GuiRect? Increase, GuiRect? Start, IReadOnlyList<RewardCard> Rewards, GuiRect? RewardsView);
+
+/// <summary>Kotak Workspace.World.Areas.&lt;n&gt; (Part: pusat + Size).</summary>
+public sealed record AreaBox(Settings.Vec3 Center, Settings.Vec3 Size)
+{
+    public bool Contains(Settings.Vec3 p, double margin = 0) =>
+        Size.X > 0 && Math.Abs(p.X - Center.X) <= Size.X / 2 - margin && Math.Abs(p.Z - Center.Z) <= Size.Z / 2 - margin;
+}
 
 public sealed record GameSnapshot
 {
@@ -121,7 +138,7 @@ public sealed record GameSnapshot
     public bool EndScreenVisible { get; init; }
     public string? ResultText { get; init; }
     public GuiRect? NextButton { get; init; }
-    /// <summary>Drop di layar hasil (nama ×jumlah). Kosong sampai path GUI drop diverifikasi lewat snapshot RIE.</summary>
+    /// <summary>Drop di layar hasil ("Coins $14,746", "Magic Pendant x1"), dari EndScreen RewardsFrame.</summary>
     public IReadOnlyList<string> Drops { get; init; } = [];
     public GuiRect? RetryButton { get; init; }
     public GuiRect? LeaveButton { get; init; }
@@ -140,6 +157,24 @@ public sealed record GameSnapshot
     // Power di loadout (lobby; di stage memakai hasil lobby terakhir)
     public IReadOnlyList<EquippedPower> Equipped { get; init; } = [];
 
+    // Mode non-Story
+    public IReadOnlyList<RewardCard> LobbyRewards { get; init; } = [];
+    public GuiRect? LobbyRewardsView { get; init; }
+    /// <summary>Teks tip Drop Target yang tampil ("... x3 drop chance ..."), null = difficulty tanpa bonus.</summary>
+    public string? LobbyTargetTip { get; init; }
+    public IReadOnlyList<BlessingOffer> Blessings { get; init; } = [];
+    public TrialsInfo? Trials { get; init; }
+    /// <summary>RunSide raid: "Wave 1/5" / "Boss Wave".</summary>
+    public string? RunWave { get; init; }
+    public int? RunAlive { get; init; }
+    public string? BossName { get; init; }
+    /// <summary>"IMMUNE" / "BOSS" dari BossBar.</summary>
+    public string? BossTag { get; init; }
+    public bool BossImmune => BossTag?.Contains("IMMUNE", StringComparison.OrdinalIgnoreCase) == true;
+    public Settings.Vec3? BossSpawn { get; init; }
+    public AreaBox? CurrentArea { get; init; }
+    public string? NextButtonText { get; init; }
+
     public bool InRound => Hud is not null || EnemyCount >= 0;
 
     public bool IsDefeat => ResultText?.Contains("DEFEAT", StringComparison.OrdinalIgnoreCase) == true;
@@ -155,8 +190,10 @@ public sealed record GameSnapshot
             if (!Attached) return GameScreen.Unknown;
             if (EndScreenVisible || IsDefeat) return IsDefeat ? GameScreen.Defeat : GameScreen.Victory;
             if (StartVoteVisible) return GameScreen.StartVote;
+            if (Blessings.Count > 0) return GameScreen.BlessingPick;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;
             if (QueueSkip is not null) return GameScreen.QueueWaiting;
+            if (Trials is not null) return GameScreen.TrialsMenu;
             if (InRound) return GameScreen.InRound;
             return GameScreen.Lobby;
         }

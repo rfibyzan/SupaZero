@@ -119,6 +119,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Slots = treeShown ? ReadSlots(tree, pg) : [],
             BuyButton = treeShown ? VisibleRect(Find(Find(tree, AnimeZeroPaths.BuyFrame), AnimeZeroPaths.BuyButton), pg) : null,
         };
+        snap = ReadModes(snap, pg, ws, lobby, lobbyShown, end, endShown);
         if (snap.Screen != GameScreen.Lobby) return snap;
         var (areas, cards) = ScanHub(pg);
         var startRooms = ReadRooms(ws);

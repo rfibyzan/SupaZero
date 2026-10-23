@@ -76,7 +76,13 @@ public sealed record FarmSettings(
     /// <summary>Act terakhir yang tuntas per map (mode "Semua act").</summary>
     Dictionary<string, int>? ActProgress = null,
     /// <summary>Act yang tersedia per map (terbaca dari ActsList saat map itu terpilih).</summary>
-    Dictionary<string, List<int>>? KnownActs = null);
+    Dictionary<string, List<int>>? KnownActs = null,
+    /// <summary>Drop Target: nama material di panel Rewards yang ditarget (Hard x2 / Nightmare x3). Kosong = mati.</summary>
+    string DropTarget = "",
+    /// <summary>Urutan pilihan kartu Mirror Blessing (nama dipisah koma). Tidak cocok → rarity tertinggi.</summary>
+    string BlessingPriority = "Sharper Edge, Shard Snack, Big Heart, Chain Shatter, Swift Steps",
+    /// <summary>Floor Trials yang dipilih di panel (0 = biarkan pilihan game / floor berikutnya).</summary>
+    int TrialsFloor = 0);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 /// <summary>Discord webhook: notifikasi menang/kalah (dengan drop) dan macro berhenti.</summary>

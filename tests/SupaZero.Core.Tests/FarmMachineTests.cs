@@ -434,4 +434,68 @@ public class FarmMachineTests
         var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyMaps = [hidden], ClientW = 1280, ClientH = 720 };
         Assert.DoesNotContain(m.Step(snap, 0), a => a is ClickAction);
     }
+
+    [Fact]
+    public void Blessing_PicksByPriority_ThenRarity()
+    {
+        var offers = new List<BlessingOffer>
+        {
+            new("Chain Shatter", "RARE", "+50% splash", new GuiRect(390, 774, 352, 49)),
+            new("Shard Snack", "RARE", "+7.0% heal", new GuiRect(787, 774, 352, 49)),
+            new("Sharper Edge", "COMMON", "+35%", new GuiRect(1181, 774, 352, 49)),
+        };
+        Assert.Equal("Shard Snack", FarmMachine.ChooseBlessing(offers, ["Shard Snack", "Sharper Edge"])!.Name);
+        Assert.Equal("Chain Shatter", FarmMachine.ChooseBlessing(offers, ["Big Heart"])!.Name);
+        var (m, _) = New(s => s.Farm = s.Farm with { BlessingPriority = "Sharper Edge" });
+        var a = Real(m.Step(new GameSnapshot { Attached = true, EnemyCount = 1, Blessings = offers }, 0));
+        var click = Assert.IsType<ClickAction>(Assert.Single(a));
+        Assert.Equal(1181 + 176, click.X, 0);
+    }
+
+    [Fact]
+    public void ImmuneBoss_IsSkipped_WhileSummonsAlive()
+    {
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 2, BossTag = "IMMUNE", BossSpawn = new(61.85, 279, -146.55),
+            Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100), new("7", new(47.6, 281.5, -252.7), 100, 100)],
+        };
+        Assert.Equal("7", Assert.Single(FarmMachine.Targets(snap)).Name);
+        Assert.Equal(2, FarmMachine.Targets(snap with { BossTag = "BOSS" }).Count);
+    }
+
+    [Fact]
+    public void ImmuneBossOnly_WalksIntoArea()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, BossTag = "IMMUNE", BossSpawn = new(61.85, 279, -146.55),
+            Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100)],
+            PlayerPos = new(72, 243, -440), CameraLook = (0, 1),
+            CurrentArea = new AreaBox(new(61.85, 303.5, -208.55), new(200, 70, 200)),
+        };
+        Assert.Contains(m.Step(snap, 0), a => a is MoveAction { Keys.Count: > 0 });
+        Assert.DoesNotContain(m.Step(snap, 100), a => a is AttackAction);
+    }
+
+    [Fact]
+    public void DropTarget_ClicksMaterialBeforeStart()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Map = "Hxh", Act = 1, Difficulty = Difficulty.Nightmare, DropTarget = "Fine Cloth" });
+        var cards = new List<RewardCard>
+        {
+            new("Magic Pendant", true, false, new GuiRect(1225, 788, 118, 42), "27%"),
+            new("Fine Cloth", true, false, new GuiRect(1450, 788, 118, 42), "100%"),
+        };
+        var snap = new GameSnapshot
+        {
+            Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyActTag = "[Act 1]", LobbyDifficultyTag = "NIGHTMARE",
+            LobbyRewards = cards, LobbyStart = Btn, ClientW = 1920, ClientH = 1009,
+        };
+        var a = Real(m.Step(snap, 0));
+        Assert.Contains(a, x => x is ClickAction c && c.Reason.Contains("Fine Cloth"));
+        var done = snap with { LobbyRewards = [cards[0], cards[1] with { Targeted = true }] };
+        Assert.Contains(Real(m.Step(done, 5000)), x => x is ClickAction c && c.Reason.Contains("Start"));
+    }
 }

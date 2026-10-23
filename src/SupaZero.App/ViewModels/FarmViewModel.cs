@@ -137,6 +137,10 @@ public sealed class FarmViewModel : ObservableObject
     public bool AutoVoteStart { get => S.Farm.AutoVoteStart; set => Farm(f => f with { AutoVoteStart = value }); }
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
     public decimal MaxRetries { get => S.Farm.MaxRetriesPerStage; set => Farm(f => f with { MaxRetriesPerStage = (int)value }); }
+    public string DropTarget { get => S.Farm.DropTarget; set => Farm(f => f with { DropTarget = value ?? "" }); }
+    public string[] KnownMaterials { get; } = [.. SupaZero.Core.Game.AnimeZeroPaths.MaterialIcons.Values.Order()];
+    public string BlessingPriority { get => S.Farm.BlessingPriority; set => Farm(f => f with { BlessingPriority = value ?? "" }); }
+    public decimal TrialsFloor { get => S.Farm.TrialsFloor; set => Farm(f => f with { TrialsFloor = (int)value }); }
     public string CircleText => S.Farm.LobbyCircle is { } c ? "Cadangan: " + c : "Cadangan manual: belum direkam";
     public string DetectedText => _root.Snapshot.StartRooms is { Count: > 0 } r
         ? $"{r.Count} room: {r.Count(x => !x.Occupied)} kosong, {r.Count(x => x.Occupied)} terisi"

@@ -24,5 +24,25 @@
         </Grid>
       </StackPanel>
     </Border>
+    <Border Grid.Column="1" Margin="8,0,0,0" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Drop &amp; mode" />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,180" MinHeight="34">
+          <TextBlock Classes="label" Text="Drop Target" />
+          <AutoCompleteBox Grid.Column="1" Text="{Binding DropTarget}" ItemsSource="{Binding KnownMaterials}" FilterMode="ContainsOrdinal" Watermark="kosong = mati" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   Text="Material diklik sebelum Start. Hanya berlaku di Hard (x2) dan Nightmare (x3)." />
+        <TextBlock Classes="label" Text="Urutan kartu Mirror Blessing" Margin="0,6,0,0" />
+        <TextBox Text="{Binding BlessingPriority}" TextWrapping="Wrap" />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   Text="Nama dipisah koma. Tidak ada yang cocok → rarity tertinggi." />
+        <Grid ColumnDefinitions="*,150" MinHeight="34" Margin="0,6,0,0">
+          <TextBlock Classes="label" Text="Floor Trials (0 = floor berikutnya)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />
+        </Grid>
+      </StackPanel>
+    </Border>
   </Grid>
 </UserControl>

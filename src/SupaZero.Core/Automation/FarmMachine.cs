@@ -82,6 +82,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             GameScreen.Lobby => WalkToLobby(s, S, nowMs),
             GameScreen.LobbyMenu => LobbyMenu(s, S, nowMs),
             GameScreen.QueueWaiting => QueueWait(s, nowMs),
+            GameScreen.BlessingPick => PickBlessing(s, S, nowMs),
+            GameScreen.TrialsMenu => TrialsMenu(s, S, nowMs),
             GameScreen.StartVote => Vote(s, S, nowMs),
             GameScreen.InRound => Fight(s, S, nowMs),
             GameScreen.Victory => Victory(s, S, nowMs),
@@ -114,7 +116,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         }
         if (to == GameScreen.Victory) _retries = 0;
         if (to == GameScreen.Defeat) Defeats++;
-        if (to != GameScreen.LobbyMenu) { _diffAt = null; _scrolls.Clear(); }
+        if (to is not (GameScreen.LobbyMenu or GameScreen.TrialsMenu)) { _diffAt = null; _scrolls.Clear(); _targetTries.Clear(); }
         _stuckRef = null;
     }
 
@@ -359,6 +361,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return [new ClickAction(dx, dy, $"Difficulty {f.Difficulty}")];
         }
         if (_diffAt is { } da && now - da < 700) return [];
+        if (DropTarget(s, s.LobbyRewards, s.LobbyRewardsView, f.DropTarget, "lobby-target", now) is { } tgtAct) return tgtAct;
         var (sx, sy) = s.LobbyStart is { } st ? (st.CenterX, st.CenterY) : Scaled(s, AnimeZeroPaths.StartRefX, AnimeZeroPaths.StartRefY);
         if (!InWindow(s, sx, sy))
             return Note("lobby-start", now, 5000, $"Tombol Start di luar jendela Roblox ({sx:0},{sy:0}) → tidak diklik.");
@@ -453,6 +456,12 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         {
             Phase = MacroPhase.Navigating;
             if (!S.Navigation.AutoNavigate) { Status = $"{area} bersih (Auto navigasi mati)."; return []; }
+            if (s.NextAreaPos is null && s.CurrentArea is { } cur && s.PlayerPos is { } pIn && !cur.Contains(pIn, 10))
+            {
+                var walkIn = WalkTo(s, cur.Center, S.Navigation.ArriveRadius, now, "area pertarungan", S.Navigation.AttackWhenStuck);
+                Status = "Jalan masuk area pertarungan.";
+                return walkIn.Count > 0 ? walkIn : [new MoveAction([], "Sampai area")];
+            }
             if (s.NextAreaPos is not { } next)
             {
                 Status = $"{area} bersih, area berikutnya tidak terbaca.";
@@ -463,13 +472,30 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return walk.Count == 0 ? [new MoveAction([], "Sampai")] : walk;
         }
         Phase = MacroPhase.Fighting;
-        Status = $"{area} · {(left < 0 ? "?" : left.ToString())} musuh";
+        Status = $"{Wave(s)}{area} · {(left < 0 ? "?" : left.ToString())} musuh";
         var actions = new List<MacroAction>();
         // Tracking: musuh hidup terdekat → jalan mendekat sampai jarak serang, kursor diarahkan ke musuh.
         // Selama mendekat hanya Dash (Q) yang dipakai; serangan dasar + skill 1/2/3 baru setelah dalam jarak serang.
         bool approaching = false;
         EnemyInfo? tgt = null;
-        if (s.PlayerPos is { } me && s.Enemies.Where(e => e.Alive)
+        var candidates = Targets(s);
+        if (s.PlayerPos is { } meIn && candidates.Count == 0)
+        {
+            // Hanya boss IMMUNE yang tersisa / musuh belum muncul: masuk ke area (mis. naik tangga dari spawn raid).
+            if (s.CurrentArea is { } box && !box.Contains(meIn, 10))
+            {
+                Phase = MacroPhase.Navigating;
+                var walkIn = WalkTo(s, box.Center, S.Navigation.ArriveRadius, now, "area pertarungan", S.Navigation.AttackWhenStuck);
+                Status = s.BossImmune ? $"Boss {s.BossName} IMMUNE → masuk area dulu." : "Jalan masuk area pertarungan.";
+                return walkIn.Count > 0 ? walkIn : [new MoveAction([], "Sampai area")];
+            }
+            if (s.BossImmune)
+            {
+                Status = $"{Wave(s)}Boss {s.BossName} IMMUNE, menunggu summon.";
+                return Ready("jump-wait", now, 1100) ? [new MoveAction([], "Tunggu summon"), new KeyAction(VirtualKeys.Space, 80, "Lompat (menunggu summon)")] : [new MoveAction([], "Tunggu summon")];
+            }
+        }
+        if (s.PlayerPos is { } me && candidates
                 .OrderBy(e => Navigator.Distance2D(me.X, me.Z, e.Pos.X, e.Pos.Z)).FirstOrDefault() is { } target)
         {
             tgt = target;
@@ -670,6 +696,99 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         return actions;
     }
 
+    // ---------- Mode non-Story ----------
+
+    private readonly Dictionary<string, int> _targetTries = new(StringComparer.Ordinal);
+
+    private static string Wave(GameSnapshot s) => s.RunWave is { Length: > 0 } w ? w + " · " : "";
+
+    /// <summary>Musuh yang boleh diserang: boss IMMUNE (berdiri di Markers.BossSpawn) dilewati selama masih ada musuh lain.</summary>
+    public static List<EnemyInfo> Targets(GameSnapshot s)
+    {
+        var alive = s.Enemies.Where(e => e.Alive).ToList();
+        if (!s.BossImmune || s.BossSpawn is not { } bs) return alive;
+        return alive.Where(e => Navigator.Distance2D(e.Pos.X, e.Pos.Z, bs.X, bs.Z) > BossSpawnRadius).ToList();
+    }
+
+    /// <summary>Boss IMMUNE dianggap yang berada sejauh ini dari Markers.BossSpawn (snapshot: tepat di titiknya).</summary>
+    public const double BossSpawnRadius = 12;
+
+    /// <summary>Klik kartu reward <paramref name="want"/> sampai bertanda UNTARGET (= ditarget). null = sudah / tidak berlaku.</summary>
+    private List<MacroAction>? DropTarget(GameSnapshot s, IReadOnlyList<RewardCard> cards, GuiRect? view, string want, string key, long now)
+    {
+        if (string.IsNullOrWhiteSpace(want) || cards.Count == 0) return null;
+        var c = cards.FirstOrDefault(x => Matches(x.Name, want.Trim()));
+        if (c is null)
+        {
+            _pending.AddRange(Note(key + "-none", now, 30000, $"Drop Target '{want}' tidak ada di Rewards (ada: {string.Join(", ", cards.Where(x => x.Targetable).Select(x => x.Name))})."));
+            return null;
+        }
+        if (!c.Targetable || c.Targeted || c.Hit is null) { if (c.Targeted) _targetTries.Remove(key); return null; }
+        int n = _targetTries.GetValueOrDefault(key);
+        if (n >= 3)
+        {
+            _pending.AddRange(Note(key + "-fail", now, 30000, $"Drop Target {c.Name} belum terbaca ditarget setelah 3 klik → lanjut Start."));
+            return null;
+        }
+        var act = ClickEntry(s, new LobbyEntry(c.Name, false, false, c.Hit), view, key, $"Drop Target {c.Name}", now);
+        if (act is { Count: > 0 } && act[0] is ClickAction) { _targetTries[key] = n + 1; Status = $"Drop Target: {c.Name}."; }
+        return act ?? [];
+    }
+
+    /// <summary>Pilih kartu Mirror Blessing: urutan nama di pengaturan, lalu rarity tertinggi.</summary>
+    private List<MacroAction> PickBlessing(GameSnapshot s, AppSettings S, long now)
+    {
+        Phase = MacroPhase.Fighting;
+        var prio = S.Farm.BlessingPriority.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var pick = ChooseBlessing(s.Blessings, prio);
+        if (pick?.Pick is not { } r) return Note("bless-none", now, 5000, "Kartu Mirror Blessing terbaca tapi tombol PICK tidak.");
+        Status = $"Mirror Blessing: {pick.Name} ({pick.Rarity}) dari {string.Join(" / ", s.Blessings.Select(b => b.Name))}";
+        if (!InWindow(s, r.CenterX, r.CenterY)) return Note("bless-out", now, 5000, $"Tombol PICK {pick.Name} di luar jendela.");
+        return Ready("bless-pick", now, 1500) ? [new MoveAction([], "Pilih kartu"), new ClickAction(r.CenterX, r.CenterY, $"PICK {pick.Name}")] : [];
+    }
+
+    public static BlessingOffer? ChooseBlessing(IReadOnlyList<BlessingOffer> offers, IReadOnlyList<string> priority)
+    {
+        foreach (var want in priority)
+            if (offers.FirstOrDefault(o => Matches(o.Name, want)) is { } hit) return hit;
+        return offers.OrderByDescending(o => RarityRank(o.Rarity)).FirstOrDefault();
+    }
+
+    private static int RarityRank(string r) => r.ToUpperInvariant() switch
+    {
+        "COMMON" => 1, "RARE" => 2, "EPIC" => 3, "LEGENDARY" => 4, "MYTHIC" => 5, _ => 0,
+    };
+
+    /// <summary>Panel Trials: buka tab Floor Rewards → atur floor (bila diset) → Drop Target → Start. Skip floor berbayar tidak pernah diklik.</summary>
+    private List<MacroAction> TrialsMenu(GameSnapshot s, AppSettings S, long now)
+    {
+        Phase = MacroPhase.Lobby;
+        var t = s.Trials!;
+        var f = S.Farm;
+        if (!f.AutoCreateLobby) return Wait("Panel Trials terbuka (Auto create room mati).");
+        if (!t.FloorTabOpen)
+        {
+            if (t.FloorTab is not { } tab) return Note("tr-tab", now, 5000, "Tab Floor Rewards Trials tidak terbaca.");
+            Status = "Trials: buka tab Floor Rewards.";
+            return Ready("tr-tab", now, 1500) && InWindow(s, tab.CenterX, tab.CenterY) ? [new ClickAction(tab.CenterX, tab.CenterY, "Tab Floor Rewards")] : [];
+        }
+        if (f.TrialsFloor > 0 && t.SelectedFloor is int cur && cur != f.TrialsFloor)
+        {
+            var btn = cur < f.TrialsFloor ? t.Increase : t.Decrease;
+            Status = $"Trials: floor {cur} → {f.TrialsFloor}.";
+            if (btn is not { } b) return Note("tr-floor", now, 5000, "Tombol +/- floor Trials tidak terbaca.");
+            if (cur < f.TrialsFloor && t.HighestFloor is int hi && cur > hi)
+                return Stop($"Floor {f.TrialsFloor} belum terbuka (tertinggi {hi}).");
+            return Ready("tr-floor", now, 350) ? [new ClickAction(b.CenterX, b.CenterY, cur < f.TrialsFloor ? "Floor +" : "Floor -")] : [];
+        }
+        if (DropTarget(s, t.Rewards, t.RewardsView, f.DropTarget, "trials-target", now) is { } tg) return tg;
+        _selectedMap = "Trials";
+        _selectedAct = t.SelectedFloor ?? 0;
+        if (t.Start is not { } st) return Note("tr-start", now, 5000, "Tombol Start Trials tidak terbaca.");
+        Status = $"Trials floor {t.SelectedFloor?.ToString() ?? "?"} → Start.";
+        return Ready("tr-start", now, 3000) && InWindow(s, st.CenterX, st.CenterY) ? [new ClickAction(st.CenterX, st.CenterY, "Start Trials")] : [];
+    }
+
     // ---------- Layar akhir ----------
 
     private List<MacroAction> Victory(GameSnapshot s, AppSettings S, long now)
@@ -678,7 +797,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (up.Enabled && !_upgradeDoneThisStage && Upgrade(s, up, now) is { } upgrade) return upgrade;
 
         var after = S.Farm.AfterWin == AfterWin.Auto
-            ? (Matches(S.Farm.Mode, nameof(FarmMode.Story)) ? AfterWin.Next : AfterWin.Retry)
+            ? (Matches(S.Farm.Mode, nameof(FarmMode.Story)) || Matches(S.Farm.Mode, nameof(FarmMode.Trials)) ? AfterWin.Next : AfterWin.Retry)
             : S.Farm.AfterWin;
         GuiRect? btn; string label;
         (btn, label) = after switch
