@@ -57,7 +57,7 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         var hud = HudText.Parse(hudRaw);
         var playerPos = ReadPlayerPos(roots.LocalPlayer);
 
-        return new GameSnapshot
+        var snap = new GameSnapshot
         {
             Attached = true,
             PlayerPos = playerPos,
@@ -88,6 +88,131 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
             Slots = treeShown ? ReadSlots(tree, pg) : [],
             BuyButton = treeShown ? VisibleRect(Find(Find(tree, AnimeZeroPaths.BuyFrame), AnimeZeroPaths.BuyButton), pg) : null,
         };
+        if (snap.Screen != GameScreen.Lobby) return snap;
+        var (areas, cards) = ScanHub(pg);
+        return snap with { AreasButton = areas, TeleportCards = cards, StartCircles = ScanCircles(ws) };
+    }
+
+    // ---------- Hub lobby ----------
+
+    private long _hubAt;
+    private (GuiRect?, IReadOnlyList<LobbyEntry>) _hub = (null, []);
+    private long _circlesWs, _circlesAt;
+    private IReadOnlyList<Settings.Vec3> _circles = [];
+
+    /// <summary>Tombol "Areas" + kartu "Click to Teleport" di PlayerGui (scan teks terlihat, maks tiap 700 ms).</summary>
+    private (GuiRect?, IReadOnlyList<LobbyEntry>) ScanHub(long pg)
+    {
+        long now = Environment.TickCount64;
+        if (now - _hubAt < 700) return _hub;
+        _hubAt = now;
+        GuiRect? areas = null;
+        var cards = new List<LobbyEntry>();
+        foreach (var (node, text) in VisibleTexts(pg, 5000))
+        {
+            if (areas is null && text.Trim().Equals(AnimeZeroPaths.AreasButtonText, StringComparison.OrdinalIgnoreCase))
+                areas = Rect(ClickableAncestor(node));
+            else if (text.Contains(AnimeZeroPaths.TeleportCardHint, StringComparison.OrdinalIgnoreCase))
+            {
+                long card = ClickableAncestor(node);
+                string? title = SiblingTitle(reader.GetParent(node), node);
+                if (title is not null) cards.Add(new LobbyEntry(title.Trim(), false, false, Rect(card)));
+            }
+        }
+        return _hub = (areas, cards);
+    }
+
+    /// <summary>BFS PlayerGui yang melewati ScreenGui mati / GuiObject tak terlihat; hasil = (node teks, isi teks).</summary>
+    private IEnumerable<(long Node, string Text)> VisibleTexts(long root, int maxNodes)
+    {
+        if (root == 0) yield break;
+        var q = new Queue<long>();
+        q.Enqueue(root);
+        int seen = 0;
+        while (q.Count > 0 && seen++ < maxNodes)
+        {
+            long node = q.Dequeue();
+            string cls = reader.GetClassName(node);
+            if (cls == "ScreenGui" && reader.Offsets.TryResolve("GuiObject.ScreenGui_Enabled", out long eo) && M.TryReadByte(node + eo, out byte e) && e == 0) continue;
+            if (PropertyReader.IsGuiObject(cls))
+            {
+                if (reader.Offsets.TryResolve("GuiObject.Visible", out long vo) && M.TryReadByte(node + vo, out byte v) && v == 0) continue;
+                if (PropertyReader.IsTextClass(cls) && Text(node) is { Length: > 0 } t) yield return (node, t);
+            }
+            foreach (long c in reader.GetChildren(node, 256)) q.Enqueue(c);
+        }
+    }
+
+    /// <summary>Naik maks 4 level ke ImageButton/TextButton; tidak ada → induk langsung (kartu) atau node itu.</summary>
+    private long ClickableAncestor(long node)
+    {
+        long cur = node;
+        for (int i = 0; i < 4 && cur != 0; i++)
+        {
+            string cls = reader.GetClassName(cur);
+            if (cls is "ImageButton" or "TextButton") return cur;
+            cur = reader.GetParent(cur);
+        }
+        long parent = reader.GetParent(node);
+        return parent != 0 && PropertyReader.IsGuiObject(reader.GetClassName(parent)) ? parent : node;
+    }
+
+    /// <summary>Teks lain di bawah induk yang sama (judul kartu, mis. "Story").</summary>
+    private string? SiblingTitle(long parent, long except)
+    {
+        if (parent == 0) return null;
+        foreach (long c in reader.GetChildren(parent, 64))
+        {
+            if (c == except) continue;
+            if (FirstText(c, 0) is { } t && !t.Contains(AnimeZeroPaths.TeleportCardHint, StringComparison.OrdinalIgnoreCase)) return t;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Lingkaran Create Room: cari teks "Start Here" (BillboardGui/SurfaceGui) di Workspace lalu ambil posisi part
+    /// induknya (Adornee bila diisi). Statis per server lobby → cache; kosong → scan ulang tiap 3 dtk.
+    /// </summary>
+    private IReadOnlyList<Settings.Vec3> ScanCircles(long ws)
+    {
+        long now = Environment.TickCount64;
+        if (ws == _circlesWs && (_circles.Count > 0 || now - _circlesAt < 3000)) return _circles;
+        _circlesWs = ws;
+        _circlesAt = now;
+        var found = new List<Settings.Vec3>();
+        if (ws == 0) return _circles = found;
+        var q = new Queue<(long Node, int Depth)>();
+        q.Enqueue((ws, 0));
+        int seen = 0;
+        while (q.Count > 0 && seen++ < 25000)
+        {
+            var (node, depth) = q.Dequeue();
+            string cls = reader.GetClassName(node);
+            if (reader.GetName(node) == AnimeZeroPaths.Enemies) continue;
+            if (PropertyReader.IsTextClass(cls) && Text(node) is { } t && t.Contains(AnimeZeroPaths.StartCircleText, StringComparison.OrdinalIgnoreCase))
+            {
+                if (PartAbove(node) is { } pos && !found.Any(f => Automation.Navigator.Distance2D(f.X, f.Z, pos.X, pos.Z) < 2)) found.Add(pos);
+                continue;
+            }
+            if (depth >= 9) continue;
+            foreach (long c in reader.GetChildren(node, 1024)) q.Enqueue((c, depth + 1));
+        }
+        return _circles = found;
+    }
+
+    private Settings.Vec3? PartAbove(long node)
+    {
+        long cur = reader.GetParent(node);
+        for (int i = 0; i < 6 && cur != 0; i++)
+        {
+            if (reader.GetClassName(cur) is "BillboardGui" or "SurfaceGui"
+                && reader.Offsets.TryResolve("Misc.Adornee", out long ao) && M.TryReadPointer(cur + ao, out long ad) && ad != 0
+                && props.TryGetWorldPosition(ad, out float ax, out float ay, out float az))
+                return new(ax, ay, az);
+            if (props.TryGetWorldPosition(cur, out float x, out float y, out float z)) return new(x, y, z);
+            cur = reader.GetParent(cur);
+        }
+        return null;
     }
 
     /// <summary>

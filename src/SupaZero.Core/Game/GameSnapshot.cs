@@ -28,6 +28,13 @@ public sealed record GameSnapshot
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
     public Settings.Vec3? NextAreaPos { get; init; }
 
+    // Lobby hub: tombol Areas (HUD kiri) → panel MATCHES "Click to Teleport" → dekat lingkaran "Start Here".
+    public GuiRect? AreasButton { get; init; }
+    /// <summary>Kartu teleport di panel Areas (Name = judul kartu, mis. "Story").</summary>
+    public IReadOnlyList<LobbyEntry> TeleportCards { get; init; } = [];
+    /// <summary>Lingkaran Create Room terdeteksi: part yang memuat teks "Start Here" di Workspace.</summary>
+    public IReadOnlyList<Settings.Vec3> StartCircles { get; init; } = [];
+
     // Lobby
     public bool LobbyMenuOpen { get; init; }
     public IReadOnlyList<LobbyEntry> LobbyModes { get; init; } = [];

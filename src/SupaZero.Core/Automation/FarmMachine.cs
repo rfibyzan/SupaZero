@@ -92,24 +92,53 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     // ---------- Lobby ----------
 
+    /// <summary>Lingkaran lebih jauh dari ini → teleport dulu lewat tombol Areas.</summary>
+    public const double TeleportIfFartherThan = 45;
+
+    /// <summary>
+    /// Lobby: lingkaran "Start Here" terdekat ≤ 45 stud → jalan ke sana. Lebih jauh / tidak terbaca → tombol Areas →
+    /// kartu teleport (Story) → muncul dekat lingkaran. Posisi rekaman manual hanya cadangan.
+    /// </summary>
     private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now)
     {
         var f = S.Farm;
         if (!f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
-        if (f.LobbyCircle is not { } target)
-        {
-            Phase = MacroPhase.Lobby;
-            Status = "Posisi lingkaran Create Room belum direkam.";
-            return Note("no-circle", now, 8000, "Rekam dulu posisi lingkaran Create Room (tab AutoFarm → Rekam posisi saat berdiri di lingkaran).");
-        }
         Phase = MacroPhase.WalkingToLobby;
-        var walk = WalkTo(s, target, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
-        if (walk.Count == 0)
+
+        Vec3? target = null;
+        double dist = double.MaxValue;
+        if (s.PlayerPos is { } p)
         {
-            Status = "Sudah di lingkaran, menunggu menu Create Room terbuka.";
-            return [new MoveAction([], "Sampai"), .. Note("circle-wait", now, 6000, "Sudah di lingkaran tapi menu Create Room belum terbuka. Cek posisi rekaman.")];
+            foreach (var c in s.StartCircles.Append(f.LobbyCircle).OfType<Vec3>())
+            {
+                double d = Navigator.Distance2D(p.X, p.Z, c.X, c.Z);
+                if (d < dist) { dist = d; target = c; }
+            }
         }
-        return walk;
+
+        if (target is not null && dist <= TeleportIfFartherThan)
+        {
+            var walk = WalkTo(s, target, S.Navigation.ArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
+            if (walk.Count > 0) return walk;
+            Status = "Di lingkaran, menunggu menu Create Room.";
+            return [new MoveAction([], "Sampai"), .. Note("circle-wait", now, 6000, "Sudah di lingkaran tapi menu Create Room belum terbuka.")];
+        }
+
+        // Teleport lewat Areas → kartu sesuai mode (Story bila tidak ada kartu bernama mode itu).
+        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, f.Mode.ToString()))
+                   ?? s.TeleportCards.FirstOrDefault(c => Matches(c.Name, nameof(FarmMode.Story)));
+        if (card?.Rect is { } cr)
+        {
+            Status = $"Teleport: Areas → {card.Name}";
+            return Ready("tp-card", now, 4000) ? [new MoveAction([], "Teleport"), new ClickAction(cr.CenterX, cr.CenterY, $"Teleport {card.Name}")] : [];
+        }
+        if (s.AreasButton is { } ab)
+        {
+            Status = "Buka Areas untuk teleport.";
+            return Ready("areas", now, 3000) ? [new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")] : [];
+        }
+        Status = "Lingkaran Create Room dan tombol Areas tidak terbaca.";
+        return [new MoveAction([], "Tunggu"), .. Note("no-hub", now, 8000, "Tombol Areas / lingkaran 'Start Here' tidak terbaca. Cek di RIE atau rekam posisi lingkaran manual.")];
     }
 
     private List<MacroAction> LobbyMenu(GameSnapshot s, AppSettings S, long now)

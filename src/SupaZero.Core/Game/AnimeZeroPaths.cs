@@ -37,6 +37,11 @@ public static class AnimeZeroPaths
 
     // Lobby CREATE LOBBY
     public const string LobbyRoot = "UI Animation (Finished).Quque.MainFrame";
+    // Hub lobby (screenshot Byzan 23 Okt 2026): tombol HUD "Areas" → kartu "Click to Teleport" → lingkaran "Start Here".
+    public const string AreasButtonText = "Areas";
+    public const string TeleportCardHint = "Click to Teleport";
+    public const string StartCircleText = "Start Here";
+
     public const string LobbyModesList = "ModesList";   // [V]
     public const string LobbyMapsList = "MapsList";
     public const string LobbyActsList = "ActsList";

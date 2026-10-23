@@ -34,7 +34,7 @@ Offsets: tab **Offsets** → **Unduh terbaru** (disimpan ke `%AppData%\SupaZero\
 
 ## Alur macro
 
-1. **Lobby**: jalan (W/A/S/D, tanpa teleport) ke lingkaran Create Room yang kamu rekam di tab AutoFarm.
+1. **Lobby**: klik tombol **Areas** → kartu **Story** (Click to Teleport) → deteksi lingkaran "Start Here" → jalan ke sana (W/A/S/D).
 2. **Create Room**: pilih Mode → Map (berhenti bila map/act terkunci) → Act → Difficulty → Start (`StaerButton`).
 3. **Start Game?** → Yes.
 4. **Ronde**: selama `Workspace.enemies` berisi musuh → klik kiri + tombol skill sesuai cooldown masing-masing.

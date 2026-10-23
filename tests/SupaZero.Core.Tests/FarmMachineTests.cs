@@ -69,10 +69,24 @@ public class FarmMachineTests
     }
 
     [Fact]
-    public void Lobby_WalksToRecordedCircle()
+    public void Lobby_FarCircle_UsesAreasTeleport()
     {
-        var (m, _) = New(s => s.Farm = s.Farm with { LobbyCircle = new Vec3(30, 0, 0) });
-        var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1) };
+        var (m, _) = New();
+        var hub = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1),
+            StartCircles = [new Vec3(300, 0, 0)], AreasButton = new GuiRect(40, 540, 80, 80),
+        };
+        Assert.Equal("Tombol Areas", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
+        var panel = hub with { TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))] };
+        Assert.Equal("Teleport Story", Real(m.Step(panel, 5000)).OfType<ClickAction>().Single().Reason);
+    }
+
+    [Fact]
+    public void Lobby_NearDetectedCircle_Walks()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)] };
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
         Assert.Equal([VirtualKeys.D], move.Keys); // look -Z → kanan = +X
     }

@@ -43,14 +43,14 @@
         <Border Classes="row">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Spacing="2" VerticalAlignment="Center">
-              <TextBlock Classes="label" Text="Lingkaran Create Room" />
+              <TextBlock Classes="label" Text="{Binding DetectedText}" />
               <TextBlock Classes="muted" FontSize="11" Text="{Binding CircleText}" />
             </StackPanel>
             <Button Grid.Column="1" Content="Rekam posisi" Command="{Binding RecordCircleCommand}" Padding="10,4" />
           </Grid>
         </Border>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Berdiri di lingkaran Create Room lalu tekan Rekam posisi. Macro berjalan ke sana sendiri (W/A/S/D, tanpa teleport)." />
+                   Text="Otomatis: tombol Areas → Story (teleport) → jalan ke lingkaran &quot;Start Here&quot; terdekat. Rekam posisi hanya cadangan bila lingkaran tidak terbaca." />
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto vote Start (Yes)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoVoteStart}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Retry saat DEFEAT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding RetryOnDefeat}" /></Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">

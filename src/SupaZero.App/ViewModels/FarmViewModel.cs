@@ -81,7 +81,10 @@ public sealed class FarmViewModel : ObservableObject
     public bool AutoVoteStart { get => S.Farm.AutoVoteStart; set => Farm(f => f with { AutoVoteStart = value }); }
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
     public decimal MaxRetries { get => S.Farm.MaxRetriesPerStage; set => Farm(f => f with { MaxRetriesPerStage = (int)value }); }
-    public string CircleText => S.Farm.LobbyCircle is { } c ? c.ToString() : "Belum direkam";
+    public string CircleText => S.Farm.LobbyCircle is { } c ? "Cadangan: " + c : "Cadangan manual: belum direkam";
+    public string DetectedText => _root.Snapshot.StartCircles.Count is int n and > 0
+        ? $"Terdeteksi {n} lingkaran \"Start Here\""
+        : "Lingkaran belum terdeteksi";
 
     public RelayCommand RecordCircleCommand => new(_ =>
     {
@@ -113,6 +116,7 @@ public sealed class FarmViewModel : ObservableObject
     /// <summary>Simpan daftar map terbaru dari snapshot (saat menu Create Room terbuka).</summary>
     public void Refresh()
     {
+        Raise(nameof(DetectedText));
         var maps = _root.Snapshot.LobbyMaps;
         if (maps.Count == 0) return;
         var known = maps.Select(m => new KnownMap(m.Name, m.Locked)).ToList();
