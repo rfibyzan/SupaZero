@@ -104,6 +104,8 @@ public sealed record GameSnapshot
 
     /// <summary>Ukuran area klien jendela Roblox (diisi MacroRunner). 0 = tidak diketahui.</summary>
     public int ClientW { get; init; }
+    /// <summary>Shift lock terdeteksi otomatis (kursor selalu kembali ke tengah jendela setelah digeser).</summary>
+    public bool ShiftLock { get; init; }
     public int ClientH { get; init; }
 
     // Ronde

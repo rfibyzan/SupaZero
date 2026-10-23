@@ -26,6 +26,8 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
     [LibraryImport("user32.dll")] private static partial nint GetForegroundWindow();
     [LibraryImport("user32.dll")] private static partial uint GetWindowThreadProcessId(nint hWnd, out uint pid);
     [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool ClientToScreen(nint hWnd, ref Point p);
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool ScreenToClient(nint hWnd, ref Point p);
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetCursorPos(out Point p);
     [StructLayout(LayoutKind.Sequential)] private struct Rect32 { public int Left, Top, Right, Bottom; }
     [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetClientRect(nint hWnd, out Rect32 r);
     [LibraryImport("user32.dll")] private static partial int GetSystemMetrics(int index);
@@ -123,6 +125,13 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
             return p.MainWindowHandle;
         }
         catch { return 0; }
+    }
+
+    public (double X, double Y)? CursorClient()
+    {
+        nint h = MainWindow();
+        if (h == 0 || !GetCursorPos(out var p) || !ScreenToClient(h, ref p)) return null;
+        return (p.X, p.Y);
     }
 
     public void MoveRelative(int dx, int dy)

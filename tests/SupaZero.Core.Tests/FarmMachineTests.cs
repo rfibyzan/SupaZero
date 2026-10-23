@@ -130,7 +130,7 @@ public class FarmMachineTests
         Assert.True(FarmMachine.Turn(0, -1, 1, -1, 4) > 0);
         Assert.True(FarmMachine.Turn(0, -1, -1, -1, 4) < 0);
         Assert.Equal(0, FarmMachine.Turn(0, -1, 0.02, -1, 4));
-        Assert.Equal(120, FarmMachine.Turn(0, -1, 0, 1, 4)); // di belakang → langkah dibatasi
+        Assert.Equal(80, FarmMachine.Turn(0, -1, 0, 1, 4)); // di belakang → langkah dibatasi
     }
 
     [Theory]

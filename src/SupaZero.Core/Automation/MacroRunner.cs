@@ -58,6 +58,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
             {
                 var snap = read();
                 if (input.ClientSize() is { } cs) snap = snap with { ClientW = cs.W, ClientH = cs.H };
+                DetectShiftLock(input.IsTargetForeground());
+                snap = snap with { ShiftLock = _shiftLock };
                 LastSnapshot = snap;
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
                 bool fg = input.IsTargetForeground();
@@ -78,6 +80,47 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
             catch (Exception ex) { Log?.Invoke("Error: " + ex.Message); }
             try { await Task.Delay(tick, ct); } catch (OperationCanceledException) { break; }
         }
+    }
+
+    // ── Deteksi shift lock: Roblox mengembalikan kursor ke tengah jendela tiap frame saat shift lock aktif.
+    private bool _shiftLock;
+    private int _centeredTicks;
+    private (double X, double Y)? _lastAimFar;
+    private CancellationTokenSource? _turnCts;
+
+    private void DetectShiftLock(bool fg)
+    {
+        if (!fg || input.ClientSize() is not { } sz || input.CursorClient() is not { } c) { _lastAimFar = null; return; }
+        bool centered = Math.Abs(c.X - sz.W / 2.0) <= 4 && Math.Abs(c.Y - sz.H / 2.0) <= 4;
+        bool was = _shiftLock;
+        if (!centered) { _centeredTicks = 0; _shiftLock = false; }
+        else
+        {
+            _centeredTicks++;
+            // Kursor digeser jauh dari tengah tick lalu, tapi kini kembali di tengah → pasti terkunci.
+            if (_lastAimFar is not null || _centeredTicks >= 5) _shiftLock = true;
+        }
+        _lastAimFar = null;
+        if (was != _shiftLock) Log?.Invoke(_shiftLock ? "Shift lock terdeteksi → bidik dengan memutar kamera." : "Shift lock mati → bidik dengan kursor.");
+    }
+
+    /// <summary>Putar kamera halus: delta dipecah jadi langkah kecil tiap ~8 ms sepanjang satu tick, di latar belakang.</summary>
+    private void SmoothTurn(int dx, int dy, int durationMs)
+    {
+        _turnCts?.Cancel();
+        var cts = _turnCts = new CancellationTokenSource();
+        int steps = Math.Clamp(durationMs / 8, 1, 40);
+        _ = Task.Run(async () =>
+        {
+            int sx = 0, sy = 0;
+            for (int i = 1; i <= steps && !cts.IsCancellationRequested; i++)
+            {
+                int tx = (int)Math.Round((double)dx * i / steps), ty = (int)Math.Round((double)dy * i / steps);
+                input.MoveRelative(tx - sx, ty - sy);
+                sx = tx; sy = ty;
+                try { await Task.Delay(8, cts.Token); } catch (OperationCanceledException) { break; }
+            }
+        });
     }
 
     private async Task Execute(MacroAction a, bool foreground, CancellationToken ct)
@@ -118,10 +161,13 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 break;
             case AimAction am:
                 if (input.ClientSize() is { } sz && am.X >= 0 && am.Y >= 0 && am.X < sz.W && am.Y < sz.H)
+                {
                     input.MoveClient(am.X, am.Y);
+                    if (Math.Abs(am.X - sz.W / 2.0) > 40 || Math.Abs(am.Y - sz.H / 2.0) > 40) _lastAimFar = (am.X, am.Y);
+                }
                 break;
             case TurnAction t:
-                input.MoveRelative(t.Dx, t.Dy);
+                SmoothTurn(t.Dx, t.Dy, (int)(Math.Clamp(settings().General.TickMs, 30, 2000) * 0.9));
                 break;
             case AttackAction:
                 input.ClickHere();

@@ -166,7 +166,6 @@ public sealed class FarmViewModel : ObservableObject
     public bool AttackWhenStuck { get => S.Navigation.AttackWhenStuck; set { S.Navigation = S.Navigation with { AttackWhenStuck = value }; _root.Save(); } }
     public bool ChaseEnemies { get => S.Navigation.ChaseEnemies; set { S.Navigation = S.Navigation with { ChaseEnemies = value }; _root.Save(); } }
     public bool AimAtEnemy { get => S.Navigation.AimAtEnemy; set { S.Navigation = S.Navigation with { AimAtEnemy = value }; _root.Save(); } }
-    public bool ShiftLock { get => S.Navigation.ShiftLock; set { S.Navigation = S.Navigation with { ShiftLock = value }; _root.Save(); } }
     public bool RoamWhenSkillsCooling { get => S.Navigation.RoamWhenSkillsCooling; set { S.Navigation = S.Navigation with { RoamWhenSkillsCooling = value }; _root.Save(); } }
     public decimal AttackRange { get => (decimal)S.Navigation.AttackRange; set { S.Navigation = S.Navigation with { AttackRange = (double)value }; _root.Save(); } }
     public decimal ArriveRadius { get => (decimal)S.Navigation.ArriveRadius; set { S.Navigation = S.Navigation with { ArriveRadius = (double)value }; _root.Save(); } }

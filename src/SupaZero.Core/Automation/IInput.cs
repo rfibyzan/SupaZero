@@ -21,6 +21,9 @@ public interface IInput
     /// <summary>Gerak mouse relatif (delta piksel), untuk memutar kamera saat shift lock.</summary>
     void MoveRelative(int dx, int dy);
 
+    /// <summary>Posisi kursor dalam koordinat klien Roblox, null bila tidak diketahui.</summary>
+    (double X, double Y)? CursorClient();
+
     /// <summary>Klik kiri di posisi kursor sekarang.</summary>
     void ClickHere();
 

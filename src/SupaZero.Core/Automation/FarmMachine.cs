@@ -426,7 +426,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 var walk = approaching ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
                 actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
-            if (S.Navigation.AimAtEnemy && S.Navigation.ShiftLock)
+            if (S.Navigation.AimAtEnemy && s.ShiftLock)
             {
                 // Shift lock: kursor terkunci di tengah → putar kamera (yaw) ke arah musuh dengan gerak relatif.
                 if (s.CameraLook is { } cl && Turn(cl.X, cl.Z, target.Pos.X - me.X, target.Pos.Z - me.Z, S.Navigation.TurnPixelsPerDegree) is int dx && dx != 0)
@@ -632,7 +632,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     /// <summary>
     /// Delta X mouse untuk memutar yaw kamera dari arah (lx,lz) ke (tx,tz). Mouse ke kanan = kamera ke kanan.
-    /// Toleransi 4°, langkah maks 120 px per tick agar tidak overshoot.
+    /// Toleransi 2°, setengah galat per tick, maks 80 px per tick agar tidak overshoot.
     /// </summary>
     public static int Turn(double lx, double lz, double tx, double tz, double pxPerDeg)
     {
@@ -640,8 +640,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         // Sudut searah jarum jam dilihat dari atas (Roblox: right = (-lz, lx) untuk look (lx, lz)).
         double cross = lx * tz - lz * tx, dot = lx * tx + lz * tz;
         double deg = Math.Atan2(cross, dot) * 180 / Math.PI; // positif = target di kanan
-        if (Math.Abs(deg) < 4) return 0;
-        return (int)Math.Clamp(Math.Round(deg * Math.Max(0.5, pxPerDeg)), -120, 120);
+        if (Math.Abs(deg) < 2) return 0;
+        // Kendali proporsional (setengah galat per tick) agar mulus tanpa overshoot.
+        return (int)Math.Clamp(Math.Round(deg * 0.5 * Math.Max(0.5, pxPerDeg)), -80, 80);
     }
 
     private static bool IsDash(SkillBinding k) => k.Name == "Dash";
