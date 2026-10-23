@@ -25,7 +25,7 @@ public sealed record GeneralSettings(
 
 public enum Difficulty { Easy, Medium, Hard, Nightmare }
 
-/// <summary>Mode di menu Create Lobby (riset wiki/YouTube Okt 2026).</summary>
+/// <summary>Mode bawaan sebelum label "Mode:" kartu map terbaca dari game. Mode sebenarnya diambil dari kartu (Story, Training, Raid, Tidal High Rise, Trials, Infinite, ...).</summary>
 public enum FarmMode { Story, Infinite, Defend, Raid, Trials }
 
 /// <summary>Aksi di EndScreen setelah menang.</summary>
@@ -48,7 +48,8 @@ public sealed record KnownMap(string Name, bool Locked, string? Mode = null);
 
 /// <summary>Pengaturan AutoFarm. Map kosong = pakai map yang sudah terpilih di lobby.</summary>
 public sealed record FarmSettings(
-    FarmMode Mode = FarmMode.Story,
+    /// <summary>Nama mode persis seperti label "Mode:" di kartu map (string, bukan enum, karena game menambah mode baru).</summary>
+    string Mode = "Story",
     string Map = "",
     /// <summary>1–5 = act tetap; 0 = semua act berurutan (lanjut dari act terakhir yang tuntas per map).</summary>
     int Act = 1,

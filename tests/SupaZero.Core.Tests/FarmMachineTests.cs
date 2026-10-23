@@ -163,7 +163,7 @@ public class FarmMachineTests
     [Fact]
     public void Victory_NonStoryMode_Retries()
     {
-        var (m, _) = New(s => s.Farm = s.Farm with { Mode = FarmMode.Infinite });
+        var (m, _) = New(s => s.Farm = s.Farm with { Mode = "Infinite" });
         var a = m.Step(new GameSnapshot { Attached = true, EndScreenVisible = true, NextButton = Btn, RetryButton = new GuiRect(500, 500, 10, 10) }, 0);
         Assert.Equal("Retry", a.OfType<ClickAction>().Single().Reason);
     }

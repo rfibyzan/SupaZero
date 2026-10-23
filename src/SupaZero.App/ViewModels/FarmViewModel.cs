@@ -50,7 +50,8 @@ public sealed class FarmViewModel : ObservableObject
     private AppSettings S => _root.Settings;
     private void Farm(Func<FarmSettings, FarmSettings> f) { S.Farm = f(S.Farm); _root.Save(); }
 
-    public IReadOnlyList<string> Modes { get; } = Enum.GetNames<FarmMode>();
+    /// <summary>Mode dari label "Mode:" kartu map yang terbaca di game (urutan kartu); bawaan bila belum pernah terbaca.</summary>
+    public ObservableCollection<string> Modes { get; } = [];
     private const string AllActsLabel = "Semua act (berurutan)";
     public ObservableCollection<string> Acts { get; } = [];
     public IReadOnlyList<string> Difficulties { get; } = Enum.GetNames<Difficulty>();
@@ -60,13 +61,14 @@ public sealed class FarmViewModel : ObservableObject
 
     public int ModeIndex
     {
-        get => (int)S.Farm.Mode;
+        get => Modes.IndexOf(Modes.FirstOrDefault(m => m.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase)) ?? "");
         set
         {
-            var mode = (FarmMode)Math.Clamp(value, 0, Modes.Count - 1);
-            if (mode == S.Farm.Mode) return;
+            if (value < 0 || value >= Modes.Count) return;
+            string mode = Modes[value];
+            if (mode.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase)) return;
             // Map yang tidak cocok dengan mode baru → kembali ke "map terpilih" (macro pilih map sesuai mode sendiri).
-            bool keep = S.Farm.KnownMaps?.FirstOrDefault(m => m.Name == S.Farm.Map) is { Mode: { } mm } && mm.Equals(mode.ToString(), StringComparison.OrdinalIgnoreCase);
+            bool keep = S.Farm.KnownMaps?.FirstOrDefault(m => m.Name == S.Farm.Map) is { Mode: { } mm } && mm.Equals(mode, StringComparison.OrdinalIgnoreCase);
             Farm(f => f with { Mode = mode, Map = keep ? f.Map : "" });
             RebuildMaps();
         }
@@ -115,7 +117,7 @@ public sealed class FarmViewModel : ObservableObject
         }
     }
 
-    public string MapsHint => S.Farm.KnownMaps?.Where(m => m.Mode is null || m.Mode.Equals(S.Farm.Mode.ToString(), StringComparison.OrdinalIgnoreCase)).ToList() is { Count: > 0 } k
+    public string MapsHint => S.Farm.KnownMaps?.Where(m => m.Mode is null || m.Mode.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase)).ToList() is { Count: > 0 } k
         ? $"Map {S.Farm.Mode}: {k.Count(m => !m.Locked)} terbuka, {k.Count(m => m.Locked)} terkunci."
         : "Buka menu Create Room sekali di game: daftar map + status terkunci akan terbaca otomatis.";
 
@@ -194,9 +196,10 @@ public sealed class FarmViewModel : ObservableObject
         if (S.Farm.KnownMaps is { } km && km.Any(m => IsJunk(m.Name)))
             Farm(f => f with { KnownMaps = km.Where(m => !IsJunk(m.Name)).ToList() is { Count: > 0 } k ? k : null });
         if (IsJunk(S.Farm.Map)) Farm(f => f with { Map = "" });
+        RebuildModes();
         Maps.Clear();
         Maps.Add(CurrentMapLabel);
-        string mode = S.Farm.Mode.ToString();
+        string mode = S.Farm.Mode;
         foreach (var m in S.Farm.KnownMaps ?? [])
             if (m.Mode is null || m.Mode.Equals(mode, StringComparison.OrdinalIgnoreCase))
                 Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
@@ -204,6 +207,18 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(SelectedMap));
         Raise(nameof(MapsHint));
         RebuildActs();
+    }
+
+    private void RebuildModes()
+    {
+        var known = (S.Farm.KnownMaps ?? []).Select(m => m.Mode).Where(m => !string.IsNullOrWhiteSpace(m)).Select(m => m!)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (known.Count == 0) known = Enum.GetNames<FarmMode>().ToList();
+        if (!known.Any(m => m.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase))) known.Add(S.Farm.Mode);
+        if (Modes.SequenceEqual(known)) return;
+        Modes.Clear();
+        foreach (var m in known) Modes.Add(m);
+        Raise(nameof(ModeIndex));
     }
 
     private static bool IsJunk(string n) => n is "ScrollingBar" or "List" or "UIListLayout" or "UIGridLayout";

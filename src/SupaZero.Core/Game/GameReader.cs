@@ -463,8 +463,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg) || IsListChrome(reader.GetName(c))) continue;
             // Kartu map: judul ("Hxh"), label "Mode: Story", badge "NEW!".
             var texts = Texts(c, 0).ToList();
-            string? mode = texts.Select(t => t.Trim()).FirstOrDefault(t => t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase)) is { } mt
-                ? System.Text.RegularExpressions.Regex.Replace(mt[5..], "<[^>]+>", "").Trim() : null;
+            var clean = texts.Select(t => System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim()).ToList();
+            int mi = clean.FindIndex(t => t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase));
+            string? mode = mi < 0 ? null : clean[mi][5..].Trim() is { Length: > 0 } inline ? inline
+                : mi + 1 < clean.Count ? clean[mi + 1] : null; // label "Mode:" dan nilainya bisa TextLabel terpisah
             string name = texts.Select(t => System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim())
                 .FirstOrDefault(t => t.Length > 0 && !t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase) && !t.Equals("NEW!", StringComparison.OrdinalIgnoreCase))
                 ?? reader.GetName(c);

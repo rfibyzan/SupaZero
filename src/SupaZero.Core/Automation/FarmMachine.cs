@@ -197,7 +197,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         }
 
         // Teleport lewat Areas → kartu sesuai mode (Story bila tidak ada kartu bernama mode itu).
-        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, f.Mode.ToString()))
+        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, f.Mode))
                    ?? s.TeleportCards.FirstOrDefault(c => Matches(c.Name, nameof(FarmMode.Story)));
         if (card?.Rect is { } cr)
         {
@@ -220,15 +220,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (!f.AutoCreateLobby) return Wait("Menu Create Room terbuka (Auto create room mati).");
 
         // 1) Mode
-        if (s.LobbyModes.Count > 0 && Pick(s.LobbyModes, f.Mode.ToString(), "mode", now) is { } modeAct) return modeAct;
+        if (s.LobbyModes.Count > 0 && Pick(s.LobbyModes, f.Mode, "mode", now) is { } modeAct) return modeAct;
         // 2) Map. Map kosong = map terpilih, tapi kalau mode map itu tidak cocok → map pertama (terbuka) dengan mode yang dipilih.
         string targetMap = f.Map;
         if (string.IsNullOrWhiteSpace(targetMap) && s.LobbyMaps.Any(m => m.Mode is not null))
         {
             var cur = s.LobbyMaps.FirstOrDefault(m => Matches(s.LobbyMapTag, m.Name)) ?? s.LobbyMaps.FirstOrDefault(m => m.Selected);
-            if (cur?.Mode is { } cm && !Matches(cm, f.Mode.ToString()))
+            if (cur?.Mode is { } cm && !Matches(cm, f.Mode))
             {
-                var byMode = s.LobbyMaps.FirstOrDefault(m => !m.Locked && m.Mode is { } mm && Matches(mm, f.Mode.ToString()));
+                var byMode = s.LobbyMaps.FirstOrDefault(m => !m.Locked && m.Mode is { } mm && Matches(mm, f.Mode));
                 if (byMode is null) return Stop($"Tidak ada map terbuka untuk mode {f.Mode}.");
                 targetMap = byMode.Name;
             }
@@ -378,7 +378,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (up.Enabled && !_upgradeDoneThisStage && Upgrade(s, up, now) is { } upgrade) return upgrade;
 
         var after = S.Farm.AfterWin == AfterWin.Auto
-            ? (S.Farm.Mode == FarmMode.Story ? AfterWin.Next : AfterWin.Retry)
+            ? (Matches(S.Farm.Mode, nameof(FarmMode.Story)) ? AfterWin.Next : AfterWin.Retry)
             : S.Farm.AfterWin;
         GuiRect? btn; string label;
         (btn, label) = after switch
