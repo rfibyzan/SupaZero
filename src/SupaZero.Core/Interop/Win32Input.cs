@@ -37,14 +37,29 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         return fg != 0 && GetWindowThreadProcessId(fg, out uint fpid) != 0 && fpid == (uint)pid;
     }
 
+    /// <summary>Jeda hover sebelum klik (ms).</summary>
+    public int HoverMs { get; set; } = 80;
+
     public void ClickClient(double x, double y)
     {
         nint h = MainWindow();
         if (h == 0) return;
         var p = new Point { X = (int)Math.Round(x), Y = (int)Math.Round(y) };
         if (!ClientToScreen(h, ref p)) return;
+        // Roblox baru memicu hover (MouseEnter) setelah ada gerakan mouse DI ATAS tombol; lompat langsung lalu klik
+        // sering tidak terdaftar (Byzan, 23 Okt 2026: kartu teleport baru bereaksi setelah di-hover). Jadi: lompat ke
+        // dekat target → geser kecil beberapa langkah ke target → tunggu hover → klik.
+        MoveAbsolute(p.X - 6, p.Y - 4);
+        Thread.Sleep(30);
+        for (int i = 1; i <= 3; i++)
+        {
+            MoveAbsolute(p.X - 6 + 6 * i / 3, p.Y - 4 + 4 * i / 3);
+            Thread.Sleep(20);
+        }
+        MoveAbsolute(p.X + 1, p.Y);
+        Thread.Sleep(20);
         MoveAbsolute(p.X, p.Y);
-        Thread.Sleep(25); // Roblox perlu satu frame untuk hover sebelum klik
+        Thread.Sleep(HoverMs);
         MouseButton(MouseLeftDown);
         Thread.Sleep(30);
         MouseButton(MouseLeftUp);
