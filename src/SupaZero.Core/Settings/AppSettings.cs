@@ -86,8 +86,8 @@ public sealed record CombatSettings(
         new("Skill 1", "1", true, 4000),
         new("Skill 2", "2", true, 6000),
         new("Skill 3", "3", true, 8000),
-        new("Dash", "Q", false, 3000),
-        new("Ganti power", "T", false, 15000),
+        new("Dash", "Q", true, 3000),
+        new("Ganti power", "T", true, 15000),
     ];
 
     public IReadOnlyList<SkillBinding> EffectiveSkills => Skills is { Count: > 0 } s ? s : DefaultSkills();

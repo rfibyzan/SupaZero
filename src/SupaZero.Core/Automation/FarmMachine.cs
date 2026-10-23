@@ -517,6 +517,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _lastAttack = now;
             actions.Add(new AttackAction("Serangan dasar"));
         }
+        if (swap is null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
+            && S.Combat.EffectiveSkills.FirstOrDefault(IsSwap) is { Enabled: false } off && Ready("swap-off", now, 15000))
+            actions.Add(new NoteAction($"Semua skill cooldown, tapi {off.Name} ({off.Key}) mati di kartu Combat → nyalakan agar power berganti."));
         // Sudah dekat: tetap bergerak melingkari musuh + lompat (baik saat pakai skill maupun basic attack saja).
         Roam(s, S, tgt, now, actions);
         return actions;
@@ -546,8 +549,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         actions.Insert(0, new MoveAction(keys, "Roaming melingkari musuh"));
         if (now >= _nextRoamJump)
         {
-            _nextRoamJump = now + 900 + _rng.Next(700);
-            actions.Add(new KeyAction(VirtualKeys.Space, 80, "Lompat (roaming)"));
+            _nextRoamJump = now + 700 + _rng.Next(600);
+            // Lompat ditolak game selama animasi serang: buang klik serangan di tick ini dan tahan serangan 300 ms.
+            actions.RemoveAll(x => x is AttackAction);
+            _attackHoldUntil = Math.Max(_attackHoldUntil, now + 300);
+            actions.Add(new KeyAction(VirtualKeys.Space, 100, "Lompat (roaming)"));
         }
     }
     private long _attackHoldUntil, _swapLastPress = long.MinValue / 2, _swapRestUntil;
