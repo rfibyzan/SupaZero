@@ -472,7 +472,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             Status += $" · target #{target.Name} {d:0} stud";
             if (S.Navigation.ChaseEnemies)
             {
-                approaching = d > S.Navigation.AttackRange;
+                // Jarak serang dipertahankan: lebih jauh dari jarak + toleransi → kejar; dalam pita → roaming di lingkaran berjari-jari jarak serang
+                // (terlalu dekat otomatis mundur karena titik roaming ada di lingkaran itu).
+                approaching = d > S.Navigation.AttackRange + RangeTolerance(S.Navigation.AttackRange);
                 var walk = approaching ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
                 actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
@@ -592,16 +594,21 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         if (!S.Navigation.RoamWhenSkillsCooling || !S.Navigation.ChaseEnemies || target is null
             || s.PlayerPos is not { } p || s.CameraLook is not { } look) return;
-        double r = Math.Max(2.5, S.Navigation.AttackRange * 0.7);
+        double r = Math.Max(2.5, S.Navigation.AttackRange);
         if (_roamSince is not long t0 || now - _roamLast > 1500) { t0 = now; _roamSince = now; _roamAngle = Math.Atan2(p.Z - target.Pos.Z, p.X - target.Pos.X); }
         _roamLast = now;
         // Arah putar kanan/kiri berganti acak tiap 2,5–4,5 dtk.
         if (now >= _roamFlipAt)
         {
-            if (_roamFlipAt != 0) { _roamAngle += _roamDir * (now - t0) / 1000.0 * (80 * Math.PI / 180); _roamSince = t0 = now; _roamDir = -_roamDir; }
+            if (_roamFlipAt != 0) { _roamAngle += _roamDir * (now - t0) / 1000.0 * Math.Min(80 * Math.PI / 180, 12.0 / r); _roamSince = t0 = now; _roamDir = -_roamDir; }
             _roamFlipAt = now + 2500 + _rng.Next(2000);
         }
-        double a = _roamAngle + _roamDir * (Math.PI / 4 + (now - t0) / 1000.0 * (80 * Math.PI / 180)); // 45° di depan agar langsung bergerak
+        // Kecepatan sudut diturunkan untuk lingkaran besar (± 12 stud/dtk di keliling); titik tuju 25° di depan agar jalur tetap dekat lingkaran.
+        double omega = Math.Min(80 * Math.PI / 180, 12.0 / r);
+        double a = _roamAngle + _roamDir * (Math.PI * 25 / 180 + (now - t0) / 1000.0 * omega);
+        // Koreksi radial: terlalu dekat → titik tuju digeser keluar, terlalu jauh → ke dalam, agar jarak kembali ke r.
+        double cur = Navigator.Distance2D(p.X, p.Z, target.Pos.X, target.Pos.Z);
+        r = Math.Max(2.5, r + Math.Clamp(r - cur, -r * 0.5, r * 0.5));
         double gx = target.Pos.X + r * Math.Cos(a), gz = target.Pos.Z + r * Math.Sin(a);
         var keys = Navigator.KeysToward(p.X, p.Z, look.X, look.Z, gx, gz, 0.8);
         actions.RemoveAll(x => x is MoveAction);
@@ -615,6 +622,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             actions.Add(new KeyAction(VirtualKeys.Space, 100, "Lompat (roaming)"));
         }
     }
+    /// <summary>Pita toleransi jarak serang (stud): maks(2, 10%).</summary>
+    public static double RangeTolerance(double range) => Math.Max(2, range * 0.1);
     private long _attackHoldUntil, _swapLastPress = long.MinValue / 2, _swapRestUntil;
     private long? _swapPrepSince;
     private int _swapTries;

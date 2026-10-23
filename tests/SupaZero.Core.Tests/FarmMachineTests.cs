@@ -51,6 +51,22 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Fight_KeepsAttackRange_BacksAwayWhenTooClose()
+    {
+        var (m, _) = New(s => s.Navigation = s.Navigation with { AttackRange = 40 });
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
+            PlayerPos = new(0, 3, 0), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -15), 100, 100)],
+        };
+        var mv = m.Step(snap, 10_000).OfType<MoveAction>().First(x => x.Keys.Count > 0);
+        Assert.Contains(VirtualKeys.S, mv.Keys); // musuh di depan 15 stud < 40 → mundur
+        var far = snap with { Enemies = [new("1", new(0, 3, -80), 100, 100)] };
+        var mf = m.Step(far, 10_100).OfType<MoveAction>().First(x => x.Keys.Count > 0);
+        Assert.Contains(VirtualKeys.W, mf.Keys); // 80 > 44 → kejar
+    }
+
+    [Fact]
     public void Fight_UsesHudCooldowns()
     {
         var (m, _) = New();
