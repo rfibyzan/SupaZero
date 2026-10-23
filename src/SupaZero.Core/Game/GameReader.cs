@@ -118,7 +118,7 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
     private (GuiRect?, IReadOnlyList<LobbyEntry>) ScanHub(long pg)
     {
         long now = Environment.TickCount64;
-        if (now - _hubAt < 700) return _hub;
+        if (now - _hubAt < 250) return _hub;
         _hubAt = now;
         GuiRect? areas = null;
         var cards = new List<LobbyEntry>();
@@ -136,7 +136,9 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         }
         else manualStory = 0;
 
-        foreach (var (node, text) in VisibleTexts(pg, 5000))
+        bool haveStory = manualStory != 0;
+        bool areasPathExists = manualAreas != 0; // tombol ada (mungkin tertutup panel Areas yang sedang terbuka)
+        foreach (var (node, text) in (haveStory || areasPathExists) ? [] : VisibleTexts(pg, 5000))
         {
             if (areas is null && text.Trim().Equals(AnimeZeroPaths.AreasButtonText, StringComparison.OrdinalIgnoreCase))
             {
@@ -453,11 +455,12 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
     private List<LobbyEntry> ReadList(long list, long pg)
     {
         var result = new List<LobbyEntry>();
+        list = EntryContainer(list);
         if (list == 0) return result;
         foreach (long c in reader.GetChildren(list, 64))
         {
             string cls = reader.GetClassName(c);
-            if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg)) continue;
+            if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg) || IsListChrome(reader.GetName(c))) continue;
             string name = FirstText(c, 0) ?? reader.GetName(c);
             if (string.IsNullOrWhiteSpace(name)) continue;
             bool locked = name.Contains("lock", StringComparison.OrdinalIgnoreCase) || HasShownDescendant(c, pg, "lock", 0);
@@ -466,6 +469,34 @@ public sealed class GameReader(InstanceReader reader, PropertyReader props)
         }
         return result;
     }
+
+    /// <summary>
+    /// MapsList dkk. bisa berupa wadah {ScrollingBar, List}; entri map ada di dalam "List" (bug v0.2: dropdown berisi
+    /// "ScrollingBar" dan "List"). Turun ke anak List / ScrollingFrame / Container / Content selama wadah belum berisi entri.
+    /// </summary>
+    private long EntryContainer(long list)
+    {
+        for (int i = 0; i < 3 && list != 0; i++)
+        {
+            long next = 0;
+            int entries = 0;
+            foreach (long c in reader.GetChildren(list, 64))
+            {
+                string n = reader.GetName(c), cls = reader.GetClassName(c);
+                if (!PropertyReader.IsGuiObject(cls)) continue;
+                if (cls == "ScrollingFrame" || n is "List" or "Container" or "Content" or "Holder" or "Items") next = next == 0 ? c : next;
+                else if (!IsListChrome(n)) entries++;
+            }
+            if (next == 0 || entries > 1) return list;
+            list = next;
+        }
+        return list;
+    }
+
+    private static bool IsListChrome(string name) =>
+        name.Contains("Scroll", StringComparison.OrdinalIgnoreCase) || name.StartsWith("UI", StringComparison.Ordinal) ||
+        name.StartsWith('_') || name.Contains("Padding", StringComparison.OrdinalIgnoreCase) || name.Contains("Divider", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("Template", StringComparison.OrdinalIgnoreCase);
 
     private string? FirstText(long node, int depth)
     {

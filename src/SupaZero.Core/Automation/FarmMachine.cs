@@ -193,12 +193,12 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (card?.Rect is { } cr)
         {
             Status = $"Teleport: Areas → {card.Name}";
-            return Ready("tp-card", now, 4000) ? [new MoveAction([], "Teleport"), new ClickAction(cr.CenterX, cr.CenterY, $"Teleport {card.Name}")] : [];
+            return Ready("tp-card", now, 2500) ? [new MoveAction([], "Teleport"), new ClickAction(cr.CenterX, cr.CenterY, $"Teleport {card.Name}")] : [];
         }
         if (s.AreasButton is { } ab)
         {
             Status = "Buka Areas untuk teleport.";
-            return Ready("areas", now, 3000) ? [new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")] : [];
+            return Ready("areas", now, 1500) ? [new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")] : [];
         }
         Status = "Lingkaran Create Room dan tombol Areas tidak terbaca.";
         return [new MoveAction([], "Tunggu"), .. Note("no-hub", now, 8000, "Tombol Areas / lingkaran 'Start Here' tidak terbaca. Cek di RIE atau rekam posisi lingkaran manual.")];
