@@ -117,15 +117,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _powers = new PowerKnowledge();
             foreach (var (k, v) in Settings.PowerNames) _powers.Names[k] = v;
             foreach (var (k, v) in Settings.PowerTraits) _powers.Traits[k] = v;
+            _powers.Loadout = Settings.PowerLoadout?.ToList() ?? [];
             return _powers;
         }
     }
 
-    private string? _lastTraitDebug;
+    private string? _lastTraitDebug, _lastPowerDebug;
 
     private void SyncPowers()
     {
         if (Session.Game?.TraitDebug is { } dbg && dbg != _lastTraitDebug) { _lastTraitDebug = dbg; AddLog(dbg); }
+        if (Session.Game?.PowerDebug is { } pd && pd != _lastPowerDebug) { _lastPowerDebug = pd; AddLog(pd); }
         var p = Powers;
         if (!p.Dirty) return;
         p.Dirty = false;
@@ -133,6 +135,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             Settings.PowerNames = new Dictionary<string, string>(p.Names);
             Settings.PowerTraits = new Dictionary<string, PowerTrait>(p.Traits);
+            Settings.PowerLoadout = p.Loadout.ToList();
         }
         Save();
         AddLog("Data power/trait diperbarui dari game.");

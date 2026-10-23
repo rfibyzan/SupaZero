@@ -30,6 +30,25 @@ public sealed class PowerKnowledge
     public Dictionary<string, string> Names { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, PowerTrait> Traits { get; } = new(StringComparer.OrdinalIgnoreCase);
     public bool Dirty { get; set; }
+    /// <summary>Loadout terakhir yang terbaca (daftar slot hanya ada saat menu karakter pernah dibuka).</summary>
+    public List<EquippedPower> Loadout { get; set; } = [];
+
+    public void LearnLoadout(List<EquippedPower> loadout)
+    {
+        loadout = loadout.Select(p => p with { Trait = null }).ToList(); // trait disimpan terpisah (list Buffs tak bisa dibandingkan per nilai)
+        lock (_gate)
+        {
+            if (Loadout.Select(p => p with { Trait = null }).SequenceEqual(loadout)) return;
+            Loadout = loadout;
+            Dirty = true;
+        }
+    }
+
+    /// <summary>Loadout tersimpan dengan trait terbaru.</summary>
+    public IReadOnlyList<EquippedPower> SavedLoadout()
+    {
+        lock (_gate) return Loadout.Select(p => p with { Trait = Traits.TryGetValue(p.Name, out var t) ? t : p.Trait }).ToList();
+    }
 
     public string? NameFor(string? id)
     {
@@ -92,6 +111,7 @@ public sealed partial class GameReader
 
     /// <summary>Ringkasan pembacaan layar Trait terakhir (untuk log diagnosa).</summary>
     public string? TraitDebug { get; private set; }
+    public string? PowerDebug { get; private set; }
 
     private Dictionary<string, string>? _idleToId;
     private DateTime _powersAt = DateTime.MinValue;
@@ -105,17 +125,19 @@ public sealed partial class GameReader
         try
         {
             long pg = roots.PlayerGui;
-            if (pg == 0) return _equipped;
+            if (pg == 0) return _equipped = Powers.SavedLoadout();
             LearnFromTraitScreen(pg);
             var list = reader.ResolvePath(pg, InventoryList);
-            if (list == 0) return _equipped; // di stage: pertahankan hasil lobby terakhir
+            if (list == 0) { PowerDebug = "Power: daftar slot tidak ada (buka menu karakter sekali)"; return _equipped = Powers.SavedLoadout(); }
             EnsureIdleMap(roots.ReplicatedStorage);
 
             var result = new List<EquippedPower>();
+            int slots = 0;
             foreach (long slot in reader.GetChildren(list, 64))
             {
                 string slotName = reader.GetName(slot);
                 if (!slotName.StartsWith("Slot", StringComparison.Ordinal) || !int.TryParse(slotName[4..], out int inv)) continue;
+                slots++;
                 long main = reader.ResolvePath(slot, "MainButton.MainButton");
                 string? id = CharacterId(slot);
 
@@ -133,7 +155,9 @@ public sealed partial class GameReader
                 int? level = main != 0 ? ParseInt(Text(reader.ResolvePath(main, "LevelShadow.Level"))) : null;
                 result.Add(new EquippedPower(loadout, inv, name, id, level, main != 0 ? Rarity(main) : null, Powers.TraitFor(name)));
             }
-            if (result.Count > 0) _equipped = result.OrderBy(p => p.Loadout).ToList();
+            PowerDebug = $"Power: {slots} slot terbaca, {result.Count} terpasang";
+            if (result.Count > 0) Powers.LearnLoadout(result.OrderBy(p => p.Loadout).ToList());
+            _equipped = Powers.SavedLoadout();
         }
         catch { /* baca memori gagal sesaat → pakai hasil sebelumnya */ }
         return _equipped;

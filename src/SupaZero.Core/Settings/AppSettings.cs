@@ -130,6 +130,7 @@ public sealed class AppSettings
     /// <summary>Nama power (id karakter → nama tampil) dan trait per power yang sudah terbaca dari game.</summary>
     public Dictionary<string, string> PowerNames { get; set; } = new();
     public Dictionary<string, Game.PowerTrait> PowerTraits { get; set; } = new();
+    public List<Game.EquippedPower> PowerLoadout { get; set; } = new();
 
     public static string DataDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SupaZero");

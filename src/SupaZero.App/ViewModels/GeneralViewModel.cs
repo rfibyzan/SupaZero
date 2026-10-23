@@ -76,7 +76,7 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
 
     private string PowerDetail(int loadout)
     {
-        if (Power(loadout) is not { } p) return root.Snapshot.Attached ? "Belum terbaca (masuk lobby dulu)" : "-";
+        if (Power(loadout) is not { } p) return root.Snapshot.Attached ? "Belum terbaca (buka menu karakter sekali di lobby)" : "-";
         var parts = new List<string>();
         if (p.Level is { } lv) parts.Add($"Lv.{lv}");
         if (p.Rarity is { Length: > 0 } r) parts.Add(r);
