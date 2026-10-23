@@ -489,14 +489,30 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _attackHoldUntil = now + 250;
             actions.Add(new KeyAction((ushort)vk, 60, $"{due.Name} ({due.Key})"));
         }
-        // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci.
+        // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci. T ditolak game selama animasi
+        // serangan masih jalan, jadi: berhenti basic attack dulu (gerak tetap), tunggu animasi selesai, baru tekan T.
+        // Bila HUD masih "semua cooldown" 1,2 dtk setelah T, ulangi (maks 3×), lalu jeda 4 dtk.
         else if (swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
-                 && Ready("swap", now, 3000) && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk))
+                 && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk) && now >= _swapRestUntil)
         {
-            _attackHoldUntil = now + 500;
-            actions.Add(new KeyAction((ushort)svk, 120, $"{swap.Name} ({swap.Key}): semua skill cooldown"));
+            if (_swapPrepSince is not long since)
+            {
+                _swapPrepSince = since = now;
+                actions.Add(new NoteAction($"Semua skill cooldown → berhenti serang, siap {swap.Name} ({swap.Key})."));
+            }
+            _attackHoldUntil = now + 200;
+            if (now - since >= SwapPrepMs && now - _swapLastPress >= 1200)
+            {
+                if (_swapTries >= 3) { _swapTries = 0; _swapPrepSince = null; _swapRestUntil = now + 4000; }
+                else
+                {
+                    _swapTries++;
+                    _swapLastPress = now;
+                    actions.Add(new KeyAction((ushort)svk, 120, $"{swap.Name} ({swap.Key}): semua skill cooldown (coba {_swapTries})"));
+                }
+            }
         }
-        else if (now >= _attackHoldUntil && now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
+        else if (ResetSwap() && now >= _attackHoldUntil && now - _lastAttack >= Math.Max(30, S.Combat.AttackIntervalMs))
         {
             _lastAttack = now;
             actions.Add(new AttackAction("Serangan dasar"));
@@ -534,7 +550,12 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             actions.Add(new KeyAction(VirtualKeys.Space, 80, "Lompat (roaming)"));
         }
     }
-    private long _attackHoldUntil;
+    private long _attackHoldUntil, _swapLastPress = long.MinValue / 2, _swapRestUntil;
+    private long? _swapPrepSince;
+    private int _swapTries;
+    /// <summary>Lama berhenti basic attack sebelum T agar animasi serangan selesai.</summary>
+    private const int SwapPrepMs = 900;
+    private bool ResetSwap() { _swapPrepSince = null; _swapTries = 0; return true; }
     private long? _roamSince;
     private long _roamLast, _nextRoamJump, _roamFlipAt;
     private int _roamDir = 1;

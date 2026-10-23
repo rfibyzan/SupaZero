@@ -116,13 +116,18 @@ public class FarmMachineTests
         Assert.Contains(b.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
 
         var cooling = near with { SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", null, true)] };
+        // Semua cooldown → berhenti serang dulu (animasi selesai), T baru ditekan setelah 900 ms.
+        var c0 = m.Step(cooling, 12_100);
+        Assert.DoesNotContain(c0, x => x is AttackAction);
+        Assert.DoesNotContain(c0.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
         var c = m.Step(cooling, 13_000);
         Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
         Assert.DoesNotContain(c, x => x is AttackAction);
-        Assert.Contains(m.Step(cooling, 13_600), x => x is AttackAction); // setelah T, basic attack lanjut
+        // Power berganti (HUD skill siap lagi) → skill dipakai lagi.
+        Assert.Contains(m.Step(near, 13_600).OfType<KeyAction>(), k => k.Reason.Contains("(1)") || k.Reason.Contains("(2)") || k.Reason.Contains("(3)"));
         // Skill habis + dekat musuh → roaming melingkar (bergerak) sambil lompat, tidak diam.
         Assert.Contains(c.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
-        Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("Lompat"));
+        Assert.Contains(c0.Concat(c).OfType<KeyAction>(), k => k.Reason.Contains("Lompat"));
     }
 
     [Fact]
