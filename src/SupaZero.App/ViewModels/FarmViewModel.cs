@@ -117,9 +117,21 @@ public sealed class FarmViewModel : ObservableObject
         }
     }
 
-    public string MapsHint => S.Farm.KnownMaps?.Where(m => m.Mode is null || m.Mode.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase)).ToList() is { Count: > 0 } k
-        ? $"Map {S.Farm.Mode}: {k.Count(m => !m.Locked)} terbuka, {k.Count(m => m.Locked)} terkunci."
-        : "Buka menu Create Room sekali di game: daftar map + status terkunci akan terbaca otomatis.";
+    public string MapsHint => S.Farm.KnownMaps is not { Count: > 0 }
+        ? "Buka menu Create Room sekali di game: daftar map + status terkunci akan terbaca otomatis."
+        : !S.Farm.KnownMaps.Any(m => m.Mode is { Length: > 0 })
+            ? "Mode map belum terbaca. Buka menu Create Room sekali lagi agar map terkelompok per mode."
+            : MapsForMode().ToList() is { Count: > 0 } k
+                ? $"Map {S.Farm.Mode}: {k.Count(m => !m.Locked)} terbuka, {k.Count(m => m.Locked)} terkunci."
+                : $"Belum ada map untuk mode {S.Farm.Mode}.";
+
+    /// <summary>Map milik mode terpilih. Map tanpa label mode hanya ikut bila belum ada satu pun map yang mode-nya terbaca.</summary>
+    private IEnumerable<KnownMap> MapsForMode()
+    {
+        var all = S.Farm.KnownMaps ?? [];
+        bool anyMode = all.Any(m => m.Mode is { Length: > 0 });
+        return all.Where(m => anyMode ? m.Mode is { } mm && mm.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase) : true);
+    }
 
     public bool AutoCreateLobby { get => S.Farm.AutoCreateLobby; set => Farm(f => f with { AutoCreateLobby = value }); }
     public bool AutoVoteStart { get => S.Farm.AutoVoteStart; set => Farm(f => f with { AutoVoteStart = value }); }
@@ -199,12 +211,12 @@ public sealed class FarmViewModel : ObservableObject
         RebuildModes();
         Maps.Clear();
         Maps.Add(CurrentMapLabel);
-        string mode = S.Farm.Mode;
-        foreach (var m in S.Farm.KnownMaps ?? [])
-            if (m.Mode is null || m.Mode.Equals(mode, StringComparison.OrdinalIgnoreCase))
-                Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
-        if (S.Farm.Map.Length > 0 && !Maps.Any(m => Strip(m) == S.Farm.Map)) Maps.Add(S.Farm.Map);
+        foreach (var m in MapsForMode())
+            Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
+        // Map tersimpan yang bukan milik mode ini → kembali ke otomatis.
+        if (S.Farm.Map.Length > 0 && !Maps.Any(m => Strip(m) == S.Farm.Map)) Farm(f => f with { Map = "" });
         Raise(nameof(SelectedMap));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Raise(nameof(SelectedMap)));
         Raise(nameof(MapsHint));
         RebuildActs();
     }
