@@ -103,7 +103,11 @@ public sealed record NavigationSettings(
     /// <summary>Jarak serang ke musuh (stud).</summary>
     double AttackRange = 6,
     /// <summary>Kursor diarahkan ke musuh target (proyeksi kamera).</summary>
-    bool AimAtEnemy = true);
+    bool AimAtEnemy = true,
+    /// <summary>Shift lock aktif: kursor terkunci di tengah, jadi bidik dengan memutar kamera (gerak mouse relatif).</summary>
+    bool ShiftLock = false,
+    /// <summary>Piksel gerak mouse per derajat putaran kamera (shift lock), dikoreksi tiap tick.</summary>
+    double TurnPixelsPerDegree = 4);
 
 public enum UpgradeMode
 {

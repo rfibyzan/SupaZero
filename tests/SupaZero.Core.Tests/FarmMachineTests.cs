@@ -119,6 +119,16 @@ public class FarmMachineTests
         Assert.Contains("(T)", Assert.Single(c.OfType<KeyAction>()).Reason);
     }
 
+    [Fact]
+    public void Turn_DirectionAndDeadzone()
+    {
+        // Look -Z (0,-1); kanan kamera = +X (Roblox). Musuh di +X → putar ke kanan (dx > 0).
+        Assert.True(FarmMachine.Turn(0, -1, 1, -1, 4) > 0);
+        Assert.True(FarmMachine.Turn(0, -1, -1, -1, 4) < 0);
+        Assert.Equal(0, FarmMachine.Turn(0, -1, 0.02, -1, 4));
+        Assert.Equal(120, FarmMachine.Turn(0, -1, 0, 1, 4)); // di belakang → langkah dibatasi
+    }
+
     [Theory]
     [InlineData("", null)]
     [InlineData("1.7", 1.7)]

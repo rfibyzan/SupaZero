@@ -125,6 +125,13 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         catch { return 0; }
     }
 
+    public void MoveRelative(int dx, int dy)
+    {
+        if (dx == 0 && dy == 0) return;
+        var i = new Input { Type = InputMouse, Data = new InputUnion { Mouse = new MouseInput { Dx = dx, Dy = dy, Flags = MouseMove } } };
+        SendInput(1, ref i, Marshal.SizeOf<Input>());
+    }
+
     private static void MoveAbsolute(int x, int y)
     {
         int vx = GetSystemMetrics(SmXVirtual), vy = GetSystemMetrics(SmYVirtual);

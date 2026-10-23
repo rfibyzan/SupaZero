@@ -424,7 +424,13 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 var walk = approaching ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
                 actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
-            if (S.Navigation.AimAtEnemy && s.Camera?.WorldToScreen(target.Pos) is { } sp
+            if (S.Navigation.AimAtEnemy && S.Navigation.ShiftLock)
+            {
+                // Shift lock: kursor terkunci di tengah → putar kamera (yaw) ke arah musuh dengan gerak relatif.
+                if (s.CameraLook is { } cl && Turn(cl.X, cl.Z, target.Pos.X - me.X, target.Pos.Z - me.Z, S.Navigation.TurnPixelsPerDegree) is int dx && dx != 0)
+                    actions.Add(new TurnAction(dx, 0, $"Putar kamera ke musuh #{target.Name}"));
+            }
+            else if (S.Navigation.AimAtEnemy && s.Camera?.WorldToScreen(target.Pos) is { } sp
                 && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
                 actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke musuh #{target.Name}"));
         }
@@ -585,6 +591,20 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     private List<MacroAction> Note(string key, long now, int everyMs, string text) =>
         Ready("note:" + key, now, everyMs) ? [new NoteAction(text)] : [];
+
+    /// <summary>
+    /// Delta X mouse untuk memutar yaw kamera dari arah (lx,lz) ke (tx,tz). Mouse ke kanan = kamera ke kanan.
+    /// Toleransi 4°, langkah maks 120 px per tick agar tidak overshoot.
+    /// </summary>
+    public static int Turn(double lx, double lz, double tx, double tz, double pxPerDeg)
+    {
+        if (Math.Abs(lx) + Math.Abs(lz) < 1e-6 || Math.Abs(tx) + Math.Abs(tz) < 1e-6) return 0;
+        // Sudut searah jarum jam dilihat dari atas (Roblox: right = (-lz, lx) untuk look (lx, lz)).
+        double cross = lx * tz - lz * tx, dot = lx * tx + lz * tz;
+        double deg = Math.Atan2(cross, dot) * 180 / Math.PI; // positif = target di kanan
+        if (Math.Abs(deg) < 4) return 0;
+        return (int)Math.Clamp(Math.Round(deg * Math.Max(0.5, pxPerDeg)), -120, 120);
+    }
 
     private static bool IsDash(SkillBinding k) => k.Name == "Dash";
     private static bool IsSwap(SkillBinding k) => k.Name == "Ganti senjata" || k.Name == "Ganti power";

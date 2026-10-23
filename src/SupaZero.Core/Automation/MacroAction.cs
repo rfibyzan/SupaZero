@@ -12,6 +12,9 @@ public sealed record ScrollAction(double X, double Y, int Notches, string Reason
 /// <summary>Geser kursor (tanpa klik) ke koordinat KLIEN, mis. mengarahkan ke musuh.</summary>
 public sealed record AimAction(double X, double Y, string Reason) : MacroAction(Reason);
 
+/// <summary>Gerak mouse relatif (putar kamera saat shift lock).</summary>
+public sealed record TurnAction(int Dx, int Dy, string Reason) : MacroAction(Reason);
+
 /// <summary>Klik kiri di posisi kursor sekarang (serangan dasar).</summary>
 public sealed record AttackAction(string Reason) : MacroAction(Reason);
 

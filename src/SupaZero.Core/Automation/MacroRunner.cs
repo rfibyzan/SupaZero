@@ -120,6 +120,9 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 if (input.ClientSize() is { } sz && am.X >= 0 && am.Y >= 0 && am.X < sz.W && am.Y < sz.H)
                     input.MoveClient(am.X, am.Y);
                 break;
+            case TurnAction t:
+                input.MoveRelative(t.Dx, t.Dy);
+                break;
             case AttackAction:
                 input.ClickHere();
                 break;

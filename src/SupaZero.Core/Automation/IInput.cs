@@ -18,6 +18,9 @@ public interface IInput
     /// <summary>Geser kursor ke koordinat klien (tanpa klik).</summary>
     void MoveClient(double x, double y);
 
+    /// <summary>Gerak mouse relatif (delta piksel), untuk memutar kamera saat shift lock.</summary>
+    void MoveRelative(int dx, int dy);
+
     /// <summary>Klik kiri di posisi kursor sekarang.</summary>
     void ClickHere();
 
