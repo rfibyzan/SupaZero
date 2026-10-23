@@ -84,18 +84,26 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
 
     // ── Deteksi shift lock: Roblox mengembalikan kursor ke tengah jendela tiap frame saat shift lock aktif.
     private bool _shiftLock;
-    private int _centeredTicks;
+    private int _centeredTicks, _offTicks;
     private (double X, double Y)? _lastAimFar;
     private CancellationTokenSource? _turnCts;
 
     private void DetectShiftLock(bool fg)
     {
         if (!fg || input.ClientSize() is not { } sz || input.CursorClient() is not { } c) { _lastAimFar = null; return; }
-        bool centered = Math.Abs(c.X - sz.W / 2.0) <= 4 && Math.Abs(c.Y - sz.H / 2.0) <= 4;
+        double off = Math.Max(Math.Abs(c.X - sz.W / 2.0), Math.Abs(c.Y - sz.H / 2.0));
+        bool centered = off <= 4;
         bool was = _shiftLock;
-        if (!centered) { _centeredTicks = 0; _shiftLock = false; }
+        if (!centered)
+        {
+            _centeredTicks = 0;
+            // Saat terkunci, putaran kamera halus bisa sesaat menggeser kursor sebelum Roblox mengembalikannya ke tengah:
+            // baru dianggap mati bila kursor jauh (> 30 px) dari tengah 3 tick berturut-turut.
+            if (!_shiftLock || (off > 30 && ++_offTicks >= 3)) { _shiftLock = false; _offTicks = 0; }
+        }
         else
         {
+            _offTicks = 0;
             _centeredTicks++;
             // Kursor digeser jauh dari tengah tick lalu, tapi kini kembali di tengah → pasti terkunci.
             if (_lastAimFar is not null || _centeredTicks >= 5) _shiftLock = true;
@@ -160,6 +168,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 input.ScrollClient(sc.X, sc.Y, sc.Notches);
                 break;
             case AimAction am:
+                // Kursor sedang di tengah tapi shift lock belum pasti → jangan geser absolut (bisa menyentak kamera).
+                if (_centeredTicks > 0 && !_shiftLock) break;
                 if (input.ClientSize() is { } sz && am.X >= 0 && am.Y >= 0 && am.X < sz.W && am.Y < sz.H)
                 {
                     input.MoveClient(am.X, am.Y);

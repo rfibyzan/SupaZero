@@ -429,8 +429,17 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (S.Navigation.AimAtEnemy && s.ShiftLock)
             {
                 // Shift lock: kursor terkunci di tengah → putar kamera (yaw) ke arah musuh dengan gerak relatif.
-                if (s.CameraLook is { } cl && Turn(cl.X, cl.Z, target.Pos.X - me.X, target.Pos.Z - me.Z, S.Navigation.TurnPixelsPerDegree) is int dx && dx != 0)
-                    actions.Add(new TurnAction(dx, 0, $"Putar kamera ke musuh #{target.Name}"));
+                // Yaw dan pitch dihitung dari posisi kamera (shift lock menggeser kamera ke kanan bahu); pitch dijaga -40°..+10°.
+                int dx = 0, dy = 0;
+                if (s.Camera is { } cam)
+                {
+                    dx = Turn(cam.Look.X, cam.Look.Z, target.Pos.X - cam.Pos.X, target.Pos.Z - cam.Pos.Z, S.Navigation.TurnPixelsPerDegree);
+                    dy = Pitch(cam.Look, target.Pos.X - cam.Pos.X, target.Pos.Y - cam.Pos.Y, target.Pos.Z - cam.Pos.Z, S.Navigation.TurnPixelsPerDegree);
+                }
+                else if (s.CameraLook is { } cl)
+                    dx = Turn(cl.X, cl.Z, target.Pos.X - me.X, target.Pos.Z - me.Z, S.Navigation.TurnPixelsPerDegree);
+                if (dx != 0 || dy != 0)
+                    actions.Add(new TurnAction(dx, dy, $"Putar kamera ke musuh #{target.Name}"));
             }
             else if (S.Navigation.AimAtEnemy && s.Camera?.WorldToScreen(target.Pos) is { } sp
                 && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
@@ -643,6 +652,21 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (Math.Abs(deg) < 2) return 0;
         // Kendali proporsional (setengah galat per tick) agar mulus tanpa overshoot.
         return (int)Math.Clamp(Math.Round(deg * 0.5 * Math.Max(0.5, pxPerDeg)), -80, 80);
+    }
+
+    /// <summary>
+    /// Delta Y mouse untuk pitch kamera: mouse ke bawah = kamera menunduk. Target pitch = arah ke musuh, dibatasi -40°..+10°
+    /// agar kamera tidak pernah mendongak ke langit-langit.
+    /// </summary>
+    public static int Pitch(Vec3 look, double dx, double dy, double dz, double pxPerDeg)
+    {
+        double ll = Math.Sqrt(look.X * look.X + look.Z * look.Z), tl = Math.Sqrt(dx * dx + dz * dz);
+        if (ll < 1e-6 && Math.Abs(look.Y) < 1e-6) return 0;
+        double cur = Math.Atan2(look.Y, ll) * 180 / Math.PI;
+        double want = Math.Clamp(tl < 1e-6 ? -40 : Math.Atan2(dy, tl) * 180 / Math.PI, -40, 10);
+        double err = cur - want; // positif = kamera terlalu mendongak → mouse ke bawah
+        if (Math.Abs(err) < 3) return 0;
+        return (int)Math.Clamp(Math.Round(err * 0.5 * Math.Max(0.5, pxPerDeg)), -60, 60);
     }
 
     private static bool IsDash(SkillBinding k) => k.Name == "Dash";

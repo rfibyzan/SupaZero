@@ -131,6 +131,11 @@ public class FarmMachineTests
         Assert.True(FarmMachine.Turn(0, -1, -1, -1, 4) < 0);
         Assert.Equal(0, FarmMachine.Turn(0, -1, 0.02, -1, 4));
         Assert.Equal(80, FarmMachine.Turn(0, -1, 0, 1, 4)); // di belakang → langkah dibatasi
+        // Kamera mendongak (look Y +0,9) ke musuh setinggi kamera → mouse ke bawah (dy > 0); sudah pas → 0.
+        Assert.True(FarmMachine.Pitch(new(0, 0.9, -0.43), 0, 0, -10, 4) > 0);
+        Assert.Equal(0, FarmMachine.Pitch(new(0, -0.17, -0.98), 0, -1.76, -10, 4));
+        // Musuh jauh di atas (bos raksasa) → pitch dibatasi +10°, kamera tetap tidak mendongak.
+        Assert.True(FarmMachine.Pitch(new(0, 0.5, -0.86), 0, 50, -5, 4) > 0);
     }
 
     [Theory]
