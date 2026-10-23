@@ -22,6 +22,10 @@
           <TextBlock Classes="label" Text="Act" />
           <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Acts}" SelectedIndex="{Binding ActIndex}" />
         </Grid>
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding ActProgressText}" />
+          <Button Grid.Column="1" Content="Reset" Command="{Binding ResetActProgressCommand}" Padding="8,2" Margin="6,0,0,0" />
+        </Grid>
         <Grid ColumnDefinitions="*,210" MinHeight="34">
           <TextBlock Classes="label" Text="Difficulty" />
           <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Difficulties}" SelectedIndex="{Binding DifficultyIndex}" />

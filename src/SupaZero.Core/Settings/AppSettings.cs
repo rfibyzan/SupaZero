@@ -50,6 +50,7 @@ public sealed record KnownMap(string Name, bool Locked);
 public sealed record FarmSettings(
     FarmMode Mode = FarmMode.Story,
     string Map = "",
+    /// <summary>1–5 = act tetap; 0 = semua act berurutan (lanjut dari act terakhir yang tuntas per map).</summary>
     int Act = 1,
     Difficulty Difficulty = Difficulty.Easy,
     AfterWin AfterWin = AfterWin.Auto,
@@ -66,7 +67,9 @@ public sealed record FarmSettings(
     bool AutoVoteStart = true,
     bool RetryOnDefeat = true,
     int MaxRetriesPerStage = 3,
-    List<KnownMap>? KnownMaps = null);
+    List<KnownMap>? KnownMaps = null,
+    /// <summary>Act terakhir yang tuntas per map (mode "Semua act").</summary>
+    Dictionary<string, int>? ActProgress = null);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 public sealed record SkillBinding(string Name, string Key, bool Enabled, int CooldownMs);

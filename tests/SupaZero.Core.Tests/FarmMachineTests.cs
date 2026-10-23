@@ -118,6 +118,37 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Lobby_ActMissingOnMap_ClampsToAvailable()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Act = 5 });
+        var snap = new GameSnapshot
+        {
+            Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Training", LobbyActTag = "Training [Act 1]",
+            LobbyActs = [new LobbyEntry("Act 1 Training", false, true, Btn)], LobbyStart = Btn,
+        };
+        var a = Real(m.Step(snap, 0));
+        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("pakai Act 1"));
+        Assert.Contains(a, x => x is ClickAction c && c.Reason.StartsWith("Start"));
+    }
+
+    [Fact]
+    public void Lobby_AllActs_PicksNextAfterProgress()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Act = 0, ActProgress = new() { ["Hxh"] = 2 } });
+        var acts = Enumerable.Range(1, 5).Select(i => new LobbyEntry($"Act {i}", false, i == 1, new GuiRect(i * 100, 100, 50, 20))).ToList();
+        var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyActTag = "Hxh [Act 1]", LobbyActs = acts };
+        Assert.Equal("Act 3", Real(m.Step(snap, 0)).OfType<ClickAction>().Single().Reason);
+    }
+
+    [Fact]
+    public void ActNumber_Parses()
+    {
+        Assert.Equal(1, FarmMachine.ActNumber("Training [Act 1]"));
+        Assert.Equal(3, FarmMachine.ActNumber("Act 3 Training"));
+        Assert.Equal(0, FarmMachine.ActNumber("Training"));
+    }
+
+    [Fact]
     public void Lobby_LockedMap_Stops()
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Map = "HxH" });

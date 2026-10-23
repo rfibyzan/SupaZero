@@ -51,14 +51,18 @@ public sealed class FarmViewModel : ObservableObject
     private void Farm(Func<FarmSettings, FarmSettings> f) { S.Farm = f(S.Farm); _root.Save(); }
 
     public IReadOnlyList<string> Modes { get; } = Enum.GetNames<FarmMode>();
-    public IReadOnlyList<string> Acts { get; } = ["Act 1", "Act 2", "Act 3", "Act 4", "Act 5"];
+    public IReadOnlyList<string> Acts { get; } = ["Semua act (1 → 5)", "Act 1", "Act 2", "Act 3", "Act 4", "Act 5"];
     public IReadOnlyList<string> Difficulties { get; } = Enum.GetNames<Difficulty>();
     public IReadOnlyList<string> AfterWins { get; } = ["Otomatis", "Next", "Retry", "Leave"];
     public ObservableCollection<string> Maps { get; } = [];
     public ObservableCollection<SkillRowViewModel> SkillRows { get; } = [];
 
     public int ModeIndex { get => (int)S.Farm.Mode; set => Farm(f => f with { Mode = (FarmMode)Math.Clamp(value, 0, Modes.Count - 1) }); }
-    public int ActIndex { get => Math.Clamp(S.Farm.Act - 1, 0, Acts.Count - 1); set => Farm(f => f with { Act = Math.Clamp(value, 0, Acts.Count - 1) + 1 }); }
+    public int ActIndex { get => Math.Clamp(S.Farm.Act, 0, Acts.Count - 1); set => Farm(f => f with { Act = Math.Clamp(value, 0, Acts.Count - 1) }); }
+    public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
+        ? "Tuntas: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
+        : "Semua act: mulai dari Act 1, lanjut otomatis tiap menang. Act yang tidak ada di map disesuaikan otomatis.";
+    public RelayCommand ResetActProgressCommand => new(_ => { Farm(f => f with { ActProgress = null }); Raise(nameof(ActProgressText)); });
     public int DifficultyIndex { get => (int)S.Farm.Difficulty; set => Farm(f => f with { Difficulty = (Difficulty)Math.Clamp(value, 0, 3) }); }
     public int AfterWinIndex { get => (int)S.Farm.AfterWin; set => Farm(f => f with { AfterWin = (AfterWin)Math.Clamp(value, 0, 3) }); }
 

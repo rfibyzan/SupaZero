@@ -67,6 +67,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             GameScreen.Defeat => Defeat(s, S, nowMs),
             _ => [],
         };
+        if (_pending.Count > 0) { actions = [.. _pending, .. actions]; _pending.Clear(); }
         // Lepas tombol gerak di semua fase yang tidak berjalan.
         if (Phase is not (MacroPhase.WalkingToLobby or MacroPhase.Navigating) && !actions.Any(a => a is MoveAction))
             return [new MoveAction([], "Berhenti jalan"), .. actions];
@@ -75,7 +76,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     private void OnScreenChanged(GameScreen from, GameScreen to)
     {
-        if (to == GameScreen.Victory) StagesCleared++;
+        if (to == GameScreen.Victory)
+        {
+            StagesCleared++;
+            if (_selectedAct > 0 && _selectedMap.Length > 0)
+            {
+                ActCleared?.Invoke(_selectedMap, _selectedAct);
+                _selectedAct++; // Next stage = act berikutnya
+            }
+        }
         if (to == GameScreen.StartVote || (to == GameScreen.InRound && from is GameScreen.Victory or GameScreen.Defeat))
         {
             _boughtThisStage = 0;
@@ -221,16 +230,34 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (entry?.Rect is { } r) return Ready("lobby-map", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"Map {entry.Name}")] : [];
             return Note("lobby-map", now, 5000, $"Map '{f.Map}' tidak ada di MapsList (terbaca: {string.Join(", ", s.LobbyMaps.Select(m => m.Name))}).");
         }
-        // 3) Act
-        string wantAct = "Act" + f.Act;
-        if (!Matches(s.LobbyActTag, wantAct) && !Matches(s.LobbyActTag, f.Act.ToString()))
+        // 3) Act. Daftar act tergantung map (Training cuma Act 1) → target disesuaikan dengan act yang ADA di ActsList.
+        string mapKey = (f.Map.Length > 0 ? f.Map : s.LobbyMapTag ?? "").Trim();
+        var acts = s.LobbyActs.Select(e => (Entry: e, No: ActNumber(e.Name))).Where(x => x.No > 0).OrderBy(x => x.No).ToList();
+        int want = f.Act;
+        if (f.Act == 0) // Semua act berurutan: act setelah yang terakhir tuntas
         {
-            Status = $"Act terpilih '{s.LobbyActTag ?? "?"}', target {wantAct}.";
-            var entry = s.LobbyActs.FirstOrDefault(e => Matches(e.Name, wantAct) || e.Name.Trim() == f.Act.ToString());
-            if (entry is { Locked: true }) return Stop($"{wantAct} masih terkunci di akun ini.");
-            if (entry?.Rect is { } r) return Ready("lobby-act", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"{wantAct}")] : [];
-            return Note("lobby-act", now, 5000, $"{wantAct} tidak terbaca di ActsList (ActLine.Tag = '{s.LobbyActTag ?? "?"}').");
+            int done = f.ActProgress?.GetValueOrDefault(mapKey) ?? 0;
+            want = done + 1;
+            if (acts.Count > 0 && want > acts[^1].No)
+                return Stop($"Semua act di map '{mapKey}' sudah tuntas (Act 1–{acts[^1].No}).");
         }
+        if (acts.Count > 0 && !acts.Any(a => a.No == want))
+        {
+            int fallback = acts.Where(a => a.No <= want && !a.Entry.Locked).Select(a => a.No).DefaultIfEmpty(acts[0].No).Max();
+            _pending.AddRange(Note("act-clamp", now, 15000, $"Act {want} tidak ada di map '{mapKey}' (tersedia: {string.Join(", ", acts.Select(a => a.No))}) → pakai Act {fallback}."));
+            want = fallback;
+        }
+        _selectedAct = want;
+        _selectedMap = mapKey;
+        if (ActNumber(s.LobbyActTag) != want)
+        {
+            Status = $"Act terpilih '{s.LobbyActTag ?? "?"}', target Act {want}.";
+            var entry = acts.FirstOrDefault(a => a.No == want).Entry;
+            if (entry is { Locked: true }) return Stop($"Act {want} di map '{mapKey}' masih terkunci.");
+            if (entry?.Rect is { } r) return Ready("lobby-act", now, 2500) ? [new ClickAction(r.CenterX, r.CenterY, $"Act {want}")] : [];
+            return Note("lobby-act", now, 5000, $"Act {want} tidak terbaca di ActsList (ActLine.Tag = '{s.LobbyActTag ?? "?"}').");
+        }
+        string wantAct = "Act " + want;
         // 4) Difficulty + Start
         var actions = new List<MacroAction>();
         var (dx, dy) = AnimeZeroPaths.DifficultyCenters[(int)f.Difficulty];
@@ -341,12 +368,14 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         var after = S.Farm.AfterWin == AfterWin.Auto
             ? (S.Farm.Mode == FarmMode.Story ? AfterWin.Next : AfterWin.Retry)
             : S.Farm.AfterWin;
-        var (btn, label) = after switch
+        GuiRect? btn; string label;
+        (btn, label) = after switch
         {
             AfterWin.Next => (s.NextButton, "Next stage"),
             AfterWin.Retry => (s.RetryButton, "Retry"),
             _ => (s.LeaveButton, "Leave"),
         };
+        if (S.Farm.Act == 0) (after, btn, label) = s.NextButton is { } nb ? (AfterWin.Next, (GuiRect?)nb, "Next act") : (AfterWin.Leave, s.LeaveButton, "Leave");
         if (after == AfterWin.Next && btn is null && s.RetryButton is null && s.LeaveButton is not null)
             return Stop("Menang, tombol Next tidak ada → Story selesai.");
         if (btn is not { } b)
@@ -422,6 +451,21 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         _cooldowns[key] = now;
         return true;
     }
+
+    private readonly List<MacroAction> _pending = [];
+    private int _selectedAct;
+    private string _selectedMap = "";
+
+    /// <summary>Nomor act dari teks "Act 3", "Training [Act 1]", "Act 1 Training". 0 = tidak ada.</summary>
+    public static int ActNumber(string? text)
+    {
+        if (text is null) return 0;
+        var m = System.Text.RegularExpressions.Regex.Match(text, @"Act\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return m.Success ? int.Parse(m.Groups[1].Value) : 0;
+    }
+
+    /// <summary>Dipanggil saat menang: catat act yang tuntas (untuk mode "Semua act").</summary>
+    public Action<string, int>? ActCleared { get; set; }
 
     private static bool Matches(string? actual, string want) =>
         actual is not null && want.Length > 0 &&

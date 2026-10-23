@@ -32,6 +32,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         LoadOffsets();
         Runner = new MacroRunner(ReadSnapshot, new Win32Input(() => Session.ProcessId), () => Settings);
         Runner.Log += AddLog;
+        Runner.Machine.ActCleared = (map, act) => Dispatcher.UIThread.Post(() =>
+        {
+            var prog = new Dictionary<string, int>(Settings.Farm.ActProgress ?? new(), StringComparer.OrdinalIgnoreCase);
+            if (prog.GetValueOrDefault(map) >= act) return;
+            prog[map] = act;
+            Settings.Farm = Settings.Farm with { ActProgress = prog };
+            Save();
+            AddLog($"Tuntas: {map} Act {act}.");
+        });
         Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); });
 
         General = new GeneralViewModel(this);
