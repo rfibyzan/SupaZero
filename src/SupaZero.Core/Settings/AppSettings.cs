@@ -99,7 +99,9 @@ public sealed record CombatSettings(
     int AttackIntervalMs = 150,
     List<SkillBinding>? Skills = null,
     /// <summary>v0.2.67: Shadow Lord: dekati mayat berprompt ARISE lalu tahan E sampai bangkit jadi sekutu.</summary>
-    bool AutoArise = true)
+    bool AutoArise = true,
+    /// <summary>v0.2.72: nyalakan shift lock otomatis selama ronde; dimatikan saat perlu klik GUI / di luar ronde.</summary>
+    bool AutoShiftLock = true)
 {
     public static List<SkillBinding> DefaultSkills() =>
     [

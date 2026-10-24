@@ -68,6 +68,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 LastSnapshot = snap;
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
                 bool fg = input.IsTargetForeground();
+                if (fg && settings().Combat.AutoShiftLock) await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct);
                 if (!fg && actions.Any(a => a is not NoteAction and not StopAction))
                 {
                     if (!pausedLogged) Log?.Invoke("Roblox tidak di depan → input ditahan.");
@@ -93,6 +94,38 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     private int _centeredTicks, _offTicks;
     private (double X, double Y)? _lastAimFar;
     private CancellationTokenSource? _turnCts;
+
+    // v0.2.72: shift lock otomatis. Ronde (InRound) → nyala; layar lain (vote, hasil, lobby, menu) → mati agar klik GUI kena.
+    // Shift ditekan paling sering tiap 2,5 dtk; setelah menyalakan, dianggap nyala (deteksi kursor-di-tengah butuh beberapa tick).
+    // 3× gagal berturut-turut (mis. Shift Lock dimatikan di setelan Roblox) → berhenti mencoba sampai layar berganti.
+    private long _slLastPress = -10_000;
+    private int _slFails;
+    private GameScreen _slScreen = GameScreen.Unknown;
+
+    private async Task EnsureShiftLock(GameScreen screen, IReadOnlyList<MacroAction> actions, long now, CancellationToken ct)
+    {
+        if (screen != _slScreen) { _slScreen = screen; _slFails = 0; }
+        if (screen == GameScreen.Unknown || now - _slLastPress < 2500) return;
+        bool want = screen == GameScreen.InRound && !actions.Any(a => a is ClickAction or ScrollAction);
+        // Kursor diam di tengah 1-4 tick belum pasti shift lock → tunggu deteksi dulu, jangan tekan Shift (bisa membalik).
+        if (!_shiftLock && _centeredTicks > 0) return;
+        if (want == _shiftLock) { if (want && _centeredTicks >= 5) _slFails = 0; return; }
+        if (want && _slFails >= 3) return;
+        _slLastPress = now;
+        input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
+        if (want)
+        {
+            _slFails++;
+            _shiftLock = true; _offTicks = 0; _centeredTicks = 0;
+            Log?.Invoke(_slFails >= 3 ? "Shift lock tidak mau nyala 3× (cek Settings Roblox: Shift Lock Switch aktif?) → berhenti mencoba di layar ini." : "Ronde berjalan → shift lock dinyalakan.");
+        }
+        else
+        {
+            _shiftLock = false; _centeredTicks = 0; _offTicks = 0;
+            Log?.Invoke($"Di luar ronde ({screen}) → shift lock dimatikan untuk klik GUI.");
+        }
+        await Task.Delay(120, ct);
+    }
 
     private void DetectShiftLock(bool fg)
     {

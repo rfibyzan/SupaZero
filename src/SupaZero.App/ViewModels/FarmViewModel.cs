@@ -171,6 +171,7 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(CircleText));
     });
 
+    public bool AutoShiftLock { get => S.Combat.AutoShiftLock; set { S.Combat = S.Combat with { AutoShiftLock = value }; _root.Save(); } }
     public bool AutoArise { get => S.Combat.AutoArise; set { S.Combat = S.Combat with { AutoArise = value }; _root.Save(); } }
     public decimal AttackIntervalMs { get => S.Combat.AttackIntervalMs; set { S.Combat = S.Combat with { AttackIntervalMs = (int)value }; _root.Save(); } }
 
