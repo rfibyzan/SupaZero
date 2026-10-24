@@ -33,6 +33,32 @@ public static class DiscordWebhook
         return new(r.Victory ? "Menang" : "Kalah", r.ResultText, r.Victory ? Green : Red, fields);
     }
 
+    public const int Gold = 0xF1C40F, Purple = 0x9B59B6;
+
+    public static Embed ForSpin(SupaZero.Core.Game.SpinReport r)
+    {
+        var f = new List<Field>();
+        static string Dur(TimeSpan t) => t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss");
+        if (r.IsTrait)
+        {
+            if (r.Power is { Length: > 0 } pw) f.Add(new("Power", pw, true));
+            f.Add(new("Trait", r.Result ?? "(belum terbaca)", true));
+            if (r.Chance is { Length: > 0 } c) f.Add(new("Peluang", c, true));
+            if (r.Buffs.Count > 0) f.Add(new("Buff", string.Join("\n", r.Buffs), false));
+            f.Add(new("Durasi", Dur(r.Duration), true));
+            return new(r.Title, null, Purple, f);
+        }
+        f.Add(new("Hasil terakhir", r.Result is null ? "(belum terbaca)" : r.Rarity is { } ra ? $"{r.Result} ({ra})" : r.Result, true));
+        if (r.Mode is { Length: > 0 } m) f.Add(new("Mode", m, true));
+        if (r.StopAt is { Length: > 0 } st) f.Add(new("Berhenti di", st, true));
+        if (r.Spins is { } n) f.Add(new("Spin", n.ToString(), true));
+        if (r.Used is { } u) f.Add(new("Terpakai", u.ToString(), true));
+        if (r.LeftAfter is { } l) f.Add(new("Sisa", l.ToString(), true));
+        f.Add(new("Durasi", Dur(r.Duration), true));
+        if (r.Pity.Count > 0) f.Add(new("Pity", string.Join("\n", r.Pity), false));
+        return new(r.Title, null, r.StoppedOnTarget ? Gold : Blue, f);
+    }
+
     public static async Task<string?> SendAsync(string url, Embed embed, string? mention = null, CancellationToken ct = default)
     {
         if (!IsValidUrl(url)) return "URL webhook tidak valid (harus https://discord.com/api/webhooks/...).";

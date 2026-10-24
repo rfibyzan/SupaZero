@@ -89,6 +89,7 @@ public sealed class SettingsPageViewModel : ObservableObject
     public bool WebhookOnVictory { get => S.Webhook.OnVictory; set { S.Webhook = S.Webhook with { OnVictory = value }; _root.Save(); } }
     public bool WebhookOnDefeat { get => S.Webhook.OnDefeat; set { S.Webhook = S.Webhook with { OnDefeat = value }; _root.Save(); } }
     public bool WebhookOnStop { get => S.Webhook.OnStop; set { S.Webhook = S.Webhook with { OnStop = value }; _root.Save(); } }
+    public bool WebhookOnSpin { get => S.Webhook.OnSpin; set { S.Webhook = S.Webhook with { OnSpin = value }; _root.Save(); } }
     public string WebhookStatus => S.Webhook.Url.Length == 0 ? "Kosong = webhook mati."
         : SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(S.Webhook.Url) ? "URL valid." : "URL tidak valid (https://discord.com/api/webhooks/...).";
     public RelayCommand TestWebhookCommand => new(_ => _ = _root.SendWebhook(new("Tes webhook", "SupaZero terhubung ke Discord.",

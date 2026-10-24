@@ -63,6 +63,7 @@
         <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat menang (dengan drop)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnVictory}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat kalah" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnDefeat}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat macro berhenti / Story tamat" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnStop}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat auto spin Power / reroll Trait selesai" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnSpin}" /></Grid>
         <Button HorizontalAlignment="Left" Content="Tes webhook" Command="{Binding TestWebhookCommand}" />
       </StackPanel>
     </Border>

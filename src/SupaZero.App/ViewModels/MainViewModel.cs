@@ -150,6 +150,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private string? _lastTraitDebug, _lastPowerDebug;
 
+    /// <summary>Auto spin Power / reroll Trait bawaan game selesai → log + webhook Discord.</summary>
+    private void CheckSpin()
+    {
+        if (Session.Game is not { PendingSpin: { } r } g) return;
+        g.PendingSpin = null;
+        AddLog($"{r.Title}: {(r.IsTrait ? $"{r.Power} = {r.Result} {r.Chance}" : $"{r.Result} {r.Rarity}")}".TrimEnd());
+        var w = Settings.Webhook;
+        if (w.OnSpin && SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(w.Url))
+            _ = SendWebhook(SupaZero.Core.Notify.DiscordWebhook.ForSpin(r));
+    }
+
     private void SyncPowers()
     {
         if (Session.Game?.TraitDebug is { } dbg && dbg != _lastTraitDebug) { _lastTraitDebug = dbg; AddLog(dbg); }
@@ -211,6 +222,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             : Session.Status;
         StatusText = Runner.IsRunning ? $"{Runner.Machine.Phase}: {Runner.Machine.Status}" : $"Layar: {snap.Screen}";
         SyncPowers();
+        CheckSpin();
         General.Refresh();
         Farm.Refresh();
         if (Runner.IsRunning)

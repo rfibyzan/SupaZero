@@ -89,7 +89,7 @@ public sealed record FarmSettings(
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 /// <summary>Discord webhook: notifikasi menang/kalah (dengan drop) dan macro berhenti.</summary>
-public sealed record WebhookSettings(string Url = "", bool OnVictory = true, bool OnDefeat = true, bool OnStop = true, string Mention = "");
+public sealed record WebhookSettings(string Url = "", bool OnVictory = true, bool OnDefeat = true, bool OnStop = true, string Mention = "", bool OnSpin = true);
 
 public sealed record SkillBinding(string Name, string Key, bool Enabled, int CooldownMs);
 

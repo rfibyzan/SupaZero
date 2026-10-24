@@ -128,6 +128,7 @@ public sealed partial class GameReader
             long pg = roots.PlayerGui;
             if (pg == 0) return _equipped = Powers.SavedLoadout();
             LearnFromTraitScreen(pg);
+            WatchSpins(pg);
             var list = reader.ResolvePath(pg, InventoryList);
             if (list == 0) { PowerDebug = "Power: daftar slot tidak ada (buka menu karakter sekali)"; return _equipped = Powers.SavedLoadout(); }
             EnsureIdleMap(roots.ReplicatedStorage);
