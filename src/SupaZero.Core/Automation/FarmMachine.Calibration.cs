@@ -45,7 +45,8 @@ public sealed partial class FarmMachine
     // (SurfaceGui "UI Animation (Working).Trait Reroll") terbuka → baca → mundur (S) sampai panel tertutup. Tidak klik apa pun di panel.
     private int _trStep;
     private long? _trAt;
-    public const int TraitTeleportSettleMs = 2000, TraitWalkMs = 5000, TraitBackMs = 4000;
+    public const int TraitTeleportSettleMs = 2000, TraitWalkMs = 10_000, TraitBackMs = 6000;
+    public const double TraitSpotMaxDist = 25; // spawn kartu Traits ↔ GuideSpot ≈ 7 stud (RIE)
 
     private List<MacroAction>? CalTraits(GameSnapshot s, long now)
     {
@@ -75,15 +76,21 @@ public sealed partial class FarmMachine
             }
             case 1:
                 Status = "Kalibrasi trait: menunggu teleport ke Matilda.";
-                // v0.2.86: maju W buta = menebak arah (Byzan). Posisi NPC Matilda belum terbukti RIE → berhenti di sini.
-                if (s.TeleportCards.Count == 0 && dt >= TraitTeleportSettleMs)
-                    return Skip("posisi NPC Matilda belum terbaca (perlu snapshot RIE) → tidak maju; buka panel Trait sendiri bila perlu.");
+                if (s.TeleportCards.Count == 0 && dt >= TraitTeleportSettleMs) { Go(2); return CalTraits(s, now); }
                 if (dt > 10_000) return Skip("panel Areas tidak tertutup setelah klik Traits.");
                 return [stand];
             case 2:
-                Status = "Kalibrasi trait: maju ke Matilda.";
-                if (dt > TraitWalkMs) return Skip($"panel Trait Reroll tidak terbuka setelah maju {TraitWalkMs / 1000} dtk.");
-                return [new MoveAction([VirtualKeys.W], "Maju ke Matilda")];
+            {
+                // v0.2.87: jalan ke GuideSpots.Enchants (posisi terbukti RIE), arah dari posisi karakter + kamera; bukan W buta.
+                Status = "Kalibrasi trait: jalan ke titik Enchants (Matilda).";
+                if (s.TraitSpot is not { } spot) return Skip("titik Systems.GuideSpots.Enchants tidak terbaca → tidak jalan.");
+                if (s.PlayerPos is not { } pp) return Skip("posisi karakter tidak terbaca → tidak jalan.");
+                double d = Navigator.Distance2D(pp.X, pp.Z, spot.X, spot.Z);
+                if (d > TraitSpotMaxDist) return Skip($"titik Enchants {d:0} stud dari karakter (> {TraitSpotMaxDist}) → teleport Traits tidak terbukti, tidak jalan.");
+                if (dt > TraitWalkMs) return Skip($"panel Trait Reroll tidak terbuka dalam {TraitWalkMs / 1000} dtk (jarak ke titik {d:0.#} stud).");
+                var walk = WalkTo(s, spot, 1.0, now, "titik Enchants", attackWhenStuck: false);
+                return walk.Count > 0 ? walk : [stand];
+            }
             case 3:
             {
                 Status = "Kalibrasi trait: panel Trait Reroll terbuka, membaca…";
@@ -95,10 +102,15 @@ public sealed partial class FarmMachine
                 return [stand, new NoteAction($"Kalibrasi trait: {eq}.")];
             }
             default:
-                Status = "Kalibrasi trait: mundur sampai panel tertutup.";
+            {
+                // Keluar zona Enchants: jalan ke titik teleport Traits (AreasTeleportLocation.Traits, terbukti RIE di luar zona).
+                Status = "Kalibrasi trait: keluar zona sampai panel tertutup.";
                 if (!s.TraitMenuOpen) { _trStep = 5; _trAt = null; return [stand]; }
-                if (dt > TraitBackMs) return Skip("panel Trait Reroll tidak tertutup setelah mundur → tutup sendiri (X).");
-                return [new MoveAction([VirtualKeys.S], "Mundur dari Matilda")];
+                if (s.TraitExit is not { } exit) return Skip("titik AreasTeleportLocation.Traits tidak terbaca → panel Trait tidak ditutup, tutup sendiri (X).");
+                if (dt > TraitBackMs) return Skip("panel Trait Reroll tidak tertutup setelah keluar zona → tutup sendiri (X).");
+                var walk = WalkTo(s, exit, 1.0, now, "luar zona Enchants", attackWhenStuck: false);
+                return walk.Count > 0 ? walk : [stand];
+            }
         }
     }
 

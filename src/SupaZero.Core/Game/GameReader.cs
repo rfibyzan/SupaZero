@@ -159,6 +159,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws),
             HubMenuButtons = ScanMenuButtons(pg),
             AreasView = _areasView,
+            TraitSpot = WsPos(ws, AnimeZeroPaths.TraitSpotPath),
+            TraitExit = WsPos(ws, AnimeZeroPaths.TraitExitPath),
             HubButtonNames = pg != 0 && reader.ResolvePath(pg, "LobbyHUD.LeftSideButtons") is var lsb and not 0
                 ? reader.GetChildren(lsb, 64).Select(c => reader.GetName(c)).Where(n => n.Length > 0).ToList() : [],
             TraitMenuOpen = traitRoot != 0 && IsShown(traitRoot, pg),
@@ -773,6 +775,12 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     /// <summary>Posisi area ke-n: Workspace.World.Spawns[n] lalu Areas[n] (Part, Model, atau Folder berisi Part).</summary>
+    private Settings.Vec3? WsPos(long ws, string path)
+    {
+        long part = ws != 0 ? reader.ResolvePath(ws, path) : 0;
+        return part != 0 && props.TryGetWorldPosition(part, out float x, out float y, out float z) ? new(x, y, z) : null;
+    }
+
     private Settings.Vec3? ReadAreaCenter(long ws, int n)
     {
         long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;

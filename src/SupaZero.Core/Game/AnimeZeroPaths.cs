@@ -68,6 +68,11 @@ public static class AnimeZeroPaths
     public const string AreasClipping = "Finished UI.Areas.MainFrame.Content.Clipping";
     /// <summary>Kartu Areas untuk cek trait (Byzan 25 Okt 2026): teleport ke depan NPC Matilda, maju → panel Trait Reroll (SurfaceGui) terbuka.</summary>
     public const string TraitsCard = "Traits";
+    /// <summary>RIE Byzan 25 Okt 2026 00:28 (pemain berdiri di sini, panel Trait terbuka): Workspace.Systems.GuideSpots.Enchants
+    /// (Part 4×0.2×4 di (-87.7,0.4,-97)), di dalam Systems.Zones.Enchants (Part 14.5×20.8×15.8, CanTouch). Titik teleport kartu
+    /// Traits: Systems.AreasTeleportLocation.Traits (-85.8,5.4,-90.2), di luar zona.</summary>
+    public const string TraitSpotPath = "Systems.GuideSpots.Enchants";
+    public const string TraitExitPath = "Systems.AreasTeleportLocation.Traits";
     public const string StartCircleText = "Start Here";
     /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026): Workspace.Systems.QuqueRooms.&lt;n&gt;.JoinHitbox (Part 18×25×25, CanCollide false).</summary>
     public const string Systems = "Systems";

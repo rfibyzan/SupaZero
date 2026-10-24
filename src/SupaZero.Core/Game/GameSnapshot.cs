@@ -201,6 +201,9 @@ public sealed record GameSnapshot
     public IReadOnlyList<string> HubButtonNames { get; init; } = [];
     /// <summary>Area tampak panel Areas (Content.Clipping) untuk scroll ke kartu yang tersembunyi.</summary>
     public GuiRect? AreasView { get; init; }
+    /// <summary>Titik berdiri panel Trait Reroll (GuideSpots.Enchants) dan titik keluar (AreasTeleportLocation.Traits).</summary>
+    public Settings.Vec3? TraitSpot { get; init; }
+    public Settings.Vec3? TraitExit { get; init; }
     /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
     public GuiRect? LobbyMapsView { get; init; }
     public GuiRect? LobbyActsView { get; init; }

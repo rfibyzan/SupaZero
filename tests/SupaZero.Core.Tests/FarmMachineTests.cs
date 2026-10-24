@@ -755,16 +755,28 @@ public class FarmMachineTests
     }
 
     [Fact]
-    public void Calibration_Traits_NoBlindWalk()
+    public void Calibration_Traits_WalksToGuideSpot_ThenExitsZone()
     {
         var (m, _) = New();
         m.StartCalibration();
-        var baseS = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
+        var spawn = new Vec3(-85.8, 5.4, -90.2);
+        var baseS = new GameSnapshot { Attached = true, PlayerPos = spawn, CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
         var panel = baseS with { TeleportCards = [new LobbyEntry("Traits", false, false, new GuiRect(100, 300, 200, 100))], AreasView = new GuiRect(50, 50, 600, 600) };
         Assert.Contains(m.Step(panel, 0), a => a is ClickAction c && c.Reason == "Teleport Traits");
-        var acts = new List<MacroAction>();
-        for (long t = 500; t <= 3000; t += 500) acts.AddRange(m.Step(baseS, t));
-        Assert.DoesNotContain(acts, a => a is MoveAction mv && mv.Keys.Contains(VirtualKeys.W) && mv.Reason.Contains("Matilda"));
-        Assert.Contains(acts, a => a is NoteAction n && n.Reason.Contains("Matilda"));
+        // Tanpa titik GuideSpot → tidak jalan.
+        var noSpot = new List<MacroAction>();
+        for (long t = 500; t <= 2500; t += 500) noSpot.AddRange(m.Step(baseS, t));
+        Assert.DoesNotContain(noSpot, a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("Enchants"));
+
+        var (m2, _) = New();
+        m2.StartCalibration();
+        var withSpot = baseS with { TraitSpot = new Vec3(-87.7, 0.4, -97), TraitExit = spawn };
+        m2.Step(withSpot with { TeleportCards = panel.TeleportCards, AreasView = panel.AreasView }, 0);
+        var acts = m2.Step(withSpot, 2500);
+        Assert.Contains(acts, a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("titik Enchants"));
+        var open = withSpot with { PlayerPos = new Vec3(-87.7, 3, -97), TraitMenuOpen = true };
+        m2.Step(open, 3000);
+        m2.Step(open, 6100);
+        Assert.Contains(m2.Step(open, 6400), a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("luar zona"));
     }
 }
