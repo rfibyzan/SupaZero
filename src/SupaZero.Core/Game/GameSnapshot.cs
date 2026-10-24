@@ -102,6 +102,26 @@ public sealed record GameSnapshot
     public NavMap? Nav { get; init; }
     public (double X, double Z)? CameraLook { get; init; }
     public CameraInfo? Camera { get; init; }
+
+    /// <summary>
+    /// v0.2.75: geser samping kamera terhadap karakter (stud, + = kanan). Shift lock Roblox menggeser kamera ±1,75 stud ke kanan
+    /// karakter; tanpa shift lock kamera menatap tepat ke karakter (≈0). Ikon shift lock Anime Zero = kursor bawaan Roblox,
+    /// PlayerScripts/UserInputService/HUD.HUD.Cursor tidak berubah (snapshot Byzan 24 Okt 23:18), jadi dibaca dari geometri kamera.
+    /// </summary>
+    public double? CameraSideOffset
+    {
+        get
+        {
+            if (Camera is not { } c || PlayerPos is not { } p) return null;
+            double lx = c.Look.X, lz = c.Look.Z, l = Math.Sqrt(lx * lx + lz * lz);
+            if (l < 1e-3) return null;
+            double rx = -lz / l, rz = lx / l;
+            return (c.Pos.X - p.X) * rx + (c.Pos.Z - p.Z) * rz;
+        }
+    }
+
+    /// <summary>Status shift lock dari memori: true bila geser kamera 1..2,6 stud ke kanan, false bila &lt; 0,5 stud, null bila ragu/tidak terbaca.</summary>
+    public bool? ShiftLockFromCamera => CameraSideOffset is not { } o ? null : o is >= 1.0 and <= 2.6 ? true : Math.Abs(o) < 0.5 ? false : null;
     /// <summary>Musuh hidup/mati di Workspace.enemies (kosong bila tidak terbaca).</summary>
     public IReadOnlyList<EnemyInfo> Enemies { get; init; } = [];
     /// <summary>Rubble yang harus dihancurkan (juga dimasukkan ke Enemies sebagai "Rubble" bila tidak ada musuh hidup).</summary>

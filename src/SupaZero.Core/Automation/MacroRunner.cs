@@ -64,6 +64,14 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 var snap = read();
                 if (input.ClientSize() is { } cs) snap = snap with { ClientW = cs.W, ClientH = cs.H };
                 DetectShiftLock(input.IsTargetForeground());
+                // v0.2.75: bila geser kamera terbaca dari memori, itu sumber utama status shift lock (deteksi kursor jadi cadangan).
+                if (snap.ShiftLockFromCamera is { } camLock)
+                {
+                    if (camLock != _shiftLockMem) Log?.Invoke(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                        $"Shift lock {(camLock ? "NYALA" : "mati")} (kamera geser {snap.CameraSideOffset:0.00} stud)."));
+                    _shiftLockMem = camLock;
+                    _shiftLock = camLock; _centeredTicks = camLock ? 5 : 0; _offTicks = 0;
+                }
                 snap = snap with { ShiftLock = _shiftLock };
                 LastSnapshot = snap;
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
@@ -91,6 +99,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     // ── Deteksi shift lock: Roblox mengembalikan kursor ke tengah jendela tiap frame saat shift lock aktif.
     private const ushort ShiftVk = 0xA0; // VK_LSHIFT = tombol Shift Lock bawaan Roblox
     private bool _shiftLock;
+    private bool? _shiftLockMem;
     private int _centeredTicks, _offTicks;
     private (double X, double Y)? _lastAimFar;
     private CancellationTokenSource? _turnCts;

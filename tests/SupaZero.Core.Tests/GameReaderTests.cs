@@ -56,3 +56,17 @@ public class ShadowsParseTests
     public void Parses(string t, int c, int m) => Assert.Equal((c, m), SupaZero.Core.Game.GameReader.ParseShadows(t));
     [Fact] public void Null() => Assert.Null(SupaZero.Core.Game.GameReader.ParseShadows("Shadows"));
 }
+
+public class ShiftLockCameraTests
+{
+    private static SupaZero.Core.Game.GameSnapshot Snap(double camX, double camZ) => new()
+    {
+        PlayerPos = new SupaZero.Core.Settings.Vec3(0, 3, 0),
+        // kamera menghadap -Z (utara); kanan = +X
+        Camera = new SupaZero.Core.Game.CameraInfo(new SupaZero.Core.Settings.Vec3(camX, 8, camZ), new SupaZero.Core.Settings.Vec3(0, -0.3, -1), 70, 1920, 1009),
+    };
+
+    [Fact] public void Locked_OffsetRight() => Assert.True(Snap(1.75, 12).ShiftLockFromCamera);
+    [Fact] public void Unlocked_Centered() => Assert.False(Snap(0.1, 12).ShiftLockFromCamera);
+    [Fact] public void Ambiguous_IsNull() => Assert.Null(Snap(0.8, 12).ShiftLockFromCamera);
+}
