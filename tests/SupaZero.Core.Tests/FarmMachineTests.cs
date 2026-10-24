@@ -26,21 +26,46 @@ public class FarmMachineTests
     }
 
     [Fact]
-    public void Vote_ClicksYes_FallbackCoordinate()
+    public void Vote_ClicksYes_OnlyWhenButtonRead()
     {
         var (m, _) = New();
-        var a = m.Step(new GameSnapshot { Attached = true, StartVoteVisible = true }, 0);
-        var c = Assert.IsType<ClickAction>(Assert.Single(Real(a)));
-        Assert.Equal(AnimeZeroPaths.StartVoteYesX, c.X);
+        // v0.2.79: tombol Yes tidak terbaca → tidak klik koordinat cadangan.
+        Assert.DoesNotContain(m.Step(new GameSnapshot { Attached = true, StartVoteVisible = true }, 0), x => x is ClickAction);
+        var snap = new GameSnapshot { Attached = true, StartVoteVisible = true, StartVoteYes = new GuiRect(900, 600, 100, 40) };
+        var c = Assert.Single(m.Step(snap, 100).OfType<ClickAction>());
+        Assert.Equal(950, c.X);
         Assert.Equal(MacroPhase.Voting, m.Phase);
-        Assert.Empty(Real(m.Step(new GameSnapshot { Attached = true, StartVoteVisible = true }, 500))); // cooldown
+        Assert.Empty(m.Step(snap, 600).OfType<ClickAction>()); // cooldown
+    }
+
+    [Fact]
+    public void Fight_NoSkillHud_NoSkillKeys()
+    {
+        // v0.2.79: tanpa HUD skill, status cooldown tidak diketahui → hanya serangan dasar.
+        var (m, _) = New();
+        var a = m.Step(new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left") }, 10_000);
+        Assert.Contains(a, x => x is AttackAction);
+        Assert.DoesNotContain(a.OfType<KeyAction>(), k => k.VirtualKey != VirtualKeys.Space);
+    }
+
+    [Fact]
+    public void Fight_UnreadableCooldownText_NotPressed()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left"),
+            SkillCooldowns = [new("1", GameReader.ParseCooldown("??"), false), new("2", null, true), new("3", 2, false)],
+        };
+        Assert.DoesNotContain(m.Step(snap, 10_000).OfType<KeyAction>(), k => k.VirtualKey != VirtualKeys.Space);
     }
 
     [Fact]
     public void Fight_AttacksAndRotatesSkills()
     {
         var (m, _) = New();
-        var snap = new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left") };
+        var snap = new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left"),
+            SkillCooldowns = [new("1", null, false), new("2", null, false), new("3", null, false)] };
         var a1 = m.Step(snap, 10_000);
         Assert.DoesNotContain(a1, x => x is AttackAction); // tick dengan skill → basic attack dilewati
         var k1 = Assert.Single(a1.OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
@@ -102,12 +127,16 @@ public class FarmMachineTests
             Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
             PlayerPos = new(75, 3, -320), CameraLook = (0, -1),
             Camera = new CameraInfo(new(75.508, 20.141, -330.377), new(0, -0.744, -0.668), 70, 1920, 1009),
+            ClientW = 1920, ClientH = 1009,
             Enemies = [new("0", new(62.8, 3, -350), 100, 100), new("1", new(74.8, 3, -340), 100, 100), new("9", new(75, 3, -322), 0, 100)],
         };
         var a = m.Step(snap, 10_000);
         var move = Assert.Single(a.OfType<MoveAction>());
         Assert.Contains(VirtualKeys.W, move.Keys);
         Assert.Contains("#1", Assert.Single(a.OfType<AimAction>()).Reason);
+        // v0.2.79: viewport kamera ≠ area klien (mis. skala DPI) → tidak membidik dengan kursor.
+        var (m2, _) = New();
+        Assert.Empty(m2.Step(snap with { ClientW = 1536, ClientH = 807 }, 10_000).OfType<AimAction>());
     }
 
     [Fact]
@@ -119,7 +148,7 @@ public class FarmMachineTests
             Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
             PlayerPos = new(75, 3, -300), CameraLook = (0, -1),
             Enemies = [new("1", new(75, 3, -340), 100, 100)],
-            SkillCooldowns = [new("1", null, false), new("2", null, false), new("3", null, false)],
+            SkillCooldowns = [new("1", null, false), new("2", null, false), new("3", null, false)], DashCooling = false,
         };
         var a = m.Step(far, 10_000);
         Assert.DoesNotContain(a, x => x is AttackAction);
@@ -187,6 +216,7 @@ public class FarmMachineTests
     [InlineData("1.7", 1.7)]
     [InlineData("2", 2.0)]
     [InlineData("0", null)]
+    [InlineData("abc", double.NaN)]
     public void ParseCooldown_Works(string text, double? expected) => Assert.Equal(expected, GameReader.ParseCooldown(text));
 
     [Fact]
@@ -620,7 +650,7 @@ public class FarmMachineTests
         {
             Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
             PlayerPos = new(0, 3, 0), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -15), 100, 100)],
-            Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 20), 0.9, 10)],
+            Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 20), 0.9, 10)], Shadows = (0, 3),
         };
         var a = m.Step(far, 10_000);
         Assert.Contains(a, x => x is MoveAction { Keys.Count: > 0 });
@@ -628,6 +658,23 @@ public class FarmMachineTests
         var near = far with { PlayerPos = new(0, 3, 18) };
         var e = Assert.Single(m.Step(near, 10_500).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
         Assert.Equal(1150, e.HoldMs);
+        // v0.2.79: Shadows naik → Arise dinyatakan berhasil, mayat itu tidak didatangi lagi.
+        var done = m.Step(near with { Shadows = (1, 3) }, 11_000);
+        Assert.Contains(done.OfType<NoteAction>(), n => n.Reason.Contains("Arise berhasil"));
+        Assert.DoesNotContain(m.Step(near with { Shadows = (1, 3) }, 13_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+    }
+
+    [Fact]
+    public void Arise_ShadowsUnreadable_Skipped()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
+            PlayerPos = new(0, 3, 18), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -15), 100, 100)],
+            Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 20), 0.9, 10)],
+        };
+        Assert.DoesNotContain(m.Step(snap, 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
     }
 
     [Fact]

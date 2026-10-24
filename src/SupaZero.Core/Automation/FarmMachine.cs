@@ -519,9 +519,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         Phase = MacroPhase.Voting;
         Status = "Start Game? → Yes";
-        if (!S.Farm.AutoVoteStart || !Ready("vote-yes", now, 2000)) return [];
-        var (x, y) = s.StartVoteYes is { } r ? (r.CenterX, r.CenterY) : (AnimeZeroPaths.StartVoteYesX, AnimeZeroPaths.StartVoteYesY);
-        return [new ClickAction(x, y, "Vote Yes") { InRound = true }];
+        if (!S.Farm.AutoVoteStart) return [];
+        // v0.2.79 (jangan menebak): tombol Yes wajib terbaca; koordinat cadangan tidak dipakai.
+        if (s.StartVoteYes is not { } r) return Note("vote-yes-missing", now, 5000, "Vote tampil tapi tombol Yes tidak terbaca → tidak diklik.");
+        if (!Ready("vote-yes", now, 2000)) return [];
+        return [new ClickAction(r.CenterX, r.CenterY, "Vote Yes") { InRound = true }];
     }
 
     // ---------- Ronde ----------
@@ -659,8 +661,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                     actions.Add(new TurnAction(tdx, tdy, $"Putar kamera (klik kanan) ke {aimLabel}", Drag: true));
                 else _cooldowns.Remove("cam-drag");
             }
-            if (S.Navigation.AimAtEnemy && !s.ShiftLock && s.Camera?.WorldToScreen(aimPos) is { } sp
-                && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
+            // v0.2.79: proyeksi hanya dipakai bila ViewportSize kamera = area klien jendela (±2 px); beda (DPI/skala) = arah tidak pasti.
+            if (S.Navigation.AimAtEnemy && !s.ShiftLock && s.ViewportMatchesClient && s.Camera?.WorldToScreen(aimPos) is { } sp
+                && sp.X >= 2 && sp.Y >= 2 && sp.X <= s.ClientW - 2 && sp.Y <= s.ClientH - 2)
                 actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke {aimLabel}"));
         }
 
@@ -679,7 +682,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (approaching)
         {
             // Dash hanya bila masih cukup jauh (> 2× jarak serang) dan tidak sedang cooldown (HUD Dash.Progress).
-            if (dash is not null && !s.DashCooling && Ready("dash", now, Math.Max(800, dash.CooldownMs))
+            if (dash is not null && s.DashCooling == false && Ready("dash", now, Math.Max(800, dash.CooldownMs))
                 && s.PlayerPos is { } p0 && actions.OfType<MoveAction>().Any(m => m.Keys.Count > 0)
                 && s.Enemies.Any(e => e.Alive && Navigator.Distance2D(p0.X, p0.Z, e.Pos.X, e.Pos.Z) > 2 * S.Navigation.AttackRange)
                 && HotkeyMap.TryGetVirtualKey(dash.Key, out uint dvk))
@@ -688,18 +691,18 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         }
 
         // Skill 1/2/3: satu per tick, yang paling lama tidak dipakai dan siap. Bila HUD terbaca, cooldown/kunci dari HUD
-        // (jeda minimal 400 ms agar HUD sempat berubah); bila tidak, pakai CooldownMs dari pengaturan.
+        // (jeda minimal 400 ms agar HUD sempat berubah). v0.2.79 (jangan menebak): skill yang tidak ada di HUD / teks cd tak terbaca
+        // TIDAK ditekan (dulu memakai CooldownMs dari pengaturan).
         // v0.2.65: Ultimate (G, "use when the ult bar is full") tidak ikut hitungan skill 1/2/3 / ganti power.
         var ult = skills.FirstOrDefault(IsUlt);
         var cds = s.SkillCooldowns.Where(c => ult is null || !c.Key.Equals(ult.Key, StringComparison.OrdinalIgnoreCase)).ToList();
         var hudCd = s.SkillCooldowns.GroupBy(c => c.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         bool SkillReady(SkillBinding k) => hudCd.TryGetValue(k.Key, out var c)
-            ? c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400)
-            : !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs);
+            && c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400);
         var main = skills.Where(k => !IsDash(k) && !IsSwap(k) && !IsUlt(k)).ToList();
         // Ultimate: tekan G berkala selama bertarung (game menolak bila bar ult belum penuh); HUD dipakai bila ada kotak G.
         bool ultNow = ult is not null && now - _lastSkillPress >= 300
-            && (s.UltReady ?? (!hudCd.TryGetValue(ult.Key, out var uc) || uc.Ready))
+            && (s.UltReady ?? (hudCd.TryGetValue(ult.Key, out var uc) && uc.Ready))
             && (!_skillLast.TryGetValue(ult.Name, out long ut) || now - ut >= Math.Max(800, ult.CooldownMs))
             && HotkeyMap.TryGetVirtualKey(ult.Key, out _);
         var mainDue = main.Where(SkillReady)
@@ -708,7 +711,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         // Skill 1/2/3 didahulukan; G di sela-selanya.
         // Semua skill cooldown + ganti power aktif → T didahulukan (G jangan menelan animasi T).
         // HUD ult terbaca siap → G didahulukan; tidak terbaca → G hanya di sela skill dan tidak saat menunggu T.
-        if (s.UltReady != true && (mainDue is not null || (swap is not null && cds.Count > 0 && cds.All(c => !c.Ready)))) ultNow = false;
+        if (s.UltReady != true && (mainDue is not null || (swap is not null && cds.Count > 0 && cds.All(c => c.Cooling)))) ultNow = false;
         var due = ultNow ? ult : mainDue;
         // Basic attack (klik terus-menerus) bisa menelan tombol skill/T di game, jadi saat skill atau T ditekan,
         // basic attack dilewati di tick itu dan ditahan sebentar sesudahnya.
@@ -729,7 +732,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci. T ditolak game selama animasi
         // serangan masih jalan, jadi: berhenti basic attack dulu (gerak tetap), tunggu animasi selesai, baru tekan T.
         // Bila HUD masih "semua cooldown" 1,2 dtk setelah T, ulangi (maks 3×), lalu jeda 4 dtk.
-        else if (swap is not null && cds.Count > 0 && cds.All(c => !c.Ready)
+        else if (swap is not null && cds.Count > 0 && cds.All(c => c.Cooling)
                  && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk) && now >= _swapRestUntil)
         {
             if (_swapPrepSince is not long since)
@@ -754,19 +757,19 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _lastAttack = now;
             actions.Add(new AttackAction("Serangan dasar"));
         }
-        if (swap is null && cds.Count > 0 && cds.All(c => !c.Ready)
+        if (swap is null && cds.Count > 0 && cds.All(c => c.Cooling)
             && S.Combat.EffectiveSkills.FirstOrDefault(IsSwap) is { Enabled: false } off && Ready("swap-off", now, 15000))
             actions.Add(new NoteAction($"Semua skill cooldown, tapi {off.Name} ({off.Key}) mati di kartu Combat → nyalakan agar power berganti."));
         // Sudah dekat: tetap bergerak melingkari musuh + lompat (baik saat pakai skill maupun basic attack saja).
         Roam(s, S, tgt, now, actions);
         // Skill 1/2/3 habis (cooldown semua / tidak ada yang siap): Dash (Q) searah roaming agar tidak diam jadi sasaran.
-        bool skillsOut = cds.Count > 0 ? cds.All(c => !c.Ready) : mainDue is null;
+        bool skillsOut = cds.Count > 0 && cds.All(c => c.Cooling);
         // Jangan Dash ≤ 500 ms sebelum T ditekan (animasi Dash bisa menelan T) atau di tick yang sama.
         bool swapSoon = _swapPrepSince is long ps && now >= _swapRestUntil && Math.Max(ps + SwapPrepMs, _swapLastPress + 1200) - now < 500;
         bool swapNow = swap is not null && actions.Any(a => a is KeyAction k && k.Reason.StartsWith(swap.Name, StringComparison.Ordinal));
         // Juga di sela skill: setelah animasi skill selesai dan tidak ada skill ditekan tick ini → Dash ke samping (arah roaming).
         bool skillGap = (due is null || ultNow) && now - _lastSkillPress >= SkillAnimMs && now - _lastJump >= 250;
-        if ((skillsOut || skillGap) && dash is not null && !s.DashCooling && !swapSoon && !swapNow
+        if ((skillsOut || skillGap) && dash is not null && s.DashCooling == false && !swapSoon && !swapNow
             && actions.OfType<MoveAction>().Any(m => m.Keys.Count > 0) && Ready("dash-roam", now, Math.Max(1500, dash.CooldownMs))
             && HotkeyMap.TryGetVirtualKey(dash.Key, out uint rvk))
             actions.Add(new KeyAction((ushort)rvk, 40, $"{dash.Name} ({dash.Key}) menghindar{(skillsOut ? ", skill habis" : " di sela skill")}"));
@@ -878,6 +881,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private long _ariseSince, _ariseLastHold;
     private int _ariseHolds;
 
+    private int? _ariseShadowsBefore;
     private static string AriseKey(AriseInfo a) => $"{Math.Round(a.Pos.X)},{Math.Round(a.Pos.Z)}";
 
     /// <summary>Mayat ARISE terdekat: jalan ke sana; dalam 4 stud → lepas gerak + tahan E. null = tidak ada mayat.</summary>
@@ -885,6 +889,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         // v0.2.70: kapasitas Shadows penuh (mis. 3/3) → jangan buang waktu ke mayat.
         if (s.PlayerPos is not { } me || s.Arises.Count == 0 || s.Shadows is { } sh && sh.Count >= sh.Max) { _ariseKey = null; return null; }
+        // v0.2.79 (jangan menebak): jumlah Shadows wajib terbaca, agar hasil Arise bisa diverifikasi (Count naik).
+        if (s.Shadows is not { } shNow) { _ariseKey = null; _pending.AddRange(Note("arise-noshadow", now, 15000, "Mayat Arise ada, tapi jumlah Shadows tidak terbaca → Arise dilewati.")); return null; }
+        if (_ariseKey is not null && _ariseShadowsBefore is int before && shNow.Count > before)
+        {
+            _ariseBan[_ariseKey] = now + 60_000;
+            _pending.AddRange(Note("arise-ok", now, 1000, $"Arise berhasil: Shadows {before} → {shNow.Count}/{shNow.Max}."));
+            _ariseKey = null; _ariseShadowsBefore = null;
+            return null;
+        }
         var best = s.Arises
             .Where(a => !(_ariseBan.TryGetValue(AriseKey(a), out long until) && until > now))
             .Select(a => (a, d: Navigator.Distance2D(me.X, me.Z, a.Pos.X, a.Pos.Z)))
@@ -892,7 +905,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             .OrderBy(t => t.d).FirstOrDefault();
         if (best.a is null) { _ariseKey = null; return null; }
         string key = AriseKey(best.a);
-        if (_ariseKey != key) { _ariseKey = key; _ariseSince = now; _ariseHolds = 0; }
+        if (_ariseKey != key) { _ariseKey = key; _ariseSince = now; _ariseHolds = 0; _ariseShadowsBefore = shNow.Count; }
         // Sudah 2× tahan E tapi prompt masih ada (mis. kapasitas Shadows penuh) → lewati 60 dtk.
         else if (now - _ariseSince > AriseGiveUpMs || (_ariseHolds >= 2 && now - _ariseLastHold >= 1500))
         {

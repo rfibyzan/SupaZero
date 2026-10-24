@@ -85,6 +85,7 @@ public static class AnimeZeroPaths
     // HUD skill (snapshot training Sukuna, 23 Okt 2026): PlayerGui.HUD.HUD.BottomLeftHolder.main.skills berisi tiga
     // ImageButton "skillBox" (urutan anak ≠ urutan tombol). Tombol = skillBox.keybind.Txt ("1"/"2"/"3");
     // cooldown = skillBox.Frame.cd.Txt (kosong = siap, angka = sisa detik, mis. "1.7"); terkunci = skillBox.Frame.MasteryLock Visible.
+    public const string HudDash = "HUD.HUD.BottomLeftHolder.buttons.Dash";
     public const string HudDashProgress = "HUD.HUD.BottomLeftHolder.buttons.Dash.Progress"; // Visible = Dash cooldown
     public const string HudSkills = "HUD.HUD.BottomLeftHolder.main.skills";
     /// <summary>v0.2.65: tombol Ultimate (G). Anak: HT, OverStroke, Progress.Frame1/Frame2.ProgressFram (+UIGradient, bar melingkar),

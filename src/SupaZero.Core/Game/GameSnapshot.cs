@@ -58,6 +58,8 @@ public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fo
 public sealed record SkillCooldown(string Key, double? Remaining, bool Locked)
 {
     public bool Ready => Remaining is null && !Locked;
+    /// <summary>v0.2.79: pasti sedang cooldown/terkunci (teks cd tak terbaca = NaN → bukan siap, bukan cooldown).</summary>
+    public bool Cooling => Locked || Remaining is > 0;
 }
 
 public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect);
@@ -197,6 +199,9 @@ public sealed record GameSnapshot
 
     /// <summary>Ukuran area klien jendela Roblox (diisi MacroRunner). 0 = tidak diketahui.</summary>
     public int ClientW { get; init; }
+    /// <summary>v0.2.79: ViewportSize kamera sama dengan area klien jendela Roblox (±2 px). false bila salah satu tak terbaca.</summary>
+    public bool ViewportMatchesClient => Camera is { } c && ClientW > 0 && ClientH > 0
+        && Math.Abs(c.ViewW - ClientW) <= 2 && Math.Abs(c.ViewH - ClientH) <= 2;
     /// <summary>Shift lock terdeteksi otomatis (kursor selalu kembali ke tengah jendela setelah digeser).</summary>
     public bool ShiftLock { get; init; }
     public int ClientH { get; init; }
@@ -224,7 +229,8 @@ public sealed record GameSnapshot
     /// <summary>v0.2.65: Ultimate siap (HUD UltimateFrame tampil, ikon Locked tidak). Null = HUD tidak terbaca / tak ada penanda siap (v0.2.66).</summary>
     public bool? UltReady { get; init; }
     /// <summary>Dash sedang cooldown (HUD buttons.Dash.Progress tampil).</summary>
-    public bool DashCooling { get; init; }
+    /// <summary>v0.2.79: null = tombol Dash tidak terbaca → Dash tidak ditekan.</summary>
+    public bool? DashCooling { get; init; }
 
     // Upgrade
     public bool SkillTreeOpen { get; init; }

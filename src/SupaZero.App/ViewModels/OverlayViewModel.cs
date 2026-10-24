@@ -46,8 +46,8 @@ public sealed class OverlayViewModel(MainViewModel root) : ObservableObject
             Target = $"#{e.Name} · {d:0} stud (jaga {root.Settings.Navigation.AttackRange:0}) · HP {hp}%";
         }
 
-        var parts = s.SkillCooldowns.Select(c => c.Locked ? $"{c.Key} 🔒" : c.Remaining is double r && r > 0 ? $"{c.Key} {r:0.#}s" : $"{c.Key} ✓").ToList();
-        parts.Add(s.DashCooling ? "Q …" : "Q ✓");
+        var parts = s.SkillCooldowns.Select(c => c.Locked ? $"{c.Key} 🔒" : c.Remaining is double r && double.IsNaN(r) ? $"{c.Key} ?" : c.Remaining is double r2 && r2 > 0 ? $"{c.Key} {r2:0.#}s" : $"{c.Key} ✓").ToList();
+        parts.Add(s.DashCooling switch { true => "Q …", false => "Q ✓", null => "Q ?" });
         Skills = string.Join("   ", parts);
 
         // Hanya power yang sedang dipakai (animasi karakter); cadangan: slot 1 loadout.

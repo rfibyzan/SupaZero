@@ -133,7 +133,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             QueueSkip = qShown ? MenuRect(qSkip) : null,
             SkillCooldowns = ReadSkillCooldowns(pg),
             UltReady = ReadUltReady(pg),
-            DashCooling = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.HudDashProgress) is long dp && dp != 0 && IsShown(dp, pg),
+            DashCooling = ReadDashCooling(pg),
             QueueSkipCosts = qCost != 0 && IsShown(qCost, pg),
             LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
             LobbyActTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActTagPath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
@@ -530,6 +530,15 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return sparkles >= 3;
     }
 
+    /// <summary>v0.2.79: true = Dash.Progress tampil (cooldown), false = tombol Dash terbaca tanpa Progress, null = tombol tidak terbaca.</summary>
+    private bool? ReadDashCooling(long pg)
+    {
+        long dash = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudDash) : 0;
+        if (dash == 0 || !IsShown(dash, pg)) return null;
+        long prog = reader.FindChild(dash, "Progress");
+        return prog != 0 && IsShown(prog, pg);
+    }
+
     /// <summary>Cooldown skill dari HUD: tiap skillBox → (tombol, sisa detik atau null bila siap, terkunci).</summary>
     private List<SkillCooldown> ReadSkillCooldowns(long pg)
     {
@@ -550,13 +559,13 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return list;
     }
 
-    /// <summary>"" → null (siap); "1.7"/"2" → detik; teks lain yang tak terbaca dianggap cooldown 1 dtk.</summary>
+    /// <summary>"" → null (siap); "1.7"/"2" → detik; v0.2.79: teks lain = NaN (status tidak diketahui → skill tidak ditekan).</summary>
     public static double? ParseCooldown(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
         string t = text.Trim().TrimEnd('s', 'S').Replace(',', '.');
         return double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double v)
-            ? (v <= 0 ? null : v) : 1;
+            ? (v <= 0 ? null : v) : double.NaN;
     }
 
     /// <summary>Musuh: Workspace.enemies.&lt;angka&gt; (Model) → HumanoidRootPart posisi, Humanoid Health/MaxHealth.</summary>

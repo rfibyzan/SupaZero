@@ -76,9 +76,9 @@ public static class Calibration
         // Skill HUD
         if (s.SkillCooldowns.Count > 0)
             Add("Skill HUD", CheckState.Ok, string.Join(", ", s.SkillCooldowns.Select(c =>
-                $"{c.Key}: {(c.Locked ? "terkunci" : c.Remaining is { } t ? $"{t:0.#} dtk" : "siap")}")));
+                $"{c.Key}: {(c.Locked ? "terkunci" : c.Remaining is { } t ? (double.IsNaN(t) ? "tidak terbaca" : $"{t:0.#} dtk") : "siap")}")));
         else Add("Skill HUD", inRound ? CheckState.Fail : CheckState.Skip, inRound ? "skillBox tidak terbaca" : "Hanya di dalam ronde");
-        if (inRound) Add("Dash", CheckState.Ok, s.DashCooling ? "Cooldown" : "Siap");
+        if (inRound) Add("Dash", s.DashCooling is null ? CheckState.Fail : CheckState.Ok, s.DashCooling switch { true => "Cooldown", false => "Siap", null => "Tombol Dash tidak terbaca" });
 
         var skills = settings.Combat.EffectiveSkills;
         foreach (var k in skills.Where(k => k.Name is "Dash" or "Ganti power" or "Ganti senjata"))
