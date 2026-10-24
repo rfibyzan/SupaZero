@@ -161,6 +161,23 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     }
 
     /// <summary>Putar kamera halus: delta dipecah jadi langkah kecil tiap ~8 ms sepanjang satu tick, di latar belakang.</summary>
+    private long _recenterLogAt = -10_000;
+
+    /// <summary>Kursor di dalam area klien Roblox (margin 2 px) dan Roblox di depan.</summary>
+    private bool CursorInside()
+    {
+        if (!input.IsTargetForeground() || input.ClientSize() is not { } sz || input.CursorClient() is not { } c) return false;
+        return c.X >= 2 && c.Y >= 2 && c.X < sz.W - 2 && c.Y < sz.H - 2;
+    }
+
+    private void RecenterCursor(string why)
+    {
+        _turnCts?.Cancel();
+        if (input.IsTargetForeground() && input.ClientSize() is { } sz) input.MoveClient(sz.W / 2.0, sz.H / 2.0);
+        long now = Environment.TickCount64;
+        if (now - _recenterLogAt > 5000) { _recenterLogAt = now; Log?.Invoke($"Kursor keluar jendela Roblox saat {why} → ditarik ke tengah, klik dibatalkan."); }
+    }
+
     private void SmoothTurn(int dx, int dy, int durationMs)
     {
         _turnCts?.Cancel();
@@ -174,6 +191,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 int tx = (int)Math.Round((double)dx * i / steps), ty = (int)Math.Round((double)dy * i / steps);
                 input.MoveRelative(tx - sx, ty - sy);
                 sx = tx; sy = ty;
+                // v0.2.76: shift lock lepas (mis. setelah Ultimate) → gerak relatif menyeret kursor keluar jendela. Berhenti & tarik balik.
+                if (!CursorInside()) { RecenterCursor("putar kamera"); break; }
                 try { await Task.Delay(8, cts.Token); } catch (OperationCanceledException) { break; }
             }
         });
@@ -261,11 +280,15 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 }
                 await Task.Delay(20, ct);
                 input.RightUp();
+                if (!CursorInside()) RecenterCursor("drag kamera");
                 break;
             case TurnAction t:
                 SmoothTurn(t.Dx, t.Dy, (int)(Math.Clamp(settings().General.TickMs, 30, 2000) * 0.9));
                 break;
             case AttackAction:
+                // v0.2.76: klik di posisi kursor sekarang hanya bila kursor di dalam jendela Roblox. Setelah Ultimate kursor pernah
+                // terseret ke luar dan serangan dasar mengklik browser/File Explorer (laporan Byzan 24 Okt 23:24).
+                if (!CursorInside()) { RecenterCursor("serangan"); break; }
                 input.ClickHere();
                 break;
             case KeyAction k:
