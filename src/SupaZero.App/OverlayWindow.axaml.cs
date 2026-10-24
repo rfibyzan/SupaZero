@@ -24,14 +24,12 @@ public partial class OverlayWindow : Window
         };
     }
 
-    /// <summary>Tempel ke pojok area klien Roblox (piksel layar). corner: 0 kiri atas, 1 kanan atas, 2 kiri bawah, 3 kanan bawah.</summary>
-    public void PlaceAt((int X, int Y, int W, int H) client, int corner)
+    /// <summary>Tempatkan di area klien Roblox (piksel layar) sesuai posisi relatif 0..1 (Settings → Overlay).</summary>
+    public void PlaceAt((int X, int Y, int W, int H) client, double relX, double relY)
     {
         double scale = RenderScaling > 0 ? RenderScaling : 1;
         int w = (int)Math.Round(Bounds.Width * scale), h = (int)Math.Round(Bounds.Height * scale);
-        int margin = (int)(12 * scale), top = (int)(64 * scale); // di bawah topbar Roblox
-        int x = corner is 1 or 3 ? client.X + client.W - w - margin : client.X + margin;
-        int y = corner is 2 or 3 ? client.Y + client.H - h - margin : client.Y + top;
+        var (x, y) = Core.Settings.OverlayPlacement.ToScreen(client, relX, relY, w, h, scale);
         var p = new PixelPoint(x, y);
         if (Position != p) Position = p;
     }

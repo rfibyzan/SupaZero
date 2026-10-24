@@ -59,8 +59,29 @@ public sealed class SettingsPageViewModel : ObservableObject
 
     // ── Overlay
     public bool ShowOverlay { get => S.General.ShowOverlay; set { S.General = S.General with { ShowOverlay = value }; _root.Save(); } }
-    public IReadOnlyList<string> OverlayCorners { get; } = ["Kiri atas", "Kanan atas", "Kiri bawah", "Kanan bawah"];
-    public int OverlayCorner { get => S.General.OverlayCorner; set { S.General = S.General with { OverlayCorner = Math.Clamp(value, 0, 3) }; _root.Save(); } }
+
+    // Preview monitor (seperti Running Overlay SupaFisch): layar = jendela Roblox, kotak = overlay, bisa di-drag.
+    /// <summary>Area dalam preview (Border 220×124 dikurangi border 2 px).</summary>
+    public const double PreviewAreaWidth = 216, PreviewAreaHeight = 120;
+    /// <summary>Ukuran overlay asli (DIP, lebar 300, tinggi ±230) diskalakan ke jendela Roblox 1920×1009 → preview.</summary>
+    public double PreviewBoxWidth => Math.Max(16, 300.0 / 1920 * PreviewAreaWidth);
+    public double PreviewBoxHeight => Math.Max(14, 230.0 / 1009 * PreviewAreaHeight);
+    public double PreviewLeft => Core.Settings.OverlayPlacement.ToOffset(S.General.OverlayX, PreviewAreaWidth, PreviewBoxWidth);
+    public double PreviewTop => Core.Settings.OverlayPlacement.ToOffset(S.General.OverlayY, PreviewAreaHeight, PreviewBoxHeight);
+
+    /// <summary>Dipanggil SettingsView saat kotak di-drag (offset kiri/atas di preview).</summary>
+    public void MovePreviewBox(double left, double top)
+    {
+        S.General = S.General with
+        {
+            OverlayX = Core.Settings.OverlayPlacement.ToRelative(left, PreviewAreaWidth, PreviewBoxWidth),
+            OverlayY = Core.Settings.OverlayPlacement.ToRelative(top, PreviewAreaHeight, PreviewBoxHeight),
+        };
+        Raise(nameof(PreviewLeft)); Raise(nameof(PreviewTop));
+    }
+
+    /// <summary>Drag selesai → simpan.</summary>
+    public void CommitPreview() => _root.Save();
 
     // ── Discord webhook
     public string WebhookUrl { get => S.Webhook.Url; set { S.Webhook = S.Webhook with { Url = value?.Trim() ?? "" }; _root.Save(); Raise(nameof(WebhookStatus)); } }

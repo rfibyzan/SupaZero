@@ -41,7 +41,7 @@ public partial class MainWindow : Window
         {
             if (_overlay is not { IsVisible: true } o) return;
             if (!_vm.Settings.General.ShowOverlay) { o.Hide(); return; }
-            if (rect is { } r) o.PlaceAt(r, _vm.Settings.General.OverlayCorner);
+            if (rect is { } r) o.PlaceAt(r, _vm.Settings.General.OverlayX, _vm.Settings.General.OverlayY);
         };
         Closing += (_, _) =>
         {

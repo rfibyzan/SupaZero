@@ -24,8 +24,9 @@ public sealed record GeneralSettings(
     double GuiScale = 1,
     /// <summary>Overlay status di atas jendela Roblox selama macro berjalan.</summary>
     bool ShowOverlay = true,
-    /// <summary>Pojok overlay: 0 kiri atas, 1 kanan atas, 2 kiri bawah, 3 kanan bawah.</summary>
-    int OverlayCorner = 1);
+    /// <summary>Posisi overlay relatif (0..1) di jendela Roblox: 0 = menempel kiri/atas, 1 = kanan/bawah (lihat OverlayPlacement).</summary>
+    double OverlayX = 1,
+    double OverlayY = 0);
 
 public enum Difficulty { Easy, Medium, Hard, Nightmare }
 
