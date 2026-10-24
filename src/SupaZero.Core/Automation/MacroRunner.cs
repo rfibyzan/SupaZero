@@ -171,7 +171,9 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 // → matikan shift lock (Shift), klik, lalu nyalakan lagi agar gaya main tetap sama.
                 // v0.2.58: hanya bila shift lock sudah pasti terdeteksi. Kursor yang kebetulan diam di tengah (lobby) bukan shift lock:
                 // menekan Shift di situ justru MENYALAKAN shift lock dan klik kartu Teleport jatuh di tengah layar.
-                bool unlock = _shiftLock;
+                // Di dalam stage (Vote/Retry/Next) kursor yang diam di tengah ≥ 2 tick juga dianggap shift lock (perilaku v0.2.54 yang
+                // membuat Retry jalan); di lobby tetap wajib terdeteksi pasti.
+                bool unlock = _shiftLock || (c.InRound && _centeredTicks >= 2);
                 if (unlock)
                 {
                     Log?.Invoke($"Shift lock aktif → dimatikan sementara untuk klik {c.Reason}.");

@@ -60,6 +60,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         _lastScreen = GameScreen.Unknown;
         _stuckRef = null;
         StagesCleared = 0;
+        _roundStart = null; _lastHp = null; _afterWinClicks = 0;
         Phase = MacroPhase.Idle;
         Status = "Idle";
     }
@@ -520,7 +521,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         Status = "Start Game? → Yes";
         if (!S.Farm.AutoVoteStart || !Ready("vote-yes", now, 2000)) return [];
         var (x, y) = s.StartVoteYes is { } r ? (r.CenterX, r.CenterY) : (AnimeZeroPaths.StartVoteYesX, AnimeZeroPaths.StartVoteYesY);
-        return [new ClickAction(x, y, "Vote Yes")];
+        return [new ClickAction(x, y, "Vote Yes") { InRound = true }];
     }
 
     // ---------- Ronde ----------
@@ -616,6 +617,17 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             var aimPos = group.Count > 1
                 ? new Vec3(group.Average(e => e.Pos.X), group.Average(e => e.Pos.Y), group.Average(e => e.Pos.Z))
                 : target.Pos;
+            // v0.2.59: saat dikepung, tengah kelompok jatuh di dekat/di bawah pemain → kamera menunduk ke kaki & serangan meleset.
+            // Pakai tengah kelompok hanya bila ≥ 8 stud dari pemain dan searah target (≤ 40°); selain itu bidik target terdekat.
+            if (group.Count > 1 && s.PlayerPos is { } mpos)
+            {
+                double gx = aimPos.X - mpos.X, gz = aimPos.Z - mpos.Z, tx = target.Pos.X - mpos.X, tz = target.Pos.Z - mpos.Z;
+                double gl = Math.Sqrt(gx * gx + gz * gz), tl = Math.Sqrt(tx * tx + tz * tz);
+                bool sameSide = gl >= 8 && tl > 0.1 && (gx * tx + gz * tz) / (gl * tl) >= Math.Cos(40 * Math.PI / 180);
+                if (!sameSide) { aimPos = target.Pos; group = [target]; }
+            }
+            // Musuh di permukaan yang sama (bukan pemain di udara): bidik setinggi badan pemain, jangan menunduk.
+            if (s.PlayerPos is { } me2 && me2.Y - aimPos.Y < 6) aimPos = aimPos with { Y = Math.Max(aimPos.Y, me2.Y - 1) };
             string aimLabel = group.Count > 1 ? $"tengah {group.Count} musuh" : $"musuh #{target.Name}";
             if (group.Count > 1) Status += $" · bidik {group.Count} musuh";
             if (S.Navigation.AimAtEnemy && s.ShiftLock)
@@ -1080,7 +1092,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         Status = Matches(S.Farm.Mode, nameof(FarmMode.Infinite)) ? $"Infinite selesai ({s.ResultText}) → {label}" : $"Menang (ke-{StagesCleared}) → {label}";
         if (!Ready("after-win", now, 2500)) return [];
         _afterWinClicks++;
-        var click = new ClickAction(b.CenterX, b.CenterY, label);
+        var click = new ClickAction(b.CenterX, b.CenterY, label) { InRound = true };
         return _afterWinClicks % 4 == 0
             ? [click, new NoteAction($"Masih di EndScreen setelah {_afterWinClicks}x klik {label} di ({b.CenterX:0},{b.CenterY:0}).")]
             : [click];
@@ -1125,7 +1137,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             Status = $"DEFEAT → Retry ({_retries + 1}/{f.MaxRetriesPerStage})";
             if (!Ready("retry", now, 3000)) return [];
             _retries++;
-            return [new ClickAction(retry.CenterX, retry.CenterY, "Retry")];
+            return [new ClickAction(retry.CenterX, retry.CenterY, "Retry") { InRound = true }];
         }
         return Stop("DEFEAT, retry habis → macro berhenti.");
     }
