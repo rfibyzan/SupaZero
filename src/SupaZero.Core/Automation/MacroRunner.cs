@@ -87,6 +87,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     }
 
     // ── Deteksi shift lock: Roblox mengembalikan kursor ke tengah jendela tiap frame saat shift lock aktif.
+    private const ushort ShiftVk = 0xA0; // VK_LSHIFT = tombol Shift Lock bawaan Roblox
     private bool _shiftLock;
     private int _centeredTicks, _offTicks;
     private (double X, double Y)? _lastAimFar;
@@ -165,8 +166,23 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                     Log?.Invoke($"Klik {c.Reason} dibatalkan: ({c.X:0},{c.Y:0}) di luar jendela Roblox {size.W}x{size.H}.");
                     break;
                 }
+                // Shift lock aktif: kursor dikunci di tengah, klik GUI (Vote Yes, Retry, Next) jatuh di tengah layar.
+                // → matikan shift lock (Shift), klik, lalu nyalakan lagi agar gaya main tetap sama.
+                bool unlock = _shiftLock || _centeredTicks >= 2;
+                if (unlock)
+                {
+                    Log?.Invoke($"Shift lock aktif → dimatikan sementara untuk klik {c.Reason}.");
+                    input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
+                    await Task.Delay(150, ct);
+                }
                 Log?.Invoke($"Klik {c.Reason} ({c.X:0},{c.Y:0})");
                 input.ClickClient(c.X, c.Y);
+                if (unlock)
+                {
+                    await Task.Delay(150, ct);
+                    input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
+                    _centeredTicks = 0;
+                }
                 break;
             case ScrollAction sc:
                 Log?.Invoke($"Scroll {sc.Reason} ({sc.X:0},{sc.Y:0}) x{Math.Abs(sc.Notches)}");

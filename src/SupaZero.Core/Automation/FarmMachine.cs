@@ -553,12 +553,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             Status = $"{Status} · darah {hp:P0} → ambil health";
             return heal;
         }
-        // Item dekat (≤ 20 stud) diambil sambil bertarung, tidak menunggu semua musuh mati. Gagal 6 dtk → dilewati 60 dtk.
-        if (Pickup(s, now, PickupNearRadius, healthOnly: false, S) is { } nearPick)
-        {
-            Status = $"{Status} · ambil item dekat";
-            return nearPick;
-        }
+        // Item dekat (≤ 30 stud) didekati sambil tetap menyerang: musuh toh menghampiri pemain. Gagal 6 dtk → dilewati 60 dtk.
+        string fightStatus = Status;
+        var lootWalk = candidates.Count > 0 ? Pickup(s, now, PickupNearRadius, healthOnly: false, S) : null;
+        string? lootStatus = lootWalk is not null ? Status : null;
+        Status = fightStatus;
         // Belum ada musuh yang bisa diincar (summon belum muncul, boss IMMUNE): pungut item sambil menunggu.
         if (candidates.Count == 0 && Pickup(s, now, PickupClearRadius, healthOnly: false, S) is { } idlePick) return idlePick;
         if (s.PlayerPos is { } meIn && candidates.Count == 0)
@@ -587,10 +586,18 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             {
                 // Jarak serang dipertahankan: lebih jauh dari jarak + toleransi → kejar; dalam pita → roaming di lingkaran berjari-jari jarak serang
                 // (terlalu dekat otomatis mundur karena titik roaming ada di lingkaran itu).
-                approaching = d > S.Navigation.AttackRange + RangeTolerance(S.Navigation.AttackRange);
-                var walk = approaching ? WalkPath(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
-                actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
+                approaching = lootWalk is null && d > S.Navigation.AttackRange + RangeTolerance(S.Navigation.AttackRange);
+                if (lootWalk is not null) { actions.AddRange(lootWalk); Status += $" · {lootStatus}"; }
+                var walk = lootWalk is not null ? [] : approaching ? WalkPath(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
+                if (lootWalk is null) actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
+            // Bidik ke tengah kelompok: rata-rata posisi musuh hidup ≤ 15 stud dari target (skill kebanyakan AOE).
+            var group = candidates.Where(e => Navigator.Distance2D(e.Pos.X, e.Pos.Z, target.Pos.X, target.Pos.Z) <= ClusterRadius).ToList();
+            var aimPos = group.Count > 1
+                ? new Vec3(group.Average(e => e.Pos.X), group.Average(e => e.Pos.Y), group.Average(e => e.Pos.Z))
+                : target.Pos;
+            string aimLabel = group.Count > 1 ? $"tengah {group.Count} musuh" : $"musuh #{target.Name}";
+            if (group.Count > 1) Status += $" · bidik {group.Count} musuh";
             if (S.Navigation.AimAtEnemy && s.ShiftLock)
             {
                 // Shift lock: kursor terkunci di tengah → putar kamera (yaw) ke arah musuh dengan gerak relatif.
@@ -598,28 +605,28 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 int dx = 0, dy = 0;
                 if (s.Camera is { } cam)
                 {
-                    dx = Turn(cam.Look.X, cam.Look.Z, target.Pos.X - cam.Pos.X, target.Pos.Z - cam.Pos.Z, S.Navigation.TurnPixelsPerDegree);
-                    dy = Pitch(cam.Look, target.Pos.X - cam.Pos.X, target.Pos.Y - cam.Pos.Y, target.Pos.Z - cam.Pos.Z, S.Navigation.TurnPixelsPerDegree);
+                    dx = Turn(cam.Look.X, cam.Look.Z, aimPos.X - cam.Pos.X, aimPos.Z - cam.Pos.Z, S.Navigation.TurnPixelsPerDegree);
+                    dy = Pitch(cam.Look, aimPos.X - cam.Pos.X, aimPos.Y - cam.Pos.Y, aimPos.Z - cam.Pos.Z, S.Navigation.TurnPixelsPerDegree);
                 }
                 else if (s.CameraLook is { } cl)
-                    dx = Turn(cl.X, cl.Z, target.Pos.X - me.X, target.Pos.Z - me.Z, S.Navigation.TurnPixelsPerDegree);
+                    dx = Turn(cl.X, cl.Z, aimPos.X - me.X, aimPos.Z - me.Z, S.Navigation.TurnPixelsPerDegree);
                 if (dx != 0 || dy != 0)
-                    actions.Add(new TurnAction(dx, dy, $"Putar kamera ke musuh #{target.Name}"));
+                    actions.Add(new TurnAction(dx, dy, $"Putar kamera ke {aimLabel}"));
             }
             else if (S.Navigation.AimAtEnemy && s.Camera is { } cam2 && Ready("cam-drag", now, 700))
             {
                 // Tanpa shift lock: skill mengikuti kursor, jadi kamera ikut diputar (klik kanan tahan + geser)
                 // bila musuh melenceng > 20° dari tengah atau pitch keluar batas -40°..+10°.
-                double ex = target.Pos.X - cam2.Pos.X, ey = target.Pos.Y - cam2.Pos.Y, ez = target.Pos.Z - cam2.Pos.Z;
+                double ex = aimPos.X - cam2.Pos.X, ey = aimPos.Y - cam2.Pos.Y, ez = aimPos.Z - cam2.Pos.Z;
                 int tdx = Turn(cam2.Look.X, cam2.Look.Z, ex, ez, S.Navigation.TurnPixelsPerDegree, gain: 1, deadzone: 20, max: 200);
                 int tdy = Pitch(cam2.Look, ex, ey, ez, S.Navigation.TurnPixelsPerDegree, gain: 1, deadzone: 8, max: 150);
                 if (tdx != 0 || tdy != 0)
-                    actions.Add(new TurnAction(tdx, tdy, $"Putar kamera (klik kanan) ke musuh #{target.Name}", Drag: true));
+                    actions.Add(new TurnAction(tdx, tdy, $"Putar kamera (klik kanan) ke {aimLabel}", Drag: true));
                 else _cooldowns.Remove("cam-drag");
             }
-            if (S.Navigation.AimAtEnemy && !s.ShiftLock && s.Camera?.WorldToScreen(target.Pos) is { } sp
+            if (S.Navigation.AimAtEnemy && !s.ShiftLock && s.Camera?.WorldToScreen(aimPos) is { } sp
                 && sp.X >= 0 && sp.Y >= 0 && sp.X < s.Camera.ViewW && sp.Y < s.Camera.ViewH)
-                actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke musuh #{target.Name}"));
+                actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke {aimLabel}"));
         }
 
         // Tidak ada target (hitungan enemies > 0 tapi model belum punya HumanoidRootPart/HP): jangan serang udara.
@@ -776,7 +783,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     // ---------- Item di lantai (Workspace.PooledDrops) ----------
 
     /// <summary>Radius pungut koin/health saat area bersih; radius health saat darah rendah; ambang darah rendah.</summary>
-    internal const double PickupClearRadius = 90, PickupHealthRadius = 60, PickupNearRadius = 20, LowHpPickup = 0.5;
+    internal const double PickupClearRadius = 90, PickupHealthRadius = 60, PickupNearRadius = 30, ClusterRadius = 15, LowHpPickup = 0.5;
     /// <summary>Item yang tidak terambil dalam waktu ini (terhalang/tidak terjangkau) dilewati.</summary>
     internal const long PickupGiveUpMs = 6000;
     private readonly Dictionary<string, long> _pickupBan = new(StringComparer.Ordinal);
