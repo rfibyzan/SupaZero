@@ -723,4 +723,24 @@ public class FarmMachineTests
         Assert.Equal(2, scan.Maps.Count);
         Assert.False(m.Calibrating);
     }
+
+    [Fact]
+    public void Calibration_SkipsTrialsEntry_AndSavesOnTrialsPanel()
+    {
+        var (m, _) = New();
+        CalibrationScan? scan = null;
+        m.CalibrationFinished = x => scan = x;
+        m.StartCalibration();
+        var menu = new GameSnapshot
+        {
+            Attached = true, LobbyMenuOpen = true, ClientW = 1920, ClientH = 1080, LobbyMapTag = "Hxh", LobbyLeave = new GuiRect(1600, 900, 80, 60),
+            LobbyMaps = [new LobbyEntry("Hxh", false, true, new GuiRect(300, 300, 200, 60), "Story"), new LobbyEntry("Trials", false, false, new GuiRect(300, 400, 200, 60), "Trials")],
+            LobbyActs = [new LobbyEntry("Act 1", false, true, new GuiRect(600, 150, 100, 40))],
+        };
+        var all = new List<MacroAction>();
+        for (long t = 0; t <= 6000; t += 300) all.AddRange(m.Step(menu, t));
+        Assert.DoesNotContain(all, a => a is ClickAction c && c.Reason.Contains("Trials"));
+        Assert.Contains(all, a => a is ClickAction c && c.Reason.StartsWith("Leave"));
+        Assert.True(FarmMachine.OpensOtherPanel("Trials"));
+    }
 }

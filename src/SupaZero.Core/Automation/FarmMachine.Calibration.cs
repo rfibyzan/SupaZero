@@ -66,6 +66,17 @@ public sealed partial class FarmMachine
                 return Wait("Kalibrasi: menunggu Roblox / DataModel.");
             case GameScreen.Lobby:
                 if (_calStage >= 6) return CalFinish("menu room ditutup lewat Leave");
+                if (_pcStep < 2)
+                {
+                    string key = _pcStep == 0 ? AnimeZeroPaths.MenuTrait : AnimeZeroPaths.MenuSpin;
+                    if (!s.HubMenuButtons.Any(b => b.Name == key))
+                    {
+                        // HUD lobby bisa belum termuat → tunggu sampai 5 dtk sebelum langkah power dilewati.
+                        if (now - _calStepAt < 5000) { Status = $"Kalibrasi: menunggu tombol {key} di LobbyHUD."; return [new MoveAction([], "Kalibrasi")]; }
+                        _calNotes.Add($"tombol {key} tidak terbaca (LeftSideButtons: {(s.HubButtonNames.Count > 0 ? string.Join(", ", s.HubButtonNames) : "tidak terbaca")}).");
+                        _pending.Add(new NoteAction("Kalibrasi: " + _calNotes[^1]));
+                    }
+                }
                 if (PowerCheck(s, now) is { } pc) { Status = "Kalibrasi: " + Status; return pc; }
                 if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
                 var walk = WalkToLobby(s, S, now, force: true);
@@ -73,6 +84,10 @@ public sealed partial class FarmMachine
                 return walk;
             case GameScreen.LobbyMenu:
                 return CalMenu(s, now);
+            case GameScreen.TrialsMenu when _calStage > 0:
+                // Map yang membuka panel lain (bukti log 25 Okt 00:14: "Trials") → simpan hasil, jangan klik apa pun di panel itu.
+                _calNotes.Add("panel Trials terbuka dari daftar map → tutup panel Trials sendiri.");
+                return CalFinish("panel Trials terbuka");
             default:
                 Calibrating = false;
                 return Stop($"Kalibrasi hanya bisa dimulai dari lobby (layar sekarang: {s.Screen}).");
@@ -129,7 +144,8 @@ public sealed partial class FarmMachine
                 _calKnown.RemoveAll(k => k.Name.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
                 _calKnown.Add(new KnownMap(x.Name, x.Locked, x.Mode ?? (CalMode.Length > 0 ? CalMode : null)));
             }
-            _calMaps = s.LobbyMaps.Where(x => !x.Locked && !_calActs.ContainsKey(x.Name)).Select(x => x.Name).ToList();
+            // "Trials" di daftar map membuka panel Trials (bukan act) → tidak diklik saat kalibrasi.
+            _calMaps = s.LobbyMaps.Where(x => !x.Locked && !_calActs.ContainsKey(x.Name) && !OpensOtherPanel(x.Name)).Select(x => x.Name).ToList();
             _calMapIdx = 0;
             CalGo(4, now);
         }
@@ -176,6 +192,9 @@ public sealed partial class FarmMachine
         if (!InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("tombol Leave di luar jendela Roblox → tutup menu room sendiri");
         return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave (batalkan room kalibrasi)")] : [stand];
     }
+
+    /// <summary>Entri daftar map yang terbukti membuka panel lain (log Byzan 25 Okt 2026 00:14: klik "Trials" → TrialsMenu).</summary>
+    public static bool OpensOtherPanel(string map) => map.Trim().Equals("Trials", StringComparison.OrdinalIgnoreCase);
 
     private List<MacroAction> CalFinish(string how)
     {

@@ -158,6 +158,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         {
             AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws),
             HubMenuButtons = ScanMenuButtons(pg),
+            HubButtonNames = pg != 0 && reader.ResolvePath(pg, "LobbyHUD.LeftSideButtons") is var lsb and not 0
+                ? reader.GetChildren(lsb, 64).Select(c => reader.GetName(c)).Where(n => n.Length > 0).ToList() : [],
             TraitMenuOpen = traitRoot != 0 && IsShown(traitRoot, pg),
             SpinMenuOpen = invList != 0 && IsShown(invList, pg),
         };
