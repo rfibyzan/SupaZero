@@ -52,8 +52,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
 
         // Vote mulai
         long vote = Find(pg, AnimeZeroPaths.StartVote);
-        bool voteShown = vote != 0 && IsShown(vote, pg);
-        GuiRect? voteYes = voteShown ? Rect(Find(vote, AnimeZeroPaths.StartVoteYes)) : null;
+        // ScreenGui StartVote bisa tetap Enabled selama ronde (frame di dalamnya disembunyikan) → wajib tombol Yes terlihat.
+        long voteYesNode = vote != 0 ? Find(vote, AnimeZeroPaths.StartVoteYes) : 0;
+        bool voteShown = vote != 0 && IsShown(vote, pg) && voteYesNode != 0 && IsShown(voteYesNode, pg);
+        GuiRect? voteYes = voteShown ? Rect(voteYesNode) : null;
 
         // Layar akhir
         long end = Find(pg, AnimeZeroPaths.EndScreen);

@@ -189,7 +189,8 @@ public sealed record GameSnapshot
         {
             if (!Attached) return GameScreen.Unknown;
             if (EndScreenVisible || IsDefeat) return IsDefeat ? GameScreen.Defeat : GameScreen.Victory;
-            if (StartVoteVisible) return GameScreen.StartVote;
+            // Vote hanya sebelum musuh muncul; ada musuh hidup = ronde berjalan (vote basi tidak boleh menahan Fight).
+            if (StartVoteVisible && EnemyCount <= 0) return GameScreen.StartVote;
             if (Blessings.Count > 0) return GameScreen.BlessingPick;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;
             if (QueueSkip is not null) return GameScreen.QueueWaiting;

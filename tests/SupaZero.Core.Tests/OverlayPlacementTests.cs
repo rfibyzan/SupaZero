@@ -28,4 +28,12 @@ public class OverlayPlacementTests
         Assert.Equal(1, OverlayPlacement.ToRelative(999, 216, 34));
         Assert.Equal(0, OverlayPlacement.ToRelative(-5, 216, 34));
     }
+
+    [Fact]
+    public void StaleStartVoteWithEnemiesIsInRound()
+    {
+        var s = new SupaZero.Core.Game.GameSnapshot { Attached = true, StartVoteVisible = true, EnemyCount = 3 };
+        Assert.Equal(SupaZero.Core.Game.GameScreen.InRound, s.Screen);
+        Assert.Equal(SupaZero.Core.Game.GameScreen.StartVote, (s with { EnemyCount = 0 }).Screen);
+    }
 }
