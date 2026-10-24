@@ -20,9 +20,21 @@ public sealed partial class GameReader
         var areaKids = areas != 0 ? reader.GetChildren(areas, 64) : [];
         var navKids = nav != 0 ? reader.GetChildren(nav, 4096) : [];
         long mapF0 = reader.FindChild(world, AnimeZeroPaths.WorldMap);
-        int mapKids = mapF0 != 0 ? reader.GetChildren(mapF0, 4096).Count : 0;
+        var mapChildren = mapF0 != 0 ? reader.GetChildren(mapF0, 4096) : [];
+        int mapKids = mapChildren.Count;
         key ^= mapF0 << 2;
         int count = areaKids.Count * 100_000_000 + mapKids * 10_000 + navKids.Count;
+        // v0.2.69: rubble hancur → Border*.Blocker hanya berganti CanCollide (jumlah anak Map tetap), jadi cache lama masih
+        // menganggapnya dinding → jalur ke area berikut "tidak tersambung" dan karakter nyangkut (log Byzan 24 Okt 22:31, Area 5).
+        long blockSig = 17;
+        foreach (long b in mapChildren)
+        {
+            if (!reader.GetName(b).StartsWith("Border", StringComparison.Ordinal)) continue;
+            long blk = reader.FindChild(b, "Blocker");
+            bool solid = blk != 0 && props.Read(blk).TryGetValue("CanCollide", out var bc) && bc == "true";
+            blockSig = blockSig * 31 + b + (blk == 0 ? 0 : solid ? 2 : 1);
+        }
+        key ^= blockSig << 3;
         if (_navCache is { } c && c.Key == key && c.Count == count) return c.Map;
 
         var walk = new List<NavRect>();
