@@ -615,24 +615,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 holder = cls == "Attachment" ? reader.GetParent(ad) : ad;
             }
         }
-        // Cadangan: World.Map.Border*.Blocker yang punya Attachment RubbleBar.
-        if (holder == 0 && ws != 0)
-        {
-            long map = reader.ResolvePath(ws, "World.Map");
-            foreach (long b in map != 0 ? reader.GetChildren(map, 512) : new List<long>())
-            {
-                if (!reader.GetName(b).StartsWith("Border", StringComparison.OrdinalIgnoreCase)) continue;
-                long blk = reader.FindChild(b, "Blocker");
-                if (blk != 0 && reader.FindChild(blk, AnimeZeroPaths.RubbleBar) != 0) { holder = blk; info += $"; pakai {reader.GetName(b)}.Blocker"; break; }
-            }
-        }
-        if (!sure && (holder == 0 || !string.Equals(Prop(holder, "CanCollide"), "true", StringComparison.OrdinalIgnoreCase)))
-        { _rubbleHp = null; return null; }
-        // v0.2.73: semua Border*.Blocker sudah padat dan punya RubbleBar sejak awal stage, jadi cadangan v0.2.63 salah aktif saat
-        // vote "Get ready" (screenshot Byzan 24 Okt 22:54: jalan ke rubble padahal wave belum mulai, vote tak diklik).
-        // Cadangan hanya dipakai bila rubble sudah terpukul (nyawa < 100%) atau HUD menyuruh masuk area berikutnya.
-        if (!sure && (voteShown || hudRaw?.Contains("ready", StringComparison.OrdinalIgnoreCase) == true || !(enterHint || _rubbleHp is < 0.995)))
-        { _rubbleHp = null; _rubbleInfo = null; return null; }
+        // v0.2.80 (jangan menebak): posisi rubble HANYA dari Adornee RubbleBar. Cadangan "Border*.Blocker pertama yang punya
+        // RubbleBar" dihapus: semua Blocker punya RubbleBar sejak awal stage, jadi pilihannya tebakan.
         if (holder != 0 && props.TryGetWorldPosition(holder, out float x, out float y, out float z))
         {
             var c = new Settings.Vec3(x, y, z);

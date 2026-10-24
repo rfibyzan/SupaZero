@@ -339,18 +339,18 @@ public class FarmMachineTests
     }
 
     [Fact]
-    public void Lobby_ActMissingOnMap_ClampsToAvailable()
+    public void Lobby_ActMissingOnMap_Stops()
     {
+        // v0.2.80: act yang diminta tidak ada → berhenti (tidak pindah act sendiri).
         var (m, _) = New(s => s.Farm = s.Farm with { Act = 5 });
         var snap = new GameSnapshot
         {
             Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Training", LobbyActTag = "Training [Act 1]",
-            LobbyActs = [new LobbyEntry("Act 1 Training", false, true, Btn)], LobbyStart = Btn,
+            LobbyActs = [new LobbyEntry("Act 1 Training", false, true, Btn)], LobbyStart = Btn, ClientW = 1920, ClientH = 1080,
         };
         var a = Real(m.Step(snap, 0));
-        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("pakai Act 1"));
-        Assert.Contains(a, x => x is ClickAction c && c.Reason.StartsWith("Difficulty"));
-        Assert.Contains(Real(m.Step(snap, 1000)), x => x is ClickAction c && c.Reason.StartsWith("Start"));
+        Assert.Contains(a, x => x is StopAction st && st.Reason.Contains("Act 5 tidak ada"));
+        Assert.DoesNotContain(a, x => x is ClickAction);
     }
 
     [Fact]
@@ -358,7 +358,7 @@ public class FarmMachineTests
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Act = 0, ActProgress = new() { ["Hxh"] = 2 } });
         var acts = Enumerable.Range(1, 5).Select(i => new LobbyEntry($"Act {i}", false, i == 1, new GuiRect(i * 100, 100, 50, 20))).ToList();
-        var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyActTag = "Hxh [Act 1]", LobbyActs = acts };
+        var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyActTag = "Hxh [Act 1]", LobbyActs = acts, ClientW = 1920, ClientH = 1080 };
         Assert.Equal("Act 3", Real(m.Step(snap, 0)).OfType<ClickAction>().Single().Reason);
     }
 
@@ -455,13 +455,18 @@ public class FarmMachineTests
     public void Lobby_WrongAct_Notes_RightAct_ClicksDifficultyAndStart()
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Act = 2, Difficulty = Difficulty.Hard });
-        var wrong = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyActTag = "Act1", LobbyStart = Btn };
+        var hard = new GuiRect(1209, 527, 103, 123);
+        var wrong = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyActTag = "Act1", LobbyStart = Btn, ClientW = 1920, ClientH = 1080,
+            LobbyDifficulties = [new LobbyEntry("Hard", false, false, hard)] };
         Assert.IsType<NoteAction>(Assert.Single(Real(m.Step(wrong, 0))));
+        // v0.2.80: difficulty terpilih tidak terbaca → tidak klik apa pun.
         var right = wrong with { LobbyActTag = "Act2" };
-        var diff = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(right, 100))));
-        Assert.Equal(AnimeZeroPaths.DifficultyCenters[2].X, diff.X);
-        Assert.Empty(Real(m.Step(right, 300)));                       // tunggu difficulty terdaftar
-        var start = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(right, 900))));
+        Assert.DoesNotContain(m.Step(right, 100), x => x is ClickAction);
+        var easy = right with { LobbyDifficultyTag = "EASY" };
+        var diff = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(easy, 200))));
+        Assert.Equal(hard.CenterX, diff.X);
+        Assert.Empty(Real(m.Step(easy, 400)));                        // tunggu difficulty terdaftar
+        var start = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(easy with { LobbyDifficultyTag = "HARD" }, 1500))));
         Assert.Equal(Btn.CenterX, start.X);
     }
 
@@ -487,7 +492,7 @@ public class FarmMachineTests
         var hard = new GuiRect(1209, 527, 103, 123);
         var snap = new GameSnapshot
         {
-            Attached = true, LobbyMenuOpen = true, LobbyActTag = "[Act 1]", LobbyDifficultyTag = "EASY", LobbyStart = Btn,
+            Attached = true, LobbyMenuOpen = true, LobbyActTag = "[Act 1]", LobbyDifficultyTag = "EASY", LobbyStart = Btn, ClientW = 1920, ClientH = 1080,
             LobbyDifficulties = [new LobbyEntry("Hard", false, false, hard)],
         };
         var c = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(snap, 0))));
@@ -502,7 +507,7 @@ public class FarmMachineTests
     {
         var (m, _) = New(s => { });
         var skip = new GuiRect(639, 901, 315, 61);
-        var snap = new GameSnapshot { Attached = true, QueueSkip = skip };
+        var snap = new GameSnapshot { Attached = true, QueueSkip = skip, ClientW = 1920, ClientH = 1080 };
         var c = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(snap, 0))));
         Assert.Equal("Skip Waiting", c.Reason);
         Assert.Empty(Real(m.Step(snap with { QueueSkipCosts = true }, 5000)).OfType<ClickAction>());
@@ -529,7 +534,7 @@ public class FarmMachineTests
         Assert.Equal("Shard Snack", FarmMachine.ChooseBlessing(offers, ["Shard Snack", "Sharper Edge"])!.Name);
         Assert.Equal("Chain Shatter", FarmMachine.ChooseBlessing(offers, ["Big Heart"])!.Name);
         var (m, _) = New(s => s.Farm = s.Farm with { BlessingPriority = "Sharper Edge" });
-        var a = Real(m.Step(new GameSnapshot { Attached = true, EnemyCount = 1, Blessings = offers }, 0));
+        var a = Real(m.Step(new GameSnapshot { Attached = true, EnemyCount = 1, Blessings = offers, ClientW = 1920, ClientH = 1080 }, 0));
         var click = Assert.IsType<ClickAction>(Assert.Single(a));
         Assert.Equal(1181 + 176, click.X, 0);
     }
@@ -587,7 +592,7 @@ public class FarmMachineTests
     {
         var (m, _) = New();
         var btns = new List<LobbyEntry> { new("Trait", false, false, new GuiRect(10, 300, 80, 80)), new("Spin", false, false, new GuiRect(10, 400, 80, 80)) };
-        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], HubMenuButtons = btns };
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], HubMenuButtons = btns, ClientW = 1920, ClientH = 1080 };
         var c1 = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(lobby, 0))));
         Assert.Equal(50, c1.X); Assert.Equal(340, c1.Y);              // tombol Trait
         Assert.Empty(Real(m.Step(lobby with { TraitMenuOpen = true }, 500)));  // membaca
@@ -606,7 +611,7 @@ public class FarmMachineTests
     {
         var (m, _) = New();
         var btns = new List<LobbyEntry> { new("Trait", false, false, new GuiRect(10, 300, 80, 80)) };
-        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], HubMenuButtons = btns };
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], HubMenuButtons = btns, ClientW = 1920, ClientH = 1080 };
         m.Step(lobby, 0);
         var after = Real(m.Step(lobby, FarmMachine.PowerMenuTimeoutMs + 100));
         Assert.DoesNotContain(after, a => a is ClickAction);

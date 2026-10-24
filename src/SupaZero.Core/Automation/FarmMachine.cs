@@ -293,9 +293,10 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return [.. pre, new MoveAction([], "Tunggu teleport")];
         }
 
-        // Teleport lewat Areas → kartu sesuai mode (Story bila tidak ada kartu bernama mode itu).
-        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, f.Mode))
-                   ?? s.TeleportCards.FirstOrDefault(c => Matches(c.Name, nameof(FarmMode.Story)));
+        // Teleport lewat Areas → kartu bernama mode itu. v0.2.80: tanpa cadangan kartu Story.
+        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, f.Mode));
+        if (card is null && s.TeleportCards.Count > 0)
+            return [.. pre, new MoveAction([], "Tunggu"), .. Note("tp-nocard", now, 8000, $"Kartu teleport '{f.Mode}' tidak ada (terbaca: {string.Join(", ", s.TeleportCards.Select(c => c.Name))}) → tidak diklik.")];
         if (card?.Rect is { } cr)
         {
             Status = $"Teleport: Areas → {card.Name}";
@@ -408,12 +409,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (acts.Count > 0 && want > acts[^1].No)
                 return Stop($"Semua act di map '{mapKey}' sudah tuntas (Act 1–{acts[^1].No}).");
         }
+        // v0.2.80 (jangan menebak): act yang diminta tidak ada → berhenti, bukan pindah ke act lain.
         if (acts.Count > 0 && !acts.Any(a => a.No == want))
-        {
-            int fallback = acts.Where(a => a.No <= want && !a.Entry.Locked).Select(a => a.No).DefaultIfEmpty(acts[0].No).Max();
-            _pending.AddRange(Note("act-clamp", now, 15000, $"Act {want} tidak ada di map '{mapKey}' (tersedia: {string.Join(", ", acts.Select(a => a.No))}) → pakai Act {fallback}."));
-            want = fallback;
-        }
+            return Stop($"Act {want} tidak ada di map '{mapKey}' (tersedia: {string.Join(", ", acts.Select(a => a.No))}). Ubah Act di kartu Farm.");
         _selectedAct = want;
         _selectedMap = mapKey;
         if (ActNumber(s.LobbyActTag) != want)
@@ -429,39 +427,38 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         Status = $"Create Room: {f.Mode} {(f.Map.Length > 0 ? f.Map : s.LobbyMapTag)} {wantAct} {f.Difficulty} → Start.";
         bool diffKnown = !string.IsNullOrEmpty(s.LobbyDifficultyTag);
         bool diffOk = diffKnown && s.LobbyDifficultyTag!.Equals(f.Difficulty.ToString(), StringComparison.OrdinalIgnoreCase);
-        if (diffKnown ? !diffOk : (_diffAt is null || now - _diffAt.Value >= 8000))
+        // v0.2.80: difficulty terpilih wajib terbaca (dulu: tag kosong → klik tiap 8 dtk tanpa tahu hasilnya).
+        if (!diffKnown) return Note("lobby-diff-unknown", now, 5000, "Difficulty terpilih tidak terbaca → Start ditahan.");
+        if (!diffOk)
         {
-            var (dx, dy) = DifficultyPoint(s, f.Difficulty);
+            if (DifficultyPoint(s, f.Difficulty) is not var (dx, dy))
+                return Note("lobby-diff", now, 5000, $"Tombol difficulty {f.Difficulty} tidak terbaca → tidak diklik.");
             if (!InWindow(s, dx, dy))
                 return Note("lobby-diff", now, 5000, $"Tombol difficulty {f.Difficulty} di luar jendela Roblox ({dx:0},{dy:0}) → tidak diklik.");
-            if (diffKnown && !Ready("lobby-diff", now, 1500)) return [];
+            if (!Ready("lobby-diff", now, 1500)) return [];
             _diffAt = now;
             Status = $"Difficulty terpilih '{s.LobbyDifficultyTag ?? "?"}', target {f.Difficulty}.";
             return [new ClickAction(dx, dy, $"Difficulty {f.Difficulty}")];
         }
         if (_diffAt is { } da && now - da < 700) return [];
         if (DropTarget(s, s.LobbyRewards, s.LobbyRewardsView, f.DropTarget, "lobby-target", now) is { } tgtAct) return tgtAct;
-        var (sx, sy) = s.LobbyStart is { } st ? (st.CenterX, st.CenterY) : Scaled(s, AnimeZeroPaths.StartRefX, AnimeZeroPaths.StartRefY);
+        // v0.2.80: tombol Start wajib terbaca (koordinat cadangan 1920x1080 dihapus).
+        if (s.LobbyStart is not { } st) return Note("lobby-start-missing", now, 5000, "Tombol Start tidak terbaca → tidak diklik.");
+        var (sx, sy) = (st.CenterX, st.CenterY);
         if (!InWindow(s, sx, sy))
             return Note("lobby-start", now, 5000, $"Tombol Start di luar jendela Roblox ({sx:0},{sy:0}) → tidak diklik.");
-        return Ready("lobby-start", now, 3000) ? [new ClickAction(sx, sy, s.LobbyStart is null ? "Start (posisi cadangan)" : "Start (Create Room)")] : [];
+        return Ready("lobby-start", now, 3000) ? [new ClickAction(sx, sy, "Start (Create Room)")] : [];
     }
 
-    private static (double X, double Y) DifficultyPoint(GameSnapshot s, Difficulty d)
+    private static (double X, double Y)? DifficultyPoint(GameSnapshot s, Difficulty d)
     {
         var hit = s.LobbyDifficulties.FirstOrDefault(e => e.Name.Equals(d.ToString(), StringComparison.OrdinalIgnoreCase));
-        if (hit?.Rect is { } r) return (r.CenterX, r.CenterY);
-        var (x, y) = AnimeZeroPaths.DifficultyCenters[(int)d];
-        return Scaled(s, x, y);
+        return hit?.Rect is { } r ? (r.CenterX, r.CenterY) : null;
     }
 
-    /// <summary>Koordinat acuan 1920x1080 → ukuran klien jendela sekarang (tanpa ukuran = apa adanya).</summary>
-    private static (double X, double Y) Scaled(GameSnapshot s, double x, double y) =>
-        s.ClientW > 0 && s.ClientH > 0 ? (x * s.ClientW / AnimeZeroPaths.RefW, y * s.ClientH / AnimeZeroPaths.RefH) : (x, y);
-
-    /// <summary>Titik ada di dalam area klien jendela Roblox (ukuran tidak diketahui = dianggap di dalam).</summary>
+    /// <summary>Titik ada di dalam area klien jendela Roblox. v0.2.80: ukuran tidak diketahui = BUKAN di dalam.</summary>
     public static bool InWindow(GameSnapshot s, double x, double y) =>
-        s.ClientW <= 0 || s.ClientH <= 0 || (x >= 2 && y >= 2 && x <= s.ClientW - 2 && y <= s.ClientH - 2);
+        s.ClientW > 0 && s.ClientH > 0 && (x >= 2 && y >= 2 && x <= s.ClientW - 2 && y <= s.ClientH - 2);
 
     /// <summary>
     /// Klik entri daftar (map/act/mode). Kalau entri berada di luar area tampak daftarnya (perlu di-scroll) atau di luar
