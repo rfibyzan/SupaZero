@@ -88,14 +88,15 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
 
         var hud = HudText.Parse(hudRaw);
         // v0.2.49: "Break the rubble to continue!" → rubble jadi target serang (Adornee BillboardGui PlayerGui.RubbleBar).
-        var rubble = ReadRubble(pg, ws, hudRaw);
+        var playerPosEarly = ReadPlayerPos(roots.LocalPlayer);
+        var rubble = ReadRubble(pg, ws, hudRaw, playerPosEarly);
         var enemyList = ReadEnemies(enemies);
         if (rubble is { } rb && !enemyList.Any(e => e.Alive))
         {
             enemyList.Add(new EnemyInfo(AnimeZeroPaths.RubbleName, rb, 1, 1));
             enemyCount = Math.Max(enemyCount, 0) + 1;
         }
-        var playerPos = ReadPlayerPos(roots.LocalPlayer);
+        var playerPos = playerPosEarly;
 
         var snap = new GameSnapshot
         {
@@ -543,42 +544,62 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// </summary>
     private string? _rubbleInfo;
 
-    private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw)
+    /// <summary>
+    /// Snapshot RIE saat rubble aktif (Byzan, 24 Okt 2026, Hxh Area 3→4): BillboardGui PlayerGui.RubbleBar menempel ke
+    /// Attachment "RubbleBar" di Workspace.World.Map.Border2.Blocker (Part dinding 101x57x4 di depan rubble).
+    /// Target = titik dinding Blocker terdekat ke pemain (setinggi pemain), bukan pusat dinding.
+    /// </summary>
+    private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw, Settings.Vec3? me)
     {
         _rubbleInfo = null;
         if (pg == 0) return null;
         bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
         long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
         if (!hint && !(bossBar != 0 && IsShown(bossBar, pg))) return null;
-        string adInfo = "RubbleBar tidak ada";
+        string info = "RubbleBar tidak ada";
+        long holder = 0;
         long bar = reader.FindChild(pg, AnimeZeroPaths.RubbleBar);
         if (bar != 0)
         {
-            // 1) Adornee BillboardGui (bisa Part atau Model → PositionOf mencari BasePart anak).
-            if (!reader.Offsets.TryResolve("Misc.Adornee", out long ao)) adInfo = "offset Misc.Adornee tidak ada";
-            else if (!M.TryReadPointer(bar + ao, out long ad) || ad == 0) adInfo = "Adornee kosong";
-            else if (PositionOf(ad) is { } p) { _rubbleInfo = $"Adornee {reader.GetClassName(ad)} {reader.GetName(ad)}"; return p; }
-            else adInfo = $"Adornee {reader.GetClassName(ad)} {reader.GetName(ad)} tanpa posisi";
-        }
-        // 2) Cari instance bernama *Rubble* di Workspace (BFS dangkal, terdekat ke pemain bila banyak).
-        if (ws != 0)
-        {
-            var q = new Queue<(long, int)>();
-            q.Enqueue((ws, 0));
-            int guard = 0;
-            while (q.Count > 0 && guard++ < 3000)
+            if (!reader.Offsets.TryResolve("Misc.Adornee", out long ao)) info = "offset Misc.Adornee tidak ada";
+            else if (!M.TryReadPointer(bar + ao, out long ad) || ad == 0) info = "Adornee kosong";
+            else
             {
-                var (n, d) = q.Dequeue();
-                if (n != ws && reader.GetName(n).Contains("rubble", StringComparison.OrdinalIgnoreCase) && PositionOf(n) is { } p)
-                {
-                    _rubbleInfo = $"{adInfo}; pakai Workspace {reader.GetName(n)}";
-                    return p;
-                }
-                if (d < 5) foreach (long k in reader.GetChildren(n, 256)) q.Enqueue((k, d + 1));
+                string cls = reader.GetClassName(ad);
+                info = $"Adornee {cls} {reader.GetName(ad)}";
+                // Attachment tidak punya Position sendiri → pakai Part induknya (Blocker).
+                holder = cls == "Attachment" ? reader.GetParent(ad) : ad;
             }
         }
-        _rubbleInfo = $"{adInfo}; tidak ada instance *Rubble* di Workspace";
+        // Cadangan: World.Map.Border*.Blocker yang punya Attachment RubbleBar.
+        if (holder == 0 && ws != 0)
+        {
+            long map = reader.ResolvePath(ws, "World.Map");
+            foreach (long b in map != 0 ? reader.GetChildren(map, 512) : new List<long>())
+            {
+                if (!reader.GetName(b).StartsWith("Border", StringComparison.OrdinalIgnoreCase)) continue;
+                long blk = reader.FindChild(b, "Blocker");
+                if (blk != 0 && reader.FindChild(blk, AnimeZeroPaths.RubbleBar) != 0) { holder = blk; info += $"; pakai {reader.GetName(b)}.Blocker"; break; }
+            }
+        }
+        if (holder != 0 && props.TryGetWorldPosition(holder, out float x, out float y, out float z))
+        {
+            var c = new Settings.Vec3(x, y, z);
+            _rubbleInfo = info;
+            if (me is { } p && ParseVec(Prop(holder, "Size")) is { } sz && sz.X > 0)
+                return RubbleTarget(c, sz, p);
+            return c;
+        }
+        if (holder != 0 && PositionOf(holder) is { } hp) { _rubbleInfo = info; return hp; }
+        _rubbleInfo = $"{info}; posisi tidak terbaca";
         return null;
+    }
+
+    /// <summary>Titik terdekat di kotak dinding (rata sumbu) ke pemain, Y = Y pemain.</summary>
+    public static Settings.Vec3 RubbleTarget(Settings.Vec3 center, Settings.Vec3 size, Settings.Vec3 me)
+    {
+        static double Clamp(double v, double c, double h) => Math.Clamp(v, c - h, c + h);
+        return new(Clamp(me.X, center.X, size.X / 2), me.Y, Clamp(me.Z, center.Z, size.Z / 2));
     }
 
     private List<EnemyInfo> ReadEnemies(long folder)
