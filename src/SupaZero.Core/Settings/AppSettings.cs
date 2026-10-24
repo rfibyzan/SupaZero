@@ -73,6 +73,8 @@ public sealed record FarmSettings(
     bool AutoVoteStart = true,
     bool RetryOnDefeat = true,
     int MaxRetriesPerStage = 3,
+    /// <summary>Mode Infinite: Retry tanpa batas (Maks retry per stage diabaikan).</summary>
+    bool InfiniteUnlimitedRetry = true,
     List<KnownMap>? KnownMaps = null,
     /// <summary>Act terakhir yang tuntas per map (mode "Semua act").</summary>
     Dictionary<string, int>? ActProgress = null,

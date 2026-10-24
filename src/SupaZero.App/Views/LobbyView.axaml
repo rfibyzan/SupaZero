@@ -22,6 +22,7 @@
           <TextBlock Classes="label" Text="Maks retry per stage" />
           <NumericUpDown Grid.Column="1" Value="{Binding MaxRetries}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
         </Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Infinite: retry tanpa batas" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding InfiniteUnlimitedRetry}" /></Grid>
       </StackPanel>
     </Border>
     <Border Grid.Column="1" Margin="8,0,0,0" Classes="card" VerticalAlignment="Top">

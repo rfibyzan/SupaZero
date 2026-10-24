@@ -1131,10 +1131,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private List<MacroAction> Defeat(GameSnapshot s, AppSettings S, long now)
     {
         var f = S.Farm;
-        if (f.RetryOnDefeat && _retries < f.MaxRetriesPerStage && s.RetryButton is { } retry)
+        bool unlimited = f.InfiniteUnlimitedRetry && Matches(f.Mode, nameof(FarmMode.Infinite));
+        if (f.RetryOnDefeat && (unlimited || _retries < f.MaxRetriesPerStage) && s.RetryButton is { } retry)
         {
             Phase = MacroPhase.Retrying;
-            Status = $"DEFEAT → Retry ({_retries + 1}/{f.MaxRetriesPerStage})";
+            Status = unlimited ? $"Infinite selesai → Retry (ke-{_retries + 1}, tanpa batas)" : $"DEFEAT → Retry ({_retries + 1}/{f.MaxRetriesPerStage})";
             if (!Ready("retry", now, 3000)) return [];
             _retries++;
             return [new ClickAction(retry.CenterX, retry.CenterY, "Retry") { InRound = true }];

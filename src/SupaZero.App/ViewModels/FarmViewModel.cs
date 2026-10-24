@@ -142,6 +142,7 @@ public sealed class FarmViewModel : ObservableObject
     public bool AutoCreateLobby { get => S.Farm.AutoCreateLobby; set => Farm(f => f with { AutoCreateLobby = value }); }
     public bool AutoVoteStart { get => S.Farm.AutoVoteStart; set => Farm(f => f with { AutoVoteStart = value }); }
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
+    public bool InfiniteUnlimitedRetry { get => S.Farm.InfiniteUnlimitedRetry; set => Farm(f => f with { InfiniteUnlimitedRetry = value }); }
     public decimal MaxRetries { get => S.Farm.MaxRetriesPerStage; set => Farm(f => f with { MaxRetriesPerStage = (int)value }); }
     public string DropTarget { get => S.Farm.DropTarget; set => Farm(f => f with { DropTarget = value ?? "" }); }
     public string[] KnownMaterials { get; } = [.. SupaZero.Core.Game.AnimeZeroPaths.MaterialIcons.Values.Order()];
