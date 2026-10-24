@@ -167,6 +167,8 @@ public sealed record GameSnapshot
 
     /// <summary>Kotak skill HUD (HUD.HUD.BottomLeftHolder.main.skills.skillBox), kosong bila tidak terbaca.</summary>
     public IReadOnlyList<SkillCooldown> SkillCooldowns { get; init; } = [];
+    /// <summary>v0.2.65: Ultimate siap (HUD UltimateFrame tampil, ikon Locked tidak). Null = HUD tidak terbaca.</summary>
+    public bool? UltReady { get; init; }
     /// <summary>Dash sedang cooldown (HUD buttons.Dash.Progress tampil).</summary>
     public bool DashCooling { get; init; }
 

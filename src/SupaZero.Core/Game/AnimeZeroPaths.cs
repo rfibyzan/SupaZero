@@ -81,6 +81,9 @@ public static class AnimeZeroPaths
     // cooldown = skillBox.Frame.cd.Txt (kosong = siap, angka = sisa detik, mis. "1.7"); terkunci = skillBox.Frame.MasteryLock Visible.
     public const string HudDashProgress = "HUD.HUD.BottomLeftHolder.buttons.Dash.Progress"; // Visible = Dash cooldown
     public const string HudSkills = "HUD.HUD.BottomLeftHolder.main.skills";
+    /// <summary>v0.2.65: tombol Ultimate (G). Locked (ImageLabel) tampil = bar ult belum penuh/terkunci.</summary>
+    public const string HudUltimate = "HUD.HUD.BottomLeftHolder.UltimateFrame.Ultimate";
+    public const string HudUltimateLock = "Locked";
     public const string HudSkillBox = "skillBox";
     public const string HudSkillKey = "keybind.Txt";
     public const string HudSkillCd = "Frame.cd.Txt";

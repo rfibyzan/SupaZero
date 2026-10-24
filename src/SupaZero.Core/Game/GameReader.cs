@@ -130,6 +130,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             LobbyMenuOpen = lobbyShown,
             QueueSkip = qShown ? MenuRect(qSkip) : null,
             SkillCooldowns = ReadSkillCooldowns(pg),
+            UltReady = ReadUltReady(pg),
             DashCooling = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.HudDashProgress) is long dp && dp != 0 && IsShown(dp, pg),
             QueueSkipCosts = qCost != 0 && IsShown(qCost, pg),
             LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
@@ -507,6 +508,14 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             }
         }
         return list;
+    }
+
+    private bool? ReadUltReady(long pg)
+    {
+        long ult = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudUltimate) : 0;
+        if (ult == 0 || !IsShown(ult, pg)) return null;
+        long lk = reader.FindChild(ult, AnimeZeroPaths.HudUltimateLock);
+        return !(lk != 0 && IsShown(lk, pg));
     }
 
     /// <summary>Cooldown skill dari HUD: tiap skillBox → (tombol, sisa detik atau null bila siap, terkunci).</summary>

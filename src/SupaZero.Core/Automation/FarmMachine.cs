@@ -686,14 +686,27 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
         // Skill 1/2/3: satu per tick, yang paling lama tidak dipakai dan siap. Bila HUD terbaca, cooldown/kunci dari HUD
         // (jeda minimal 400 ms agar HUD sempat berubah); bila tidak, pakai CooldownMs dari pengaturan.
-        var hudCd = s.SkillCooldowns.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+        // v0.2.65: Ultimate (G, "use when the ult bar is full") tidak ikut hitungan skill 1/2/3 / ganti power.
+        var ult = skills.FirstOrDefault(IsUlt);
+        var cds = s.SkillCooldowns.Where(c => ult is null || !c.Key.Equals(ult.Key, StringComparison.OrdinalIgnoreCase)).ToList();
+        var hudCd = s.SkillCooldowns.GroupBy(c => c.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         bool SkillReady(SkillBinding k) => hudCd.TryGetValue(k.Key, out var c)
             ? c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400)
             : !_skillLast.TryGetValue(k.Name, out long t) || now - t >= Math.Max(200, k.CooldownMs);
-        var main = skills.Where(k => !IsDash(k) && !IsSwap(k)).ToList();
-        var due = main.Where(SkillReady)
+        var main = skills.Where(k => !IsDash(k) && !IsSwap(k) && !IsUlt(k)).ToList();
+        // Ultimate: tekan G berkala selama bertarung (game menolak bila bar ult belum penuh); HUD dipakai bila ada kotak G.
+        bool ultNow = ult is not null && now - _lastSkillPress >= 300
+            && (s.UltReady ?? (!hudCd.TryGetValue(ult.Key, out var uc) || uc.Ready))
+            && (!_skillLast.TryGetValue(ult.Name, out long ut) || now - ut >= Math.Max(800, ult.CooldownMs))
+            && HotkeyMap.TryGetVirtualKey(ult.Key, out _);
+        var mainDue = main.Where(SkillReady)
             .OrderBy(k => _skillLast.TryGetValue(k.Name, out long t) ? t : long.MinValue)
             .FirstOrDefault();
+        // Skill 1/2/3 didahulukan; G di sela-selanya.
+        // Semua skill cooldown + ganti power aktif → T didahulukan (G jangan menelan animasi T).
+        // HUD ult terbaca siap → G didahulukan; tidak terbaca → G hanya di sela skill dan tidak saat menunggu T.
+        if (s.UltReady != true && (mainDue is not null || (swap is not null && cds.Count > 0 && cds.All(c => !c.Ready)))) ultNow = false;
+        var due = ultNow ? ult : mainDue;
         // Basic attack (klik terus-menerus) bisa menelan tombol skill/T di game, jadi saat skill atau T ditekan,
         // basic attack dilewati di tick itu dan ditahan sebentar sesudahnya.
         if (due is not null && HotkeyMap.TryGetVirtualKey(due.Key, out uint vk))
@@ -702,7 +715,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _lastSkillPress = now;
             _attackHoldUntil = now + 250;
             // Saat animasi skill berjalan, Space ditolak game → lompat dulu (sambil roaming), lalu skill dilepas di udara.
-            if (!approaching && S.Navigation.ChaseEnemies && now - _lastJump >= 600)
+            if (!ultNow && !approaching && S.Navigation.ChaseEnemies && now - _lastJump >= 600)
             {
                 _lastJump = now;
                 _nextRoamJump = now + 700 + _rng.Next(600);
@@ -713,7 +726,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci. T ditolak game selama animasi
         // serangan masih jalan, jadi: berhenti basic attack dulu (gerak tetap), tunggu animasi selesai, baru tekan T.
         // Bila HUD masih "semua cooldown" 1,2 dtk setelah T, ulangi (maks 3×), lalu jeda 4 dtk.
-        else if (swap is not null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
+        else if (swap is not null && cds.Count > 0 && cds.All(c => !c.Ready)
                  && HotkeyMap.TryGetVirtualKey(swap.Key, out uint svk) && now >= _swapRestUntil)
         {
             if (_swapPrepSince is not long since)
@@ -738,18 +751,18 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _lastAttack = now;
             actions.Add(new AttackAction("Serangan dasar"));
         }
-        if (swap is null && s.SkillCooldowns.Count > 0 && s.SkillCooldowns.All(c => !c.Ready)
+        if (swap is null && cds.Count > 0 && cds.All(c => !c.Ready)
             && S.Combat.EffectiveSkills.FirstOrDefault(IsSwap) is { Enabled: false } off && Ready("swap-off", now, 15000))
             actions.Add(new NoteAction($"Semua skill cooldown, tapi {off.Name} ({off.Key}) mati di kartu Combat → nyalakan agar power berganti."));
         // Sudah dekat: tetap bergerak melingkari musuh + lompat (baik saat pakai skill maupun basic attack saja).
         Roam(s, S, tgt, now, actions);
         // Skill 1/2/3 habis (cooldown semua / tidak ada yang siap): Dash (Q) searah roaming agar tidak diam jadi sasaran.
-        bool skillsOut = s.SkillCooldowns.Count > 0 ? s.SkillCooldowns.All(c => !c.Ready) : due is null;
+        bool skillsOut = cds.Count > 0 ? cds.All(c => !c.Ready) : mainDue is null;
         // Jangan Dash ≤ 500 ms sebelum T ditekan (animasi Dash bisa menelan T) atau di tick yang sama.
         bool swapSoon = _swapPrepSince is long ps && now >= _swapRestUntil && Math.Max(ps + SwapPrepMs, _swapLastPress + 1200) - now < 500;
         bool swapNow = swap is not null && actions.Any(a => a is KeyAction k && k.Reason.StartsWith(swap.Name, StringComparison.Ordinal));
         // Juga di sela skill: setelah animasi skill selesai dan tidak ada skill ditekan tick ini → Dash ke samping (arah roaming).
-        bool skillGap = due is null && now - _lastSkillPress >= SkillAnimMs && now - _lastJump >= 250;
+        bool skillGap = (due is null || ultNow) && now - _lastSkillPress >= SkillAnimMs && now - _lastJump >= 250;
         if ((skillsOut || skillGap) && dash is not null && !s.DashCooling && !swapSoon && !swapNow
             && actions.OfType<MoveAction>().Any(m => m.Keys.Count > 0) && Ready("dash-roam", now, Math.Max(1500, dash.CooldownMs))
             && HotkeyMap.TryGetVirtualKey(dash.Key, out uint rvk))
@@ -1186,6 +1199,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     }
 
     private static bool IsDash(SkillBinding k) => k.Name == "Dash";
+    private static bool IsUlt(SkillBinding k) => k.Name == "Ultimate";
     private static bool IsSwap(SkillBinding k) => k.Name == "Ganti senjata" || k.Name == "Ganti power";
 
     private bool Ready(string key, long now, int cooldownMs)

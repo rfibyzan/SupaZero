@@ -106,9 +106,13 @@ public sealed record CombatSettings(
         new("Skill 3", "3", true, 8000),
         new("Dash", "Q", true, 3000),
         new("Ganti power", "T", true, 15000),
+        new("Ultimate", "G", true, 1500),
     ];
 
-    public IReadOnlyList<SkillBinding> EffectiveSkills => Skills is { Count: > 0 } s ? s : DefaultSkills();
+    /// <summary>v0.2.65: pengaturan lama tanpa baris Ultimate (G) otomatis ditambah.</summary>
+    public IReadOnlyList<SkillBinding> EffectiveSkills => Skills is { Count: > 0 } s
+        ? (s.Any(k => k.Name == "Ultimate") ? s : [.. s, DefaultSkills().First(k => k.Name == "Ultimate")])
+        : DefaultSkills();
 }
 
 public sealed record NavigationSettings(
