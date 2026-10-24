@@ -158,6 +158,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         {
             AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws),
             HubMenuButtons = ScanMenuButtons(pg),
+            AreasView = _areasView,
             HubButtonNames = pg != 0 && reader.ResolvePath(pg, "LobbyHUD.LeftSideButtons") is var lsb and not 0
                 ? reader.GetChildren(lsb, 64).Select(c => reader.GetName(c)).Where(n => n.Length > 0).ToList() : [],
             TraitMenuOpen = traitRoot != 0 && IsShown(traitRoot, pg),
@@ -222,8 +223,21 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 if (title.Contains("Story", StringComparison.OrdinalIgnoreCase)) LastCardPick = GuiPath(card, pg);
             }
         }
+        // v0.2.85: kartu lain di panel Areas (mis. "Traits" untuk kalibrasi power) → scan teks hanya di dalam Container panel.
+        long clip = ResolveGuiPath(pg, AnimeZeroPaths.AreasClipping);
+        long cont = clip != 0 ? reader.FindChild(clip, "Container") : 0;
+        _areasView = clip != 0 && IsShown(clip, pg) ? HubRect(clip) : null;
+        if (cont != 0 && IsShown(cont, pg))
+            foreach (var (node, text) in VisibleTexts(cont, 1500))
+            {
+                if (!text.Contains(AnimeZeroPaths.TeleportCardHint, StringComparison.OrdinalIgnoreCase)) continue;
+                if (CardTitle(node) is not { } title || cards.Any(c => c.Name.Equals(title.Trim(), StringComparison.OrdinalIgnoreCase))) continue;
+                if (HubRect(ButtonFor(node)) is { } cr) cards.Add(new LobbyEntry(title.Trim(), false, false, cr));
+            }
         return _hub = (areas, cards);
     }
+
+    private GuiRect? _areasView;
 
     private long _menuAt;
     private IReadOnlyList<LobbyEntry> _menuButtons = [];

@@ -753,4 +753,22 @@ public class FarmMachineTests
         for (long t = 0; t <= 9000; t += 300) m.Step(lobby, t);
         Assert.DoesNotContain("Kalibrasi: Kalibrasi", m.Status);
     }
+
+    [Fact]
+    public void Calibration_Traits_AreasCard_WalkForward_Read_BackOff()
+    {
+        var (m, _) = New();
+        m.StartCalibration();
+        var baseS = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
+        var panel = baseS with { TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(100, 100, 200, 100)), new LobbyEntry("Traits", false, false, new GuiRect(100, 300, 200, 100))], AreasView = new GuiRect(50, 50, 600, 600) };
+        Assert.Contains(m.Step(panel, 0), a => a is ClickAction c && c.Reason == "Teleport Traits");
+        Assert.DoesNotContain(m.Step(baseS, 500), a => a is MoveAction mv && mv.Keys.Contains(VirtualKeys.W));
+        Assert.Contains(m.Step(baseS, 2600), a => a is MoveAction mv && mv.Keys.Contains(VirtualKeys.W));
+        var open = baseS with { TraitMenuOpen = true };
+        m.Step(open, 3000);
+        Assert.Contains(m.Step(open, 6200), a => a is NoteAction n && n.Reason.StartsWith("Kalibrasi trait"));
+        Assert.Contains(m.Step(open, 6500), a => a is MoveAction mv && mv.Keys.Contains(VirtualKeys.S));
+        m.Step(baseS, 7000);
+        Assert.Contains(m.Step(baseS, 7300), a => a is MoveAction mv && mv.Keys.Count > 0 && !mv.Keys.Contains(VirtualKeys.S));
+    }
 }

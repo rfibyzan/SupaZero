@@ -37,7 +37,67 @@ public sealed partial class FarmMachine
         _calModes = []; _calMaps = [];
         _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear();
         _calSig = null; _calStepAt = -1;
-        _pcStep = 0; _pcStepAt = null; _pcOpenAt = null;
+        _pcStep = 2; _pcStepAt = null; _pcOpenAt = null; // tombol Trait/Spin LobbyHUD tidak ada (Byzan 25 Okt) → PowerCheck tidak dipakai
+        _trStep = 0; _trAt = null;
+    }
+
+    // ---- Trait (Byzan 25 Okt 2026): Areas → kartu "Traits" → teleport ke depan NPC Matilda → maju (W) → panel Trait Reroll
+    // (SurfaceGui "UI Animation (Working).Trait Reroll") terbuka → baca → mundur (S) sampai panel tertutup. Tidak klik apa pun di panel.
+    private int _trStep;
+    private long? _trAt;
+    public const int TraitTeleportSettleMs = 2000, TraitWalkMs = 5000, TraitBackMs = 4000;
+
+    private List<MacroAction>? CalTraits(GameSnapshot s, long now)
+    {
+        if (_trStep >= 5) return null;
+        var stand = new MoveAction([], "Kalibrasi trait");
+        _trAt ??= now;
+        long dt = now - _trAt.Value;
+        void Go(int st) { _trStep = st; _trAt = now; }
+        List<MacroAction> Skip(string why) { _calNotes.Add(why); _trStep = 5; _trAt = null; return [stand, new NoteAction("Kalibrasi: " + why)]; }
+        if (s.TraitMenuOpen && _trStep < 3) Go(3);
+        switch (_trStep)
+        {
+            case 0:
+            {
+                Status = "Kalibrasi trait: Areas → Traits.";
+                var card = s.TeleportCards.FirstOrDefault(c => c.Name.Equals(AnimeZeroPaths.TraitsCard, StringComparison.OrdinalIgnoreCase));
+                if (card is not null)
+                {
+                    var r = ClickEntry(s, card, s.AreasView, "cal-traits", "Teleport Traits", now) ?? [];
+                    if (r.Any(a => a is ClickAction)) Go(1);
+                    return [stand, .. r];
+                }
+                if (dt > 15_000) return Skip($"kartu Traits di panel Areas tidak terbaca (terbaca: {(s.TeleportCards.Count > 0 ? string.Join(", ", s.TeleportCards.Select(c => c.Name)) : "-")}) → trait tidak dicek.");
+                if (s.TeleportCards.Count == 0 && s.AreasButton is { } ab && InWindow(s, ab.CenterX, ab.CenterY))
+                    return Ready("cal-areas", now, 2500) ? [stand, new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas (kalibrasi trait)")] : [stand];
+                return [stand];
+            }
+            case 1:
+                Status = "Kalibrasi trait: menunggu teleport ke Matilda.";
+                if (s.TeleportCards.Count == 0 && dt >= TraitTeleportSettleMs) { Go(2); return [new MoveAction([VirtualKeys.W], "Maju ke Matilda")]; }
+                if (dt > 10_000) return Skip("panel Areas tidak tertutup setelah klik Traits.");
+                return [stand];
+            case 2:
+                Status = "Kalibrasi trait: maju ke Matilda.";
+                if (dt > TraitWalkMs) return Skip($"panel Trait Reroll tidak terbuka setelah maju {TraitWalkMs / 1000} dtk.");
+                return [new MoveAction([VirtualKeys.W], "Maju ke Matilda")];
+            case 3:
+            {
+                Status = "Kalibrasi trait: panel Trait Reroll terbuka, membaca…";
+                if (!s.TraitMenuOpen) return Skip("panel Trait Reroll tertutup sebelum terbaca.");
+                if (dt < PowerMenuReadMs) return [stand];
+                string eq = s.Equipped.Count == 0 ? "slot belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
+                    $"slot {p.Loadout} {p.Name}{(p.Level is { } lv ? $" Lv.{lv}" : "")}{(p.Trait is { } t ? $" ({t.Name})" : "")}"));
+                Go(4);
+                return [stand, new NoteAction($"Kalibrasi trait: {eq}.")];
+            }
+            default:
+                Status = "Kalibrasi trait: mundur sampai panel tertutup.";
+                if (!s.TraitMenuOpen) { _trStep = 5; _trAt = null; return [stand]; }
+                if (dt > TraitBackMs) return Skip("panel Trait Reroll tidak tertutup setelah mundur → tutup sendiri (X).");
+                return [new MoveAction([VirtualKeys.S], "Mundur dari Matilda")];
+        }
     }
 
     /// <summary>Awalan status sekali saja (v0.2.84: Status yang tidak diperbarui tiap tick menumpuk "Kalibrasi: Kalibrasi: …").</summary>
@@ -69,18 +129,7 @@ public sealed partial class FarmMachine
                 return Wait("Kalibrasi: menunggu Roblox / DataModel.");
             case GameScreen.Lobby:
                 if (_calStage >= 6) return CalFinish("menu room ditutup lewat Leave");
-                if (_pcStep < 2)
-                {
-                    string key = _pcStep == 0 ? AnimeZeroPaths.MenuTrait : AnimeZeroPaths.MenuSpin;
-                    if (!s.HubMenuButtons.Any(b => b.Name == key))
-                    {
-                        // HUD lobby bisa belum termuat → tunggu sampai 5 dtk sebelum langkah power dilewati.
-                        if (now - _calStepAt < 5000) { Status = $"Kalibrasi: menunggu tombol {key} di LobbyHUD."; return [new MoveAction([], "Kalibrasi")]; }
-                        _calNotes.Add($"tombol {key} tidak terbaca (LeftSideButtons: {(s.HubButtonNames.Count > 0 ? string.Join(", ", s.HubButtonNames) : "tidak terbaca")}).");
-                        _pending.Add(new NoteAction("Kalibrasi: " + _calNotes[^1]));
-                    }
-                }
-                if (PowerCheck(s, now) is { } pc) { CalPrefix(); return pc; }
+                if (CalTraits(s, now) is { } tr) return tr;
                 if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
                 var walk = WalkToLobby(s, S, now, force: true);
                 CalPrefix();

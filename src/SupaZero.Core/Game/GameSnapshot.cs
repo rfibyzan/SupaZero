@@ -199,6 +199,8 @@ public sealed record GameSnapshot
     public GuiRect? LobbyLeave { get; init; }
     /// <summary>Diagnosa kalibrasi: nama anak LobbyHUD.LeftSideButtons (untuk mencari tombol Trait/Spin yang sebenarnya).</summary>
     public IReadOnlyList<string> HubButtonNames { get; init; } = [];
+    /// <summary>Area tampak panel Areas (Content.Clipping) untuk scroll ke kartu yang tersembunyi.</summary>
+    public GuiRect? AreasView { get; init; }
     /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
     public GuiRect? LobbyMapsView { get; init; }
     public GuiRect? LobbyActsView { get; init; }
