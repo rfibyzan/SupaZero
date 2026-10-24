@@ -122,7 +122,9 @@ public static class AnimeZeroPaths
     public const string LobbyDifficultyTagPath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.MapLine.Tag"; // "[EASY]" / "[HARD]"
     public const string LobbyActTagPath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.ActLine.Tag";   // "[Act 2]"
     public const string LobbyActsScroll = "Content.ActsList.List.ScrollingFrame"; // Act<n> (Frame, nama ganda per map; yang Visible = map terpilih) .Act<n> ImageButton .TxtHolder.Act "Act 1", .Locked
-    public const string LobbyLeaveButton = "Leave";       // ~(1639,934)
+    /// <summary>[V] RIE Byzan 25 Okt 2026 00:39 (Quque.MainFrame, room 2): ImageButton 264×63 di (1507,902); teks "Leave" ada di
+    /// anak Txt(Shadow).Txt, tidak ada node bernama "Leave" → path pasti, tanpa Find nama.</summary>
+    public const string LobbyLeavePath = "Content.RightHolder.Buttons.LeaveButton.LeaveButton";
     /// <summary>Resolusi acuan koordinat cadangan (Difficulty/Start) di atas; diskalakan ke ukuran klien jendela.</summary>
     public const double RefW = 1920, RefH = 1080;
     public const double StartRefX = 1364, StartRefY = 934;
