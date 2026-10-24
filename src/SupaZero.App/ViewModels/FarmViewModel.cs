@@ -74,9 +74,9 @@ public sealed class FarmViewModel : ObservableObject
         }
     }
 
-    /// <summary>Act untuk map terpilih: dari ActsList yang pernah terbaca, kalau belum → 1–5.</summary>
+    /// <summary>Act untuk map terpilih: HANYA dari ActsList yang terbaca (v0.2.82: tanpa tebakan 1–5).</summary>
     private List<int> ActNumbers() =>
-        S.Farm.Map.Length > 0 && S.Farm.KnownActs?.GetValueOrDefault(S.Farm.Map) is { Count: > 0 } a ? a : [1, 2, 3, 4, 5];
+        S.Farm.Map.Length > 0 && S.Farm.KnownActs?.GetValueOrDefault(S.Farm.Map) is { Count: > 0 } a ? a : [];
 
     public int ActIndex
     {
@@ -93,7 +93,7 @@ public sealed class FarmViewModel : ObservableObject
     private void RebuildActs()
     {
         var nums = ActNumbers();
-        if (S.Farm.Act > 0 && !nums.Contains(S.Farm.Act)) Farm(f => f with { Act = nums.Where(n => n <= f.Act).DefaultIfEmpty(nums[0]).Max() });
+        if (S.Farm.Act > 0 && nums.Count > 0 && !nums.Contains(S.Farm.Act)) Farm(f => f with { Act = 0 });
         var want = new List<string> { AllActsLabel };
         want.AddRange(nums.Select(n => "Act " + n));
         if (!Acts.SequenceEqual(want))
@@ -107,7 +107,9 @@ public sealed class FarmViewModel : ObservableObject
     }
     public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
         ? "Tuntas: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
-        : "Semua act: mulai dari Act 1, lanjut otomatis tiap menang. Act yang tidak ada di map disesuaikan otomatis.";
+        : ActNumbers().Count == 0 && S.Farm.Map.Length > 0
+            ? "Act map ini belum terbaca → jalankan Kalibrasi aksi (tab General)."
+            : "Semua act: mulai dari Act 1, lanjut otomatis tiap menang. Act yang tidak ada di map → macro berhenti.";
     public RelayCommand ResetActProgressCommand => new(_ => { Farm(f => f with { ActProgress = null }); Raise(nameof(ActProgressText)); });
     public int DifficultyIndex { get => (int)S.Farm.Difficulty; set => Farm(f => f with { Difficulty = (Difficulty)Math.Clamp(value, 0, 3) }); }
     public int AfterWinIndex { get => (int)S.Farm.AfterWin; set => Farm(f => f with { AfterWin = (AfterWin)Math.Clamp(value, 0, 3) }); }
@@ -199,7 +201,10 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(DetectedText));
         Raise(nameof(HubPickText));
         var snap = _root.Snapshot;
-        if (snap.LobbyMapTag is { Length: > 0 } tag && snap.LobbyActs.Count > 0)
+        // v0.2.82: ActsList berganti bertahap setelah map diklik → act baru disimpan bila (map, daftar act) sama ≥ 1 dtk.
+        string actSig = $"{snap.LobbyMapTag}|{string.Join(",", snap.LobbyActs.Select(a => a.Name))}";
+        if (actSig != _actSig) { _actSig = actSig; _actSigAt = DateTime.UtcNow; }
+        if (snap.LobbyMapTag is { Length: > 0 } tag && snap.LobbyActs.Count > 0 && DateTime.UtcNow - _actSigAt >= TimeSpan.FromSeconds(1))
         {
             var nums = snap.LobbyActs.Select(a => SupaZero.Core.Automation.FarmMachine.ActNumber(a.Name)).Where(n => n > 0).Distinct().Order().ToList();
             string map = snap.LobbyMaps.FirstOrDefault(m => tag.Contains(m.Name, StringComparison.OrdinalIgnoreCase))?.Name ?? tag.Trim();
@@ -213,10 +218,33 @@ public sealed class FarmViewModel : ObservableObject
         }
         var maps = snap.LobbyMaps;
         if (maps.Count == 0) return;
-        var known = maps.Select(m => new KnownMap(m.Name, m.Locked, m.Mode)).ToList();
+        // v0.2.82: gabung, jangan timpa — daftar map hanya berisi map mode terpilih; map mode lain tetap disimpan.
+        var fresh = maps.Select(m => new KnownMap(m.Name, m.Locked, m.Mode)).ToList();
+        var freshModes = fresh.Select(m => m.Mode).Where(m => m is not null).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var known = (S.Farm.KnownMaps ?? [])
+            .Where(o => !fresh.Any(n => n.Name.Equals(o.Name, StringComparison.OrdinalIgnoreCase)) && o.Mode is not null && !freshModes.Contains(o.Mode))
+            .Concat(fresh).ToList();
         if (S.Farm.KnownMaps is { } old && old.SequenceEqual(known)) return;
         Farm(f => f with { KnownMaps = known });
         RebuildMaps();
+    }
+
+    private string? _actSig;
+    private DateTime _actSigAt;
+
+    /// <summary>v0.2.82: hasil kalibrasi aksi menggantikan daftar map dan act yang tersimpan (act map yang terbaca).</summary>
+    public void ApplyCalibration(SupaZero.Core.Automation.CalibrationScan scan)
+    {
+        if (scan.Maps.Count > 0) Farm(f => f with { KnownMaps = scan.Maps.ToList() });
+        if (scan.Acts.Count > 0)
+        {
+            var ka = new Dictionary<string, List<int>>(S.Farm.KnownActs ?? new(), StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in scan.Acts) ka[kv.Key] = kv.Value;
+            Farm(f => f with { KnownActs = ka });
+        }
+        RebuildMaps();
+        _root.AddLog($"Kalibrasi aksi disimpan: {scan.Maps.Count} map, act untuk {scan.Acts.Count} map." +
+            (scan.Notes.Count > 0 ? " Catatan: " + string.Join(" ", scan.Notes) : ""));
     }
 
     private void RebuildMaps()

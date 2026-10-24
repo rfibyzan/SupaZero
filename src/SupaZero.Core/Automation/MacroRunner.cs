@@ -26,16 +26,17 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         if (IsRunning) Stop(); else Start();
     }
 
-    public void Start()
+    public void Start(bool calibrate = false)
     {
         if (IsRunning) return;
         Machine.Reset();
+        if (calibrate) Machine.StartCalibration();
         Machine.Diagnostic ??= m => Log?.Invoke(m);
         LastStopReason = null;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         _loop = Task.Run(() => Loop(token), token);
-        Log?.Invoke("Macro mulai.");
+        Log?.Invoke(calibrate ? "Kalibrasi aksi mulai (power → room → mode/map/act → Leave)." : "Macro mulai.");
         RunningChanged?.Invoke(true);
     }
 

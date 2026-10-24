@@ -87,7 +87,11 @@
               <TextBlock Classes="label" FontWeight="SemiBold" Text="Kalibrasi" />
               <TextBlock Classes="muted" FontSize="11" Text="{Binding CalibrationSummary}" TextWrapping="Wrap" />
             </StackPanel>
-            <Button Grid.Column="1" Content="Cek" Command="{Binding CalibrateCommand}" Padding="12,3" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Button Content="Cek" Command="{Binding CalibrateCommand}" Padding="12,3" ToolTip.Tip="Baca memori sekali, tanpa aksi." />
+              <Button Content="Kalibrasi aksi" Command="{Binding CalibrateActionCommand}" Padding="12,3"
+                      ToolTip.Tip="Dari lobby: buka Trait &amp; Spin, masuk room, baca semua mode/map/act, lalu Leave. Tidak menekan Start." />
+            </StackPanel>
           </Grid>
           <Expander Header="Detail" IsVisible="{Binding HasCalibration}" Padding="4" FontSize="11" HorizontalAlignment="Stretch">
             <ItemsControl ItemsSource="{Binding CalibrationItems}">

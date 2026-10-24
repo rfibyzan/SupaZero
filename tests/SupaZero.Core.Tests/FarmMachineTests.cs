@@ -695,4 +695,32 @@ public class FarmMachineTests
         };
         Assert.DoesNotContain(m.Step(snap, 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
     }
+
+    // ---------- v0.2.82 kalibrasi aksi ----------
+    [Fact]
+    public void Calibration_ReadsModesMapsActs_ThenLeaves_NeverStarts()
+    {
+        var (m, _) = New();
+        CalibrationScan? scan = null;
+        m.CalibrationFinished = x => scan = x;
+        m.StartCalibration();
+        var leave = new GuiRect(1600, 900, 80, 60);
+        var menu = new GameSnapshot
+        {
+            Attached = true, LobbyMenuOpen = true, ClientW = 1920, ClientH = 1080, LobbyMapTag = "Hxh", LobbyStart = Btn, LobbyLeave = leave,
+            LobbyModes = [new LobbyEntry("Story", false, true, new GuiRect(100, 100, 100, 40))],
+            LobbyMaps = [new LobbyEntry("Hxh", false, true, new GuiRect(300, 300, 200, 60), "Story"), new LobbyEntry("Tidal High Rise", true, false, new GuiRect(300, 400, 200, 60), "Story")],
+            LobbyActs = Enumerable.Range(1, 3).Select(i => new LobbyEntry($"Act {i}", i == 3, i == 1, new GuiRect(600, 100 + i * 50, 100, 40))).ToList(),
+        };
+        var all = new List<MacroAction>();
+        for (long t = 0; t <= 8000; t += 300) all.AddRange(m.Step(menu, t));
+        Assert.DoesNotContain(all, a => a is ClickAction c && (c.Reason.StartsWith("Start") || c.Reason.StartsWith("Difficulty")));
+        Assert.Contains(all, a => a is ClickAction c && c.Reason.StartsWith("Leave"));
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
+        Assert.Contains(m.Step(lobby, 9000), a => a is StopAction);
+        Assert.NotNull(scan);
+        Assert.Equal([1, 2, 3], scan!.Acts["Hxh"]);
+        Assert.Equal(2, scan.Maps.Count);
+        Assert.False(m.Calibrating);
+    }
 }

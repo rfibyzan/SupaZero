@@ -12,7 +12,7 @@ public enum MacroPhase { Idle, WalkingToLobby, Lobby, Voting, Fighting, Navigati
 /// skill; area bersih → jalan ke area berikutnya, serang rubble bila tersangkut) → EndScreen: menang (upgrade bila perlu
 /// → Next/Retry/Leave sesuai mode) / kalah (Retry s.d. batas).
 /// </summary>
-public sealed class FarmMachine(Func<AppSettings> settings)
+public sealed partial class FarmMachine(Func<AppSettings> settings)
 {
     private readonly Dictionary<string, long> _cooldowns = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _skillLast = new(StringComparer.Ordinal);
@@ -63,6 +63,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         _roundStart = null; _lastHp = null; _afterWinClicks = 0;
         Phase = MacroPhase.Idle;
         Status = "Idle";
+        Calibrating = false;
     }
 
     public IReadOnlyList<MacroAction> Step(GameSnapshot s, long nowMs)
@@ -97,7 +98,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _lastHp = hpNow;
         }
 
-        var actions = screen switch
+        var actions = Calibrating ? CalibrationStep(s, S, nowMs) : screen switch
         {
             GameScreen.Unknown => Wait("Menunggu Roblox / DataModel."),
             GameScreen.Lobby => WalkToLobby(s, S, nowMs),
@@ -180,11 +181,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     private static string Label(string id) => id.StartsWith("room:") ? "room " + id[5..] : id == "manual" ? "lingkaran rekaman" : "lingkaran";
 
-    private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now)
+    private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now, bool force = false)
     {
         var f = S.Farm;
-        if (!f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
-        if (f.CheckPowersInLobby && PowerCheck(s, now) is { } pc) return pc;
+        if (!force && !f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
+        if (!force && f.CheckPowersInLobby && PowerCheck(s, now) is { } pc) return pc;
         Phase = MacroPhase.WalkingToLobby;
 
         // Kandidat: room QuqueRooms (lewati yang terisi pemain lain), cadangan "Start Here", lalu rekaman manual.

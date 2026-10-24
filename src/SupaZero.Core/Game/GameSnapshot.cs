@@ -195,6 +195,8 @@ public sealed record GameSnapshot
     /// <summary>Label "Uses 1 Crystal" di tombol Skip Waiting tampil → skip berbayar.</summary>
     public bool QueueSkipCosts { get; init; }
     public GuiRect? LobbyStart { get; init; }
+    /// <summary>Tombol Leave menu Create Room (MainFrame) = batalkan room.</summary>
+    public GuiRect? LobbyLeave { get; init; }
     /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
     public GuiRect? LobbyMapsView { get; init; }
     public GuiRect? LobbyActsView { get; init; }

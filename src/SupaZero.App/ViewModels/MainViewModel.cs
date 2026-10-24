@@ -66,6 +66,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         General = new GeneralViewModel(this);
         Farm = new FarmViewModel(this);
+        Runner.Machine.CalibrationFinished = scan => Dispatcher.UIThread.Post(() => Farm.ApplyCalibration(scan));
         Upgrade = new UpgradeViewModel(this);
         Offsets = new OffsetsViewModel(this);
         SettingsPage = new SettingsPageViewModel(this);

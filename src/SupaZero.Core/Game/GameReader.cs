@@ -138,6 +138,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             LobbyMapTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyMapTitlePath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyMapLine)) : null,
             LobbyActTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyActTagPath)) ?? Tag(Find(lobby, AnimeZeroPaths.LobbyActLine)) : null,
             LobbyDifficultyTag = lobbyShown ? CleanText(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyDifficultyTagPath))?.Trim('[', ']', ' ') : null,
+            LobbyLeave = lobbyShown ? MenuRect(Find(lobby, AnimeZeroPaths.LobbyLeaveButton)) : null,
             LobbyStart = lobbyShown ? MenuRect(reader.ResolvePath(lobby, AnimeZeroPaths.LobbyStartPath)) ?? MenuRect(Find(lobby, AnimeZeroPaths.LobbyStartButton)) : null,
             LobbyMapsView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyMapsList)) : null,
             LobbyActsView = lobbyShown ? ListView(Find(lobby, AnimeZeroPaths.LobbyActsList)) : null,

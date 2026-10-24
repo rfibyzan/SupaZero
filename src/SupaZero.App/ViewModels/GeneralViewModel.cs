@@ -43,6 +43,13 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
         root.AddLog("Kalibrasi: " + SupaZero.Core.Game.Calibration.Summary(items) + " (detail di kartu Kalibrasi).");
     });
 
+    /// <summary>v0.2.82: kalibrasi aksi — karakter membuka Trait/Spin dan menu room untuk membaca power, map, dan act, lalu Leave.</summary>
+    public RelayCommand CalibrateActionCommand => new(_ =>
+    {
+        if (root.Runner.IsRunning) { root.AddLog("Kalibrasi aksi: hentikan macro dulu."); return; }
+        root.Runner.Start(calibrate: true);
+    });
+
     public RelayCommand ClearLogCommand => new(_ => root.LogLines.Clear());
 
     public void ApplyHotkey()
