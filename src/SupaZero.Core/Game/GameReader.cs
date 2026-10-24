@@ -644,14 +644,35 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     {
         long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;
         if (world == 0) return null;
-        // v0.2.47: AreaEntries.<n> dulu (titik masuk resmi, sama dengan penanda "AREA n" di layar). Spawns.<n> ada di ujung area sebelumnya.
-        foreach (string folder in new[] { AnimeZeroPaths.WorldAreaEntries, AnimeZeroPaths.WorldSpawns, AnimeZeroPaths.WorldAreas })
+        Settings.Vec3? Pos(string folder)
         {
             long f = reader.FindChild(world, folder);
             long node = f != 0 ? reader.FindChild(f, n.ToString()) : 0;
-            if (node != 0 && PositionOf(node) is { } pos) return pos;
+            return node != 0 ? PositionOf(node) : null;
         }
-        return null;
+        // v0.2.47: AreaEntries.<n> dulu (titik masuk resmi, sama dengan penanda "AREA n" di layar). Hanya ada untuk sebagian area.
+        if (Pos(AnimeZeroPaths.WorldAreaEntries) is { } entry) return entry;
+        // v0.2.50: Spawns.<n> ada di ujung area n-1 (Hxh: Spawns.4 (158,-198) masih di kotak Area 3, penanda AREA 4 ~150 stud lagi).
+        // → titik kotak Areas.<n> terdekat ke Spawns.<n>, masuk 8 stud ke dalam = tepi masuk area n.
+        var spawn = Pos(AnimeZeroPaths.WorldSpawns);
+        long areas = reader.FindChild(world, AnimeZeroPaths.WorldAreas);
+        long part = areas != 0 ? reader.FindChild(areas, n.ToString()) : 0;
+        if (part != 0 && props.TryGetWorldPosition(part, out float ax, out float ay, out float az))
+        {
+            var size = ParseVec(Prop(part, "Size"));
+            var center = new Settings.Vec3(ax, ay, az);
+            if (spawn is { } sp && size is { } bs && bs.X > 0) return AreaEntryPoint(center, bs, sp);
+            return spawn ?? center;
+        }
+        return spawn;
+    }
+
+    /// <summary>Titik kotak area (center/size) terdekat ke <paramref name="from"/>, digeser <paramref name="inset"/> stud ke dalam. Y = Y titik asal.</summary>
+    public static Settings.Vec3 AreaEntryPoint(Settings.Vec3 center, Settings.Vec3 size, Settings.Vec3 from, double inset = 8)
+    {
+        double hx = Math.Max(0, size.X / 2 - inset), hz = Math.Max(0, size.Z / 2 - inset);
+        double x = Math.Clamp(from.X, center.X - hx, center.X + hx), z = Math.Clamp(from.Z, center.Z - hz, center.Z + hz);
+        return new(x, from.Y, z);
     }
 
     private Settings.Vec3? PositionOf(long node, int depth = 0)

@@ -612,6 +612,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 actions.Add(new AimAction(sp.X, sp.Y, $"Arahkan ke musuh #{target.Name}"));
         }
 
+        // Tidak ada target (hitungan enemies > 0 tapi model belum punya HumanoidRootPart/HP): jangan serang udara.
+        // HUD "Enter area N" → jalan ke area itu; selain itu tunggu.
+        if (tgt is null && hud is { Enter: true } && s.NextAreaPos is { } enterPos && S.Navigation.AutoNavigate)
+        {
+            Phase = MacroPhase.Navigating;
+            var go = WalkPath(s, enterPos, S.Navigation.ArriveRadius, now, $"area {hud.TargetArea}", S.Navigation.AttackWhenStuck);
+            Status = $"Masuk area {hud.TargetArea}/{hud.AreaTotal} (musuh belum terbaca).";
+            return go.Count > 0 ? go : [new MoveAction([], "Sampai")];
+        }
         var skills = S.Combat.EffectiveSkills.Where(k => k.Enabled && HotkeyMap.TryGetVirtualKey(k.Key, out _)).ToList();
         var dash = skills.FirstOrDefault(IsDash);
         var swap = skills.FirstOrDefault(IsSwap);
@@ -823,7 +832,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         {
             _pathGoal = target;
             _pathAt = now;
-            _path = _planner.Clear(nav, p, target) ? [target] : _planner.Find(nav, p, target);
+            bool clear = _planner.Clear(nav, p, target);
+            _path = clear ? [target] : _planner.Find(nav, p, target);
+            // Diagnosa (maks 1x / 10 dtk): posisi, tujuan, jenis jalur, jumlah rintangan peta → bisa dicocokkan dengan snapshot.
+            _pending.AddRange(Note("path-diag", now, 10000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"Jalur ke {label}: dari ({p.X:0},{p.Z:0}) ke ({target.X:0},{target.Z:0}), {(clear ? "lurus" : _path is null ? "tidak ketemu" : $"{_path.Count} titik{(_planner.UsedOutside ? ", lewat luar Areas" : "")}{(_planner.Partial ? ", parsial" : "")}")}; peta {nav.Walkable.Count} area, {nav.Solids?.Count ?? 0} rintangan.")));
             if (_path is null)
             {
                 return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu: {_planner.LastFailure ?? "?"}. Jalan lurus.")];

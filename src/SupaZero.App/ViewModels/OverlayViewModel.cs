@@ -50,7 +50,8 @@ public sealed class OverlayViewModel(MainViewModel root) : ObservableObject
         parts.Add(s.DashCooling ? "Q …" : "Q ✓");
         Skills = string.Join("   ", parts);
 
-        Power = s.Equipped.Count > 0 ? string.Join("  |  ", s.Equipped.Select(x => x.Name)) : "-";
+        // Hanya power yang sedang dipakai (animasi karakter); cadangan: slot 1 loadout.
+        Power = s.ActivePower ?? s.Equipped.OrderBy(x => x.Loadout).FirstOrDefault()?.Name ?? "-";
         Score = $"Menang {m.StagesCleared} · Kalah {m.Defeats} · Retry {m.Retries}";
         Hint = $"{root.Settings.General.MacroHotkey} untuk stop";
     }

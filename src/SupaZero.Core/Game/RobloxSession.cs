@@ -62,7 +62,7 @@ public sealed class RobloxSession : IDisposable
         return true;
     }
 
-    public GameSnapshot ReadSnapshot() => EnsureReady() && Game is not null ? Game.Read(Roots) with { Equipped = Game.ReadPowers(Roots) } : new GameSnapshot();
+    public GameSnapshot ReadSnapshot() => EnsureReady() && Game is not null ? Game.Read(Roots) with { Equipped = Game.ReadPowers(Roots), ActivePower = Game.ActivePower } : new GameSnapshot();
 
     private bool IsProcessAlive()
     {

@@ -124,6 +124,7 @@ public sealed partial class GameReader
         _powersAt = DateTime.UtcNow;
         try
         {
+            ReadActivePower(roots);
             long pg = roots.PlayerGui;
             if (pg == 0) return _equipped = Powers.SavedLoadout();
             LearnFromTraitScreen(pg);
@@ -161,6 +162,53 @@ public sealed partial class GameReader
         }
         catch { /* baca memori gagal sesaat → pakai hasil sebelumnya */ }
         return _equipped;
+    }
+
+    /// <summary>Power yang sedang dipakai karakter (nama tampil), dari animasi yang diputar Animator karakter. Tetap nilai terakhir bila tak terbaca.</summary>
+    public string? ActivePower { get; private set; }
+    private Dictionary<string, string>? _animToId;
+
+    private void ReadActivePower(DataModelRoots roots)
+    {
+        try
+        {
+            EnsureAnimMap(roots.ReplicatedStorage);
+            if (_animToId is not { Count: > 0 } || roots.LocalPlayer == 0 || !reader.Offsets.TryResolve("Player.ModelInstance", out long mo)) return;
+            if (!M.TryReadPointer(roots.LocalPlayer + mo, out long character) || character == 0) return;
+            long hum = reader.FindChild(character, "Humanoid");
+            long animator = hum != 0 ? reader.FindChild(hum, "Animator") : 0;
+            if (animator == 0) animator = Find(character, "Animator", 3, 200);
+            if (animator == 0) return;
+            foreach (long t in props.GetActiveTracks(animator, 16))
+                if (props.Read(t).TryGetValue("AnimationId", out var a) && AssetNum(a) is { } num && _animToId.TryGetValue(num, out var id))
+                {
+                    ActivePower = Powers.NameFor(id) ?? PowerKnowledge.Pretty(id);
+                    return;
+                }
+        }
+        catch { /* sesaat gagal → nilai terakhir */ }
+    }
+
+    /// <summary>Semua Animation di assets.animations.characters.&lt;id&gt; (idle, run, serangan, skill) → id karakter.</summary>
+    private void EnsureAnimMap(long rs)
+    {
+        if (_animToId is { Count: > 0 } || rs == 0) return;
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        long chars = reader.ResolvePath(rs, AnimCharacters);
+        foreach (long c in chars != 0 ? reader.GetChildren(chars, 256) : new List<long>())
+        {
+            string id = reader.GetName(c);
+            var stack = new Stack<(long, int)>();
+            stack.Push((c, 0));
+            int guard = 0;
+            while (stack.Count > 0 && guard++ < 400)
+            {
+                var (n, d) = stack.Pop();
+                if (reader.GetClassName(n) == "Animation" && props.Read(n).TryGetValue("AnimationId", out var a) && AssetNum(a) is { } num) map.TryAdd(num, id);
+                if (d < 3) foreach (long k in reader.GetChildren(n, 64)) stack.Push((k, d + 1));
+            }
+        }
+        _animToId = map;
     }
 
     private bool IsVisibleFlag(long node) =>

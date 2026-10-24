@@ -16,19 +16,15 @@
       <TextBlock Text="{Binding Phase}" FontWeight="SemiBold" FontSize="12" Foreground="#7FC8FF" />
       <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#DDDDDD" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
       <Border Height="1" Background="#30FFFFFF" Margin="0,3" />
-      <Grid ColumnDefinitions="58,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+      <Grid ColumnDefinitions="58,*" RowDefinitions="Auto,Auto,Auto,Auto">
         <TextBlock Grid.Row="0" Text="Stage" FontSize="11" Foreground="#999999" />
         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Stage}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Row="1" Text="Ronde" FontSize="11" Foreground="#999999" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Area}" FontSize="11" Foreground="White" />
-        <TextBlock Grid.Row="2" Text="Target" FontSize="11" Foreground="#999999" />
-        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Target}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Row="3" Text="Skill" FontSize="11" Foreground="#999999" />
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Skills}" FontSize="11" Foreground="White" />
-        <TextBlock Grid.Row="4" Text="Power" FontSize="11" Foreground="#999999" />
-        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Power}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Row="5" Text="Hasil" FontSize="11" Foreground="#999999" />
-        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Score}" FontSize="11" Foreground="White" />
+        <TextBlock Grid.Row="1" Text="Target" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Target}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Row="2" Text="Power" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Power}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Row="3" Text="Hasil" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Score}" FontSize="11" Foreground="White" />
       </Grid>
       <TextBlock Text="{Binding Hint}" FontSize="10" Foreground="#777777" Margin="0,3,0,0" />
     </StackPanel>

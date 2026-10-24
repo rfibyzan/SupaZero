@@ -174,6 +174,8 @@ public sealed record GameSnapshot
 
     // Power di loadout (lobby; di stage memakai hasil lobby terakhir)
     public IReadOnlyList<EquippedPower> Equipped { get; init; } = [];
+    /// <summary>Power yang sedang dipakai (nama tampil), dari animasi karakter. null = belum terbaca.</summary>
+    public string? ActivePower { get; init; }
 
     // Mode non-Story
     public IReadOnlyList<RewardCard> LobbyRewards { get; init; } = [];

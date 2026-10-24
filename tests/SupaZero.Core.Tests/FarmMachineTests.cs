@@ -581,4 +581,14 @@ public class FarmMachineTests
         Assert.Equal(enter, h.Enter);
         Assert.Equal(target, h.TargetArea);
     }
+
+    [Fact]
+    public void AreaEntryPoint_Hxh_Area4_EdgeNearSpawn()
+    {
+        // Snapshot S1: Spawns.4 (158,0.5,-198.5), Areas.4 center (453.905,25,-200.97) size 299.536×80×131.551.
+        var e = GameReader.AreaEntryPoint(new Vec3(453.905, 25, -200.97), new Vec3(299.536, 80, 131.551), new Vec3(158, 0.5, -198.5));
+        Assert.InRange(e.X, 311, 313);   // tepi barat Area 4 (304.1) + 8
+        Assert.Equal(-198.5, e.Z, 3);
+        Assert.InRange(Math.Sqrt((e.X - 158) * (e.X - 158)), 145, 160); // ≈ penanda "AREA 4 150 studs"
+    }
 }
