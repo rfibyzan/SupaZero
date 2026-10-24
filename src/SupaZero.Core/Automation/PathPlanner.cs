@@ -24,13 +24,18 @@ public sealed class PathPlanner
     {
         if (NeedBuild(map, from, to)) Build(map, from, to);
         var s = Nearest(Cell(from)); var g = Nearest(Cell(to));
-        if (s < 0 || g < 0) return null;
-        var cells = AStar(s, g);
-        if (cells is null) return null;
+        LastFailure = s < 0 ? $"posisi karakter ({from.X:0},{from.Z:0}) tertutup rintangan"
+            : g < 0 ? $"tujuan ({to.X:0},{to.Z:0}) tertutup rintangan" : null;
+        if (s < 0) return null;
+        if (g < 0) g = Cell(to);
+        var cells = AStar(s, g, out bool reached);
+        if (cells is null) { LastFailure ??= "tidak ada sel yang bisa didekati"; return null; }
+        Partial = !reached;
+        if (!reached) LastFailure ??= $"tujuan ({to.X:0},{to.Z:0}) tidak tersambung (pintu/Blocker tertutup?), jalan ke titik terdekat";
         var pts = Smooth(cells);
         var result = pts.Skip(1).Select(c => new Vec3(_minX + (c % _w + 0.5) * _cell, to.Y, _minZ + (c / _w + 0.5) * _cell)).ToList();
-        if (result.Count > 0) result[^1] = to; else result.Add(to);
-        return result;
+        if (reached) { if (result.Count > 0) result[^1] = to; else result.Add(to); }
+        return result.Count > 0 ? result : null;
     }
 
     /// <summary>Apakah garis lurus dari a ke b bebas rintangan (grid sudah dibangun untuk map ini).</summary>
@@ -42,6 +47,10 @@ public sealed class PathPlanner
     }
 
     private double _builtY;
+    /// <summary>Alasan terakhir jalur gagal / hanya parsial (untuk log).</summary>
+    public string? LastFailure { get; private set; }
+    /// <summary>Jalur terakhir berhenti di titik terdekat yang terjangkau, bukan tujuan.</summary>
+    public bool Partial { get; private set; }
     private readonly List<(double X, double Z, double R)> _blocks = [];
 
     /// <summary>Tandai titik tempat karakter tersangkut (objek yang tidak ada di peta) sebagai rintangan untuk map ini.</summary>
@@ -137,7 +146,7 @@ public sealed class PathPlanner
         if (c < 0) return -1;
         if (_free[c]) return c;
         int cx = c % _w, cz = c / _w;
-        for (int r = 1; r <= 6; r++)
+        for (int r = 1; r <= 12; r++)
             for (int dz = -r; dz <= r; dz++)
                 for (int dx = -r; dx <= r; dx++)
                 {
@@ -148,14 +157,17 @@ public sealed class PathPlanner
         return -1;
     }
 
-    private List<int>? AStar(int s, int g)
+    private List<int>? AStar(int s, int g, out bool reached)
     {
+        reached = true;
         if (s == g) return [s, g];
+        int best = s; double bestH = double.MaxValue;
         var gScore = new Dictionary<int, double> { [s] = 0 };
         var came = new Dictionary<int, int>();
         var open = new PriorityQueue<int, double>();
         int gx = g % _w, gz = g / _w;
         double H(int c) { int dx = Math.Abs(c % _w - gx), dz = Math.Abs(c / _w - gz); return Math.Max(dx, dz) + 0.4142 * Math.Min(dx, dz); }
+        bestH = H(s);
         open.Enqueue(s, H(s));
         var closed = new HashSet<int>();
         int guard = 0;
@@ -169,6 +181,8 @@ public sealed class PathPlanner
                 return path;
             }
             if (!closed.Add(c) || ++guard > MaxCells) continue;
+            double hc = H(c);
+            if (hc < bestH) { bestH = hc; best = c; }
             int cx = c % _w, cz = c / _w;
             for (int dz = -1; dz <= 1; dz++)
                 for (int dx = -1; dx <= 1; dx++)
@@ -187,7 +201,14 @@ public sealed class PathPlanner
                     open.Enqueue(n, ng + H(n));
                 }
         }
-        return null;
+        // Tujuan tidak terjangkau: jalur ke sel terjangkau paling dekat ke tujuan (bila memang lebih dekat dari posisi awal).
+        reached = false;
+        if (best == s || H(s) - bestH < 3) return null;
+        var part = new List<int> { best };
+        int cur = best;
+        while (came.TryGetValue(cur, out int p)) { cur = p; part.Add(cur); }
+        part.Reverse();
+        return part;
     }
 
     /// <summary>String pulling: lompati sel selama garis lurus tetap bebas.</summary>

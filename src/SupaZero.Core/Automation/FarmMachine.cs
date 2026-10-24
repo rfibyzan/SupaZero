@@ -741,7 +741,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private List<Vec3>? _path;
     private Vec3? _pathGoal;
     private long _pathAt;
-    private bool _pathFailed;
+    private string? _pathNote;
 
     /// <summary>
     /// Jalan ke tujuan lewat jalur, bukan garis lurus: bila garis lurus terhalang rintangan atau keluar area, A* mencari rute
@@ -768,16 +768,18 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _path = _planner.Clear(nav, p, target) ? [target] : _planner.Find(nav, p, target);
             if (_path is null)
             {
-                _pathFailed = true;
-                return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu di peta, jalan lurus.")];
+                return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu: {_planner.LastFailure ?? "?"}. Jalan lurus.")];
             }
-            _pathFailed = false;
+            if (_planner.Partial) _pathNote = $"Jalur ke {label}: {_planner.LastFailure}.";
         }
         // Buang titik belok yang sudah dilewati (≤ 3 stud) atau yang sudah bisa dilihat titik sesudahnya.
         while (_path.Count > 1 && Navigator.Distance2D(p.X, p.Z, _path[0].X, _path[0].Z) <= 3) _path.RemoveAt(0);
         var wp = _path[0];
         bool last = _path.Count == 1;
         var walk = WalkTo(s, wp, last ? radius : 1.5, now, last ? label : $"{label} (belok {_path.Count - 1})", attackWhenStuck);
+        // Jalur parsial sudah sampai ujung: sisanya jalan lurus (mis. hancurkan rubble/Blocker dengan serang saat tersangkut).
+        if (walk.Count == 0 && last && _planner.Partial) return WalkTo(s, target, radius, now, label, attackWhenStuck);
+        if (_pathNote is { } pn) { _pathNote = null; walk = [.. walk, .. Note("path-partial", now, 8000, pn)]; }
         if (walk.Count == 0 && !last) { _path.RemoveAt(0); return WalkPath(s, target, radius, now, label, attackWhenStuck); }
         if (walk.Count == 0) _path = null;
         return walk;
