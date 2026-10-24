@@ -106,6 +106,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Camera = ReadCamera(ws),
             Enemies = enemyList,
             RubblePos = rubble,
+            RubbleStand = rubble is not null ? _rubbleStand : null,
             RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; nyawa {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
             Arises = ReadArises(ws),
@@ -602,7 +603,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// </summary>
     private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw, Settings.Vec3? me, bool voteShown = false, bool enterHint = false)
     {
-        _rubbleInfo = null; _rubbleHp = null;
+        _rubbleInfo = null; _rubbleHp = null; _rubbleStand = null;
         if (pg == 0) return null;
         bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
         long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
@@ -641,7 +642,14 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             var c = new Settings.Vec3(x, y, z);
             _rubbleInfo = info;
             if (me is { } p && ParseVec(Prop(holder, "Size")) is { } sz && sz.X > 0)
-                return RubbleTarget(c, sz, p);
+            {
+                // v0.2.91: Blocker Border3/Border4 Hxh diputar 90° (LookVector 1,0,0) → titik terdekat wajib ikut rotasi.
+                var lv = ParseVec(Prop(holder, "LookVector"));
+                _rubbleStand = RubbleStandPoint(holder, p);
+                if (_rubbleStand is { } st)
+                    _rubbleInfo += string.Create(System.Globalization.CultureInfo.InvariantCulture, $"; berdiri di ClimbStop ({st.X:0},{st.Z:0})");
+                return RubbleTarget(c, sz, p, lv?.X ?? 0, lv?.Z ?? -1);
+            }
             return c;
         }
         if (holder != 0 && PositionOf(holder) is { } hp) { _rubbleInfo = info; return hp; }
@@ -649,11 +657,46 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return null;
     }
 
-    /// <summary>Titik terdekat di kotak dinding (rata sumbu) ke pemain, Y = Y pemain.</summary>
-    public static Settings.Vec3 RubbleTarget(Settings.Vec3 center, Settings.Vec3 size, Settings.Vec3 me)
+    private Settings.Vec3? _rubbleStand;
+
+    /// <summary>
+    /// Titik terdekat di kotak dinding ke pemain (ikut rotasi LookVector), Y = Y pemain.
+    /// Size.X searah RightVector (-lz, lx), Size.Z searah LookVector (lx, lz). Default LookVector (0,0,-1) = rata sumbu.
+    /// </summary>
+    public static Settings.Vec3 RubbleTarget(Settings.Vec3 center, Settings.Vec3 size, Settings.Vec3 me, double lookX = 0, double lookZ = -1)
     {
-        static double Clamp(double v, double c, double h) => Math.Clamp(v, c - h, c + h);
-        return new(Clamp(me.X, center.X, size.X / 2), me.Y, Clamp(me.Z, center.Z, size.Z / 2));
+        double l = Math.Sqrt(lookX * lookX + lookZ * lookZ);
+        if (l < 1e-6) { lookX = 0; lookZ = -1; l = 1; }
+        lookX /= l; lookZ /= l;
+        double rx = -lookZ, rz = lookX;
+        double dx = me.X - center.X, dz = me.Z - center.Z;
+        double u = Math.Clamp(dx * rx + dz * rz, -Math.Abs(size.X) / 2, Math.Abs(size.X) / 2);
+        double v = Math.Clamp(dx * lookX + dz * lookZ, -Math.Abs(size.Z) / 2, Math.Abs(size.Z) / 2);
+        return new(center.X + u * rx + v * lookX, me.Y, center.Z + u * rz + v * lookZ);
+    }
+
+    /// <summary>
+    /// v0.2.91 (snapshot RIE Byzan 25 Okt 00:59, Hxh Border4): di depan Blocker ada Border*.Rubble.ClimbStop (Part padat
+    /// 200 stud tinggi, ~20 stud di depan dinding Border4) → karakter tidak pernah bisa ≤ 12 stud dari Blocker. Titik berdiri =
+    /// titik ClimbStop terdekat (Border yang sama dengan Blocker Adornee RubbleBar). null bila tidak ada ClimbStop terbaca.
+    /// </summary>
+    private Settings.Vec3? RubbleStandPoint(long blocker, Settings.Vec3 me)
+    {
+        long border = reader.GetParent(blocker);
+        long rub = border != 0 ? reader.FindChild(border, AnimeZeroPaths.RubbleName) : 0;
+        if (rub == 0) return null;
+        Settings.Vec3? best = null; double bd = double.MaxValue;
+        foreach (long c in reader.GetChildren(rub, 256))
+        {
+            if (reader.GetName(c) != AnimeZeroPaths.RubbleClimbStop) continue;
+            if (!props.TryGetWorldPosition(c, out float x, out float y, out float z)) continue;
+            if (ParseVec(Prop(c, "Size")) is not { } sz) continue;
+            var lv = ParseVec(Prop(c, "LookVector"));
+            var t = RubbleTarget(new(x, y, z), sz, me, lv?.X ?? 0, lv?.Z ?? -1);
+            double d = (t.X - me.X) * (t.X - me.X) + (t.Z - me.Z) * (t.Z - me.Z);
+            if (d < bd) { bd = d; best = t; }
+        }
+        return best;
     }
 
     private List<EnemyInfo> ReadEnemies(long folder)

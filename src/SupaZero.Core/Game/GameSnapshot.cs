@@ -160,6 +160,8 @@ public sealed record GameSnapshot
     public IReadOnlyList<EnemyInfo> Enemies { get; init; } = [];
     /// <summary>Rubble yang harus dihancurkan (juga dimasukkan ke Enemies sebagai "Rubble" bila tidak ada musuh hidup).</summary>
     public Settings.Vec3? RubblePos { get; init; }
+    /// <summary>v0.2.91: titik berdiri untuk memukul rubble = titik terdekat di Border*.Rubble.ClimbStop (null = tidak terbaca).</summary>
+    public Settings.Vec3? RubbleStand { get; init; }
     /// <summary>Diagnosa sumber posisi rubble (log).</summary>
     public string? RubbleInfo { get; init; }
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>

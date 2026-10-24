@@ -43,6 +43,8 @@ public static class AnimeZeroPaths
     public const string RubbleBar = "RubbleBar";
     public const string RubbleBossBar = "RubbleBossBar";
     public const string RubbleName = "Rubble";
+    /// <summary>v0.2.91: World.Map.Border*.Rubble.ClimbStop = dinding tak terlihat di depan rubble (batas terdekat yang bisa dicapai).</summary>
+    public const string RubbleClimbStop = "ClimbStop";
     // Menu cek power di lobby (LobbyHUD.LeftSideButtons, "Spinning" terlihat di research.md).
     public const string LobbyHud = "LobbyHUD";
     public const string MenuTrait = "Trait";

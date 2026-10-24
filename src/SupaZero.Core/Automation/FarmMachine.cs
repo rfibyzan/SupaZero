@@ -535,7 +535,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         string area = hud is { AreaTotal: > 0 } ? $"Area {hud.Area}/{hud.AreaTotal}" : "Area ?";
         if (s.HudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true)
             _pending.AddRange(Note("rubble-diag", now, 8000, s.RubblePos is { } rp
-                ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Rubble di ({rp.X:0},{rp.Y:0},{rp.Z:0}) [{s.RubbleInfo}], pemain {(s.PlayerPos is { } pp ? $"({pp.X:0},{pp.Z:0})" : "?")}.")
+                ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Rubble di ({rp.X:0},{rp.Y:0},{rp.Z:0}){(s.RubbleStand is { } rs ? $", berdiri ({rs.X:0},{rs.Z:0})" : "")} [{s.RubbleInfo}], pemain {(s.PlayerPos is { } pp ? $"({pp.X:0},{pp.Z:0})" : "?")}.")
                 : $"Rubble aktif tapi posisinya tidak terbaca: {s.RubbleInfo}."));
         if (left == 0)
         {
@@ -611,10 +611,18 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                 bool isRubble = target.Name == AnimeZeroPaths.RubbleName;
                 // Rubble = dinding solid: cukup dekat (≤ 12 stud) lalu serang; jalan lurus tanpa A* (titiknya di dalam dinding).
                 double range = isRubble ? Math.Min(12, S.Navigation.AttackRange) : S.Navigation.AttackRange;
-                approaching = lootWalk is null && d > range + (isRubble ? 2 : RangeTolerance(S.Navigation.AttackRange));
+                // v0.2.91: ClimbStop di depan rubble terbaca → tujuan = titik ClimbStop terdekat (batas yang bisa dicapai), sampai ≤ 3 stud.
+                var goal = target.Pos;
+                double dGoal = d;
+                if (isRubble && s.RubbleStand is { } stand)
+                {
+                    goal = stand; range = 3;
+                    dGoal = Navigator.Distance2D(me.X, me.Z, stand.X, stand.Z);
+                }
+                approaching = lootWalk is null && dGoal > range + (isRubble ? 2 : RangeTolerance(S.Navigation.AttackRange));
                 if (isRubble) Status += $" · rubble {target.Health:P0}";
                 if (lootWalk is not null) { actions.AddRange(lootWalk); Status += $" · {lootStatus}"; }
-                var walk = lootWalk is not null ? [] : approaching ? WalkPath(s, target.Pos, range, now, isRubble ? "rubble" : $"musuh #{target.Name}", isRubble) : [];
+                var walk = lootWalk is not null ? [] : approaching ? WalkPath(s, goal, range, now, isRubble ? "rubble" : $"musuh #{target.Name}", isRubble) : [];
                 if (lootWalk is null) actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
             // Bidik ke tengah kelompok: rata-rata posisi musuh hidup ≤ 15 stud dari target (skill kebanyakan AOE).
