@@ -223,7 +223,9 @@ public sealed record GameSnapshot
             if (!Attached) return GameScreen.Unknown;
             if (EndScreenVisible || IsDefeat) return IsDefeat ? GameScreen.Defeat : GameScreen.Victory;
             // Vote hanya sebelum musuh muncul; ada musuh hidup = ronde berjalan (vote basi tidak boleh menahan Fight).
-            if (StartVoteVisible && (EnemyCount <= 0 || (Enemies.Count > 0 && !Enemies.Any(e => e.Alive)))) return GameScreen.StartVote;
+            // v0.2.71: Workspace.Enemies bisa berisi sisa model tanpa HRP/HP (mayat, shadow) → EnemyCount > 0 tapi daftar musuh kosong,
+            // dulu vote tidak pernah diklik (screenshot Byzan 24 Okt 22:42, "Get ready" 0/1 votes). Cukup: tidak ada musuh hidup terbaca.
+            if (StartVoteVisible && !Enemies.Any(e => e.Alive) && (EnemyCount <= 0 || Enemies.Count > 0 || HudRaw?.Contains("ready", StringComparison.OrdinalIgnoreCase) == true)) return GameScreen.StartVote;
             if (Blessings.Count > 0) return GameScreen.BlessingPick;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;
             if (QueueSkip is not null) return GameScreen.QueueWaiting;

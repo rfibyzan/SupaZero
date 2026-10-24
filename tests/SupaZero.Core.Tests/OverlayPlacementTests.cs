@@ -35,5 +35,7 @@ public class OverlayPlacementTests
         var s = new SupaZero.Core.Game.GameSnapshot { Attached = true, StartVoteVisible = true, EnemyCount = 3 };
         Assert.Equal(SupaZero.Core.Game.GameScreen.InRound, s.Screen);
         Assert.Equal(SupaZero.Core.Game.GameScreen.StartVote, (s with { EnemyCount = 0 }).Screen);
+        // v0.2.71: sisa model di Workspace.Enemies (EnemyCount 2, daftar kosong) tapi HUD "Easy · Get ready!" → tetap vote.
+        Assert.Equal(SupaZero.Core.Game.GameScreen.StartVote, (s with { EnemyCount = 2, HudRaw = "Easy · Get ready!" }).Screen);
     }
 }
