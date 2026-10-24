@@ -43,9 +43,9 @@ public class FarmMachineTests
         var snap = new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left") };
         var a1 = m.Step(snap, 10_000);
         Assert.DoesNotContain(a1, x => x is AttackAction); // tick dengan skill → basic attack dilewati
-        var k1 = Assert.Single(a1.OfType<KeyAction>());
+        var k1 = Assert.Single(a1.OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
         var a2 = m.Step(snap, 11_300);
-        var k2 = Assert.Single(a2.OfType<KeyAction>());
+        var k2 = Assert.Single(a2.OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
         Assert.NotEqual(k1.VirtualKey, k2.VirtualKey);
         Assert.Equal(MacroPhase.Fighting, m.Phase);
     }
@@ -75,10 +75,10 @@ public class FarmMachineTests
             Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left"),
             SkillCooldowns = [new("1", 1.7, false), new("2", null, true), new("3", null, false)],
         };
-        var k = Assert.Single(m.Step(snap, 10_000).OfType<KeyAction>());
+        var k = Assert.Single(m.Step(snap, 10_000).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
         Assert.Contains("(3)", k.Reason);
-        Assert.Empty(m.Step(snap, 10_200).OfType<KeyAction>()); // 1 cooldown, 2 terkunci, 3 baru dipakai
-        Assert.Single(m.Step(snap, 10_700).OfType<KeyAction>()); // HUD bilang 3 siap lagi
+        Assert.Empty(m.Step(snap, 10_200).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash"))); // 1 cooldown, 2 terkunci, 3 baru dipakai
+        Assert.Single(m.Step(snap, 10_700).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash"))); // HUD bilang 3 siap lagi
     }
 
     [Fact]

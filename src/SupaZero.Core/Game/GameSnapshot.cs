@@ -91,6 +91,8 @@ public sealed record GameSnapshot
     /// <summary>Darah karakter 0..1 (Humanoid Health/MaxHealth), null bila tidak terbaca.</summary>
     public double? PlayerHp { get; init; }
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
+    /// <summary>Peta navigasi ronde (Areas + rintangan Navigation) untuk cari jalur; null di luar ronde.</summary>
+    public NavMap? Nav { get; init; }
     public (double X, double Z)? CameraLook { get; init; }
     public CameraInfo? Camera { get; init; }
     /// <summary>Musuh hidup/mati di Workspace.enemies (kosong bila tidak terbaca).</summary>

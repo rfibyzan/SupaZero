@@ -172,6 +172,7 @@ public sealed partial class GameReader
             BossTag = bossTag,
             BossSpawn = bossSpawn,
             CurrentArea = areaBox,
+            Nav = snap.InRound ? ReadNav(ws) : null,
             NextButton = endShown ? EndButton(end, pg, "NextButton") : null,
             RetryButton = endShown ? EndButton(end, pg, "RetryButton") : null,
             LeaveButton = endShown ? EndButton(end, pg, "LeaveButton") : null,

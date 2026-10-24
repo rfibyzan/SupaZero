@@ -1,0 +1,199 @@
+using SupaZero.Core.Game;
+using SupaZero.Core.Settings;
+
+namespace SupaZero.Core.Automation;
+
+/// <summary>
+/// Cari jalur di bidang XZ dengan A* di grid dari <see cref="NavMap"/> (tanpa PathfindingService, murni dari memori yang dibaca).
+/// Sel jalan = di dalam kotak Areas (diperbesar sedikit) atau dekat node "navN"; sel tertutup = di dalam jejak rintangan
+/// (diperbesar setebal badan karakter). Jalur dirapikan (string pulling) jadi beberapa titik belok.
+/// </summary>
+public sealed class PathPlanner
+{
+    /// <summary>Margin kotak Areas, jari-jari node nav, tebal badan (inflasi rintangan), stud.</summary>
+    public const double AreaGrow = 1, NodeRadius = 5, BodyInflate = 1.6, EndpointRadius = 4;
+    private const int MaxCells = 300_000;
+
+    private NavMap? _map;
+    private double _minX, _minZ, _cell;
+    private int _w, _h;
+    private bool[] _free = [];
+
+    /// <summary>Titik belok dari <paramref name="from"/> ke <paramref name="to"/> (tidak termasuk titik awal), atau null bila tidak ada jalur.</summary>
+    public List<Vec3>? Find(NavMap map, Vec3 from, Vec3 to)
+    {
+        if (!ReferenceEquals(map, _map) || !Inside(from) || !Inside(to)) Build(map, from, to);
+        var s = Nearest(Cell(from)); var g = Nearest(Cell(to));
+        if (s < 0 || g < 0) return null;
+        var cells = AStar(s, g);
+        if (cells is null) return null;
+        var pts = Smooth(cells);
+        var result = pts.Skip(1).Select(c => new Vec3(_minX + (c % _w + 0.5) * _cell, to.Y, _minZ + (c / _w + 0.5) * _cell)).ToList();
+        if (result.Count > 0) result[^1] = to; else result.Add(to);
+        return result;
+    }
+
+    /// <summary>Apakah garis lurus dari a ke b bebas rintangan (grid sudah dibangun untuk map ini).</summary>
+    public bool Clear(NavMap map, Vec3 a, Vec3 b)
+    {
+        if (!ReferenceEquals(map, _map) || !Inside(a) || !Inside(b)) Build(map, a, b);
+        int ca = Cell(a), cb = Cell(b);
+        return ca >= 0 && cb >= 0 && Line(ca, cb);
+    }
+
+    private bool Inside(Vec3 p) => _w > 0 && p.X >= _minX && p.Z >= _minZ && p.X < _minX + _w * _cell && p.Z < _minZ + _h * _cell;
+    private int Cell(Vec3 p)
+    {
+        int x = (int)Math.Floor((p.X - _minX) / _cell), z = (int)Math.Floor((p.Z - _minZ) / _cell);
+        return x < 0 || z < 0 || x >= _w || z >= _h ? -1 : z * _w + x;
+    }
+
+    private void Build(NavMap map, Vec3 from, Vec3 to)
+    {
+        _map = map;
+        double minX = Math.Min(from.X, to.X), minZ = Math.Min(from.Z, to.Z), maxX = Math.Max(from.X, to.X), maxZ = Math.Max(from.Z, to.Z);
+        foreach (var r in map.Walkable) { var b = r.Bounds(AreaGrow); minX = Math.Min(minX, b.MinX); minZ = Math.Min(minZ, b.MinZ); maxX = Math.Max(maxX, b.MaxX); maxZ = Math.Max(maxZ, b.MaxZ); }
+        foreach (var n in map.Nodes) { minX = Math.Min(minX, n.X - NodeRadius); minZ = Math.Min(minZ, n.Z - NodeRadius); maxX = Math.Max(maxX, n.X + NodeRadius); maxZ = Math.Max(maxZ, n.Z + NodeRadius); }
+        // Area sangat luas (mis. Areas.1 682 stud) → sel diperbesar agar grid tetap ≤ MaxCells.
+        minX -= 20; minZ -= 20; maxX += 20; maxZ += 20;
+        _cell = 2;
+        while ((maxX - minX) / _cell * ((maxZ - minZ) / _cell) > MaxCells) _cell += 0.5;
+        _minX = minX; _minZ = minZ;
+        _w = Math.Max(1, (int)Math.Ceiling((maxX - minX) / _cell));
+        _h = Math.Max(1, (int)Math.Ceiling((maxZ - minZ) / _cell));
+        _free = new bool[_w * _h];
+        bool open = map.Walkable.Count == 0 && map.Nodes.Count == 0;
+        if (open) Array.Fill(_free, true);
+        foreach (var r in map.Walkable) Paint(r.Bounds(AreaGrow), (x, z) => r.Contains(x, z, AreaGrow), true);
+        foreach (var n in map.Nodes) Paint((n.X - NodeRadius, n.Z - NodeRadius, n.X + NodeRadius, n.Z + NodeRadius), (x, z) => Navigator.Distance2D(x, z, n.X, n.Z) <= NodeRadius, true);
+        // Titik awal/tujuan di luar wilayah jalan (mis. spawn raid 56 stud sebelum node tangga): sambungkan dengan koridor lurus ke sel jalan terdekat.
+        if (!open) foreach (var p in new[] { from, to }) Connect(p);
+        foreach (var p in new[] { from, to }) Paint((p.X - EndpointRadius, p.Z - EndpointRadius, p.X + EndpointRadius, p.Z + EndpointRadius), (x, z) => Navigator.Distance2D(x, z, p.X, p.Z) <= EndpointRadius, true);
+        foreach (var r in map.Obstacles) Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
+    }
+
+    private void Connect(Vec3 p)
+    {
+        int c = Cell(p);
+        if (c < 0 || _free[c]) return;
+        int px = c % _w, pz = c / _w, best = -1;
+        long bestD = long.MaxValue;
+        for (int i = 0; i < _free.Length; i++)
+        {
+            if (!_free[i]) continue;
+            long dx = i % _w - px, dz = i / _w - pz, d = dx * dx + dz * dz;
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        if (best < 0) return;
+        double bx = best % _w, bz = best / _w;
+        int steps = (int)Math.Ceiling(Math.Sqrt(bestD) * 2) + 1;
+        for (int k = 0; k <= steps; k++)
+        {
+            double t = (double)k / steps, x = px + (bx - px) * t, z = pz + (bz - pz) * t;
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int cx = (int)Math.Round(x) + dx, cz = (int)Math.Round(z) + dz;
+                    if (cx >= 0 && cz >= 0 && cx < _w && cz < _h) _free[cz * _w + cx] = true;
+                }
+        }
+    }
+
+    private void Paint((double MinX, double MinZ, double MaxX, double MaxZ) b, Func<double, double, bool> test, bool value)
+    {
+        int x0 = Math.Max(0, (int)Math.Floor((b.MinX - _minX) / _cell)), x1 = Math.Min(_w - 1, (int)Math.Floor((b.MaxX - _minX) / _cell));
+        int z0 = Math.Max(0, (int)Math.Floor((b.MinZ - _minZ) / _cell)), z1 = Math.Min(_h - 1, (int)Math.Floor((b.MaxZ - _minZ) / _cell));
+        for (int z = z0; z <= z1; z++)
+            for (int x = x0; x <= x1; x++)
+                if (test(_minX + (x + 0.5) * _cell, _minZ + (z + 0.5) * _cell)) _free[z * _w + x] = value;
+    }
+
+    /// <summary>Sel bebas terdekat (karakter bisa berdiri di tepi rintangan yang diinflasi).</summary>
+    private int Nearest(int c)
+    {
+        if (c < 0) return -1;
+        if (_free[c]) return c;
+        int cx = c % _w, cz = c / _w;
+        for (int r = 1; r <= 6; r++)
+            for (int dz = -r; dz <= r; dz++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r) continue;
+                    int x = cx + dx, z = cz + dz;
+                    if (x >= 0 && z >= 0 && x < _w && z < _h && _free[z * _w + x]) return z * _w + x;
+                }
+        return -1;
+    }
+
+    private List<int>? AStar(int s, int g)
+    {
+        if (s == g) return [s, g];
+        var gScore = new Dictionary<int, double> { [s] = 0 };
+        var came = new Dictionary<int, int>();
+        var open = new PriorityQueue<int, double>();
+        int gx = g % _w, gz = g / _w;
+        double H(int c) { int dx = Math.Abs(c % _w - gx), dz = Math.Abs(c / _w - gz); return Math.Max(dx, dz) + 0.4142 * Math.Min(dx, dz); }
+        open.Enqueue(s, H(s));
+        var closed = new HashSet<int>();
+        int guard = 0;
+        while (open.TryDequeue(out int c, out _))
+        {
+            if (c == g)
+            {
+                var path = new List<int> { c };
+                while (came.TryGetValue(c, out int p)) { c = p; path.Add(c); }
+                path.Reverse();
+                return path;
+            }
+            if (!closed.Add(c) || ++guard > MaxCells) continue;
+            int cx = c % _w, cz = c / _w;
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    if (dx == 0 && dz == 0) continue;
+                    int x = cx + dx, z = cz + dz;
+                    if (x < 0 || z < 0 || x >= _w || z >= _h) continue;
+                    int n = z * _w + x;
+                    if (!_free[n] || closed.Contains(n)) continue;
+                    // Diagonal tidak boleh memotong sudut rintangan.
+                    if (dx != 0 && dz != 0 && (!_free[cz * _w + x] || !_free[z * _w + cx])) continue;
+                    double ng = gScore[c] + (dx != 0 && dz != 0 ? 1.4142 : 1);
+                    if (gScore.TryGetValue(n, out double old) && old <= ng) continue;
+                    gScore[n] = ng;
+                    came[n] = c;
+                    open.Enqueue(n, ng + H(n));
+                }
+        }
+        return null;
+    }
+
+    /// <summary>String pulling: lompati sel selama garis lurus tetap bebas.</summary>
+    private List<int> Smooth(List<int> cells)
+    {
+        var outp = new List<int> { cells[0] };
+        int i = 0;
+        while (i < cells.Count - 1)
+        {
+            int j = cells.Count - 1;
+            while (j > i + 1 && !Line(cells[i], cells[j])) j--;
+            outp.Add(cells[j]);
+            i = j;
+        }
+        return outp;
+    }
+
+    /// <summary>Garis sel a→b bebas (sampling ¼ sel, termasuk tetangga agar tidak menyerempet sudut).</summary>
+    private bool Line(int a, int b)
+    {
+        double ax = a % _w + 0.5, az = a / _w + 0.5, bx = b % _w + 0.5, bz = b / _w + 0.5;
+        double len = Math.Max(Math.Abs(bx - ax), Math.Abs(bz - az));
+        int steps = Math.Max(1, (int)Math.Ceiling(len * 4));
+        for (int k = 0; k <= steps; k++)
+        {
+            double t = (double)k / steps;
+            int x = (int)(ax + (bx - ax) * t), z = (int)(az + (bz - az) * t);
+            if (x < 0 || z < 0 || x >= _w || z >= _h || !_free[z * _w + x]) return false;
+        }
+        return true;
+    }
+}

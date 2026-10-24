@@ -43,6 +43,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         _roomBan.Clear();
         _pickupBan.Clear();
         _pickupKey = null;
+        _path = null;
+        _pathGoal = null;
         _scrolls.Clear();
         _diffAt = null;
         _roomTarget = null;
@@ -462,7 +464,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (!S.Navigation.AutoNavigate) { Status = $"{area} bersih (Auto navigasi mati)."; return []; }
             if (s.NextAreaPos is null && s.CurrentArea is { } cur && s.PlayerPos is { } pIn && !cur.Contains(pIn, 10))
             {
-                var walkIn = WalkTo(s, cur.Center, S.Navigation.ArriveRadius, now, "area pertarungan", S.Navigation.AttackWhenStuck);
+                var walkIn = WalkPath(s, cur.Center, S.Navigation.ArriveRadius, now, "area pertarungan", S.Navigation.AttackWhenStuck);
                 Status = "Jalan masuk area pertarungan.";
                 return walkIn.Count > 0 ? walkIn : [new MoveAction([], "Sampai area")];
             }
@@ -471,7 +473,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 Status = $"{area} bersih, area berikutnya tidak terbaca.";
                 return [new MoveAction([], "Tujuan tidak ada"), .. Note("nav-none", now, 6000, $"{area} bersih tapi posisi area berikutnya (World.Spawns/Areas) tidak terbaca.")];
             }
-            var walk = WalkTo(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.Area + 1}", S.Navigation.AttackWhenStuck);
+            var walk = WalkPath(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.Area + 1}", S.Navigation.AttackWhenStuck);
             Status = walk.Count == 0 ? $"Sampai area {hud!.Area + 1}, menunggu musuh." : $"{area} bersih → jalan ke area {hud!.Area + 1}.";
             return walk.Count == 0 ? [new MoveAction([], "Sampai")] : walk;
         }
@@ -497,7 +499,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (s.CurrentArea is { } box && !box.Contains(meIn, 10))
             {
                 Phase = MacroPhase.Navigating;
-                var walkIn = WalkTo(s, box.Center, S.Navigation.ArriveRadius, now, "area pertarungan", S.Navigation.AttackWhenStuck);
+                var walkIn = WalkPath(s, box.Center, S.Navigation.ArriveRadius, now, "area pertarungan", S.Navigation.AttackWhenStuck);
                 Status = s.BossImmune ? $"Boss {s.BossName} IMMUNE → masuk area dulu." : "Jalan masuk area pertarungan.";
                 return walkIn.Count > 0 ? walkIn : [new MoveAction([], "Sampai area")];
             }
@@ -518,7 +520,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 // Jarak serang dipertahankan: lebih jauh dari jarak + toleransi → kejar; dalam pita → roaming di lingkaran berjari-jari jarak serang
                 // (terlalu dekat otomatis mundur karena titik roaming ada di lingkaran itu).
                 approaching = d > S.Navigation.AttackRange + RangeTolerance(S.Navigation.AttackRange);
-                var walk = approaching ? WalkTo(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
+                var walk = approaching ? WalkPath(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
                 actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
             if (S.Navigation.AimAtEnemy && s.ShiftLock)
@@ -581,7 +583,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (due is not null && HotkeyMap.TryGetVirtualKey(due.Key, out uint vk))
         {
             _skillLast[due.Name] = now;
+            _lastSkillPress = now;
             _attackHoldUntil = now + 250;
+            // Saat animasi skill berjalan, Space ditolak game → lompat dulu (sambil roaming), lalu skill dilepas di udara.
+            if (!approaching && S.Navigation.ChaseEnemies && now - _lastJump >= 600)
+            {
+                _lastJump = now;
+                _nextRoamJump = now + 700 + _rng.Next(600);
+                actions.Add(new KeyAction(VirtualKeys.Space, 90, "Lompat (sebelum skill)"));
+            }
             actions.Add(new KeyAction((ushort)vk, 60, $"{due.Name} ({due.Key})"));
         }
         // Ganti power (T) hanya saat skill 1, 2, 3 di HUD semuanya cooldown/terkunci. T ditolak game selama animasi
@@ -622,10 +632,12 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         // Jangan Dash ≤ 500 ms sebelum T ditekan (animasi Dash bisa menelan T) atau di tick yang sama.
         bool swapSoon = _swapPrepSince is long ps && now >= _swapRestUntil && Math.Max(ps + SwapPrepMs, _swapLastPress + 1200) - now < 500;
         bool swapNow = swap is not null && actions.Any(a => a is KeyAction k && k.Reason.StartsWith(swap.Name, StringComparison.Ordinal));
-        if (skillsOut && dash is not null && !s.DashCooling && !swapSoon && !swapNow
+        // Juga di sela skill: setelah animasi skill selesai dan tidak ada skill ditekan tick ini → Dash ke samping (arah roaming).
+        bool skillGap = due is null && now - _lastSkillPress >= SkillAnimMs && now - _lastJump >= 250;
+        if ((skillsOut || skillGap) && dash is not null && !s.DashCooling && !swapSoon && !swapNow
             && actions.OfType<MoveAction>().Any(m => m.Keys.Count > 0) && Ready("dash-roam", now, Math.Max(1500, dash.CooldownMs))
             && HotkeyMap.TryGetVirtualKey(dash.Key, out uint rvk))
-            actions.Add(new KeyAction((ushort)rvk, 40, $"{dash.Name} ({dash.Key}) menghindar, skill habis"));
+            actions.Add(new KeyAction((ushort)rvk, 40, $"{dash.Name} ({dash.Key}) menghindar{(skillsOut ? ", skill habis" : " di sela skill")}"));
         return actions;
     }
 
@@ -656,9 +668,11 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         var keys = Navigator.KeysToward(p.X, p.Z, look.X, look.Z, gx, gz, 0.8);
         actions.RemoveAll(x => x is MoveAction);
         actions.Insert(0, new MoveAction(keys, "Roaming melingkari musuh"));
-        if (now >= _nextRoamJump)
+        // Lompat terjadwal ditunda bila skill baru ditekan (< 700 ms, animasi skill menelan Space) atau sudah lompat sebelum skill.
+        if (now >= _nextRoamJump && now - _lastSkillPress >= SkillAnimMs && now - _lastJump >= 600)
         {
             _nextRoamJump = now + 700 + _rng.Next(600);
+            _lastJump = now;
             // Lompat ditolak game selama animasi serang: buang klik serangan di tick ini dan tahan serangan 300 ms.
             actions.RemoveAll(x => x is AttackAction);
             _attackHoldUntil = Math.Max(_attackHoldUntil, now + 300);
@@ -674,7 +688,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private const int SwapPrepMs = 900;
     private bool ResetSwap() { _swapPrepSince = null; _swapTries = 0; return true; }
     private long? _roamSince;
-    private long _roamLast, _nextRoamJump, _roamFlipAt;
+    private long _roamLast, _nextRoamJump, _roamFlipAt, _lastJump = long.MinValue / 2, _lastSkillPress = long.MinValue / 2;
+    /// <summary>Perkiraan lama animasi skill (Space/Dash ditolak game selama itu).</summary>
+    private const int SkillAnimMs = 700;
     private int _roamDir = 1;
     private double _roamAngle;
     private readonly Random _rng = new();
@@ -713,10 +729,51 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return [new MoveAction([], "Lewati item"), .. Note("pickup-ban", now, 4000, $"Item {best.p.Kind} tidak terambil dalam {PickupGiveUpMs / 1000} dtk, dilewati.")];
         }
         string what = best.p.IsHealth ? "health" : "koin";
-        var walk = WalkTo(s, best.p.Pos, 1.0, now, what, false);
+        var walk = WalkPath(s, best.p.Pos, 1.0, now, what, false);
         int left = s.Pickups.Count;
         Status = $"Ambil {what} ({best.d:0} stud, {left} item)";
         return walk.Count > 0 ? walk : [new MoveAction([], $"Di atas {what}")];
+    }
+
+    // ---------- Cari jalur (A* di peta Areas + rintangan Navigation) ----------
+
+    private readonly PathPlanner _planner = new();
+    private List<Vec3>? _path;
+    private Vec3? _pathGoal;
+    private long _pathAt;
+    private bool _pathFailed;
+
+    /// <summary>
+    /// Jalan ke tujuan lewat jalur, bukan garis lurus: bila garis lurus terhalang rintangan atau keluar area, A* mencari rute
+    /// (mis. memutar huruf U), lalu karakter berjalan dari titik belok ke titik belok. Tanpa peta / jalur → <see cref="WalkTo"/>.
+    /// </summary>
+    private List<MacroAction> WalkPath(GameSnapshot s, Vec3 target, double radius, long now, string label, bool attackWhenStuck)
+    {
+        if (s.Nav is not { IsEmpty: false } nav || s.PlayerPos is not { } p
+            || Navigator.Distance2D(p.X, p.Z, target.X, target.Z) <= Math.Max(radius, 6))
+        { _path = null; return WalkTo(s, target, radius, now, label, attackWhenStuck); }
+        bool stuck = _stuckRef is not null && now - _stuckSince >= 1500;
+        bool goalMoved = _pathGoal is not { } g || Navigator.Distance2D(g.X, g.Z, target.X, target.Z) > 6;
+        if (_path is null || goalMoved || stuck && now - _pathAt > 1500 || now - _pathAt > 4000)
+        {
+            _pathGoal = target;
+            _pathAt = now;
+            _path = _planner.Clear(nav, p, target) ? [target] : _planner.Find(nav, p, target);
+            if (_path is null)
+            {
+                _pathFailed = true;
+                return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu di peta, jalan lurus.")];
+            }
+            _pathFailed = false;
+        }
+        // Buang titik belok yang sudah dilewati (≤ 3 stud) atau yang sudah bisa dilihat titik sesudahnya.
+        while (_path.Count > 1 && Navigator.Distance2D(p.X, p.Z, _path[0].X, _path[0].Z) <= 3) _path.RemoveAt(0);
+        var wp = _path[0];
+        bool last = _path.Count == 1;
+        var walk = WalkTo(s, wp, last ? radius : 1.5, now, last ? label : $"{label} (belok {_path.Count - 1})", attackWhenStuck);
+        if (walk.Count == 0 && !last) { _path.RemoveAt(0); return WalkPath(s, target, radius, now, label, attackWhenStuck); }
+        if (walk.Count == 0) _path = null;
+        return walk;
     }
 
     private List<MacroAction> WalkTo(GameSnapshot s, Vec3 target, double radius, long now, string label, bool attackWhenStuck)

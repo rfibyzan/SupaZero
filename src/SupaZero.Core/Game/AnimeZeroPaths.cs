@@ -15,8 +15,9 @@ public static class AnimeZeroPaths
     public const string Enemies = "enemies";            // Workspace.enemies: Model bernama angka (HRP + Humanoid); mati = Model dihapus
     public const string World = "World";                // Workspace.World: Areas 1-5, Spawns 1-5, Navigation, TpBack
     public const string WorldAreas = "Areas";
+    public const string WorldNavigation = "Navigation"; // [V] S15 Hxh: jejak rintangan (Part datar Y=3); ER2: node "navN" 4×4×4 (tangga)
+    public static readonly string[] WorldBarrierFolders = ["Barriers", "NpcBarriers"]; // [V] ada (kosong di S15)
     public const string WorldSpawns = "Spawns";
-    public const string WorldNavigation = "Navigation"; // part rintangan (boulder dll.) [V]
 
     // PlayerGui: HUD ronde
     public const string RoundHud = "RoundHUD";
