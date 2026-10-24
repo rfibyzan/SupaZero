@@ -37,7 +37,7 @@ public sealed record StopAction(string Reason) : MacroAction(Reason);
 
 public static class VirtualKeys
 {
-    public const ushort W = 0x57, A = 0x41, S = 0x53, D = 0x44, Q = 0x51, T = 0x54, Space = 0x20;
+    public const ushort W = 0x57, A = 0x41, S = 0x53, D = 0x44, Q = 0x51, T = 0x54, E = 0x45, Space = 0x20;
 
     /// <summary>"1" → 0x31, "Q" → 0x51. Hanya huruf/angka tunggal.</summary>
     public static bool TryParse(string? key, out ushort vk)

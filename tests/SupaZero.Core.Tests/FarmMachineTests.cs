@@ -611,4 +611,35 @@ public class FarmMachineTests
         Assert.Equal(-198.5, e.Z, 3);
         Assert.InRange(Math.Sqrt((e.X - 158) * (e.X - 158)), 145, 160); // ≈ penanda "AREA 4 150 studs"
     }
+
+    [Fact]
+    public void Arise_WalksToCorpse_ThenHoldsE()
+    {
+        var (m, _) = New();
+        var far = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
+            PlayerPos = new(0, 3, 0), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -15), 100, 100)],
+            Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 20), 0.9, 10)],
+        };
+        var a = m.Step(far, 10_000);
+        Assert.Contains(a, x => x is MoveAction { Keys.Count: > 0 });
+        Assert.DoesNotContain(a.OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        var near = far with { PlayerPos = new(0, 3, 18) };
+        var e = Assert.Single(m.Step(near, 10_500).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        Assert.Equal(1150, e.HoldMs);
+    }
+
+    [Fact]
+    public void Arise_Disabled_Ignored()
+    {
+        var (m, _) = New(s => s.Combat = s.Combat with { AutoArise = false });
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
+            PlayerPos = new(0, 3, 0), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -5), 100, 100)],
+            Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 2), 0.9, 10)],
+        };
+        Assert.DoesNotContain(m.Step(snap, 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+    }
 }

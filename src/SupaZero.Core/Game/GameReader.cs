@@ -108,6 +108,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             RubblePos = rubble,
             RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; nyawa {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
+            Arises = ReadArises(ws),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
             NextAreaCenter = hud is { TargetArea: > 0 } ? ReadAreaCenter(ws, hud.TargetArea) : null,
@@ -659,6 +660,27 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         {
             if (!props.TryGetWorldPosition(d, out float x, out float y, out float z) || y < AnimeZeroPaths.PooledDropParkedY) continue;
             list.Add(new PickupInfo(reader.GetName(d), new(x, y, z)));
+        }
+        return list;
+    }
+
+    /// <summary>v0.2.67: Workspace.AriseShadows.&lt;n&gt;.Arise (ProximityPrompt Enabled) → posisi Part induk + HoldDuration.</summary>
+    private List<AriseInfo> ReadArises(long ws)
+    {
+        var list = new List<AriseInfo>();
+        long folder = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.AriseShadows) : 0;
+        if (folder == 0) return list;
+        foreach (long part in reader.GetChildren(folder, 64))
+        {
+            long pr = reader.FindChild(part, AnimeZeroPaths.ArisePrompt);
+            if (pr == 0 || reader.GetClassName(pr) != "ProximityPrompt") continue;
+            if (!props.TryGetWorldPosition(part, out float x, out float y, out float z)) continue;
+            var p = props.Read(pr, "ProximityPrompt");
+            if (p.TryGetValue("Enabled", out var en) && en.Equals("false", StringComparison.OrdinalIgnoreCase)) continue;
+            double hold = p.TryGetValue("HoldDuration", out var h) ? Num(h, 0.9) : 0.9;
+            double max = p.TryGetValue("MaxActivationDistance", out var md) ? Num(md, 10) : 10;
+            string name = p.TryGetValue("ObjectText", out var ot) && !string.IsNullOrWhiteSpace(ot) ? ot : reader.GetName(part);
+            list.Add(new AriseInfo(name, new(x, y, z), hold is > 0 and < 10 ? hold : 0.9, max is > 1 and < 100 ? max : 10));
         }
         return list;
     }

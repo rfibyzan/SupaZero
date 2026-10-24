@@ -27,6 +27,9 @@ public sealed record PickupInfo(string Kind, Settings.Vec3 Pos)
     public bool IsHealth => Kind.StartsWith("health", StringComparison.OrdinalIgnoreCase);
 }
 
+/// <summary>v0.2.67: mayat yang bisa dibangkitkan (Shadow Lord): Workspace.AriseShadows.&lt;n&gt;.Arise. Hold = detik tahan E.</summary>
+public sealed record AriseInfo(string Name, Settings.Vec3 Pos, double Hold, double MaxDistance);
+
 /// <summary>Kamera: posisi, LookVector, FieldOfView (vertikal, derajat), ViewportSize (= area klien).</summary>
 public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)
 {
@@ -91,6 +94,8 @@ public sealed record GameSnapshot
     /// <summary>Darah karakter 0..1 (Humanoid Health/MaxHealth), null bila tidak terbaca.</summary>
     public double? PlayerHp { get; init; }
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
+    /// <summary>v0.2.67: prompt ARISE aktif (Shadow Lord), kosong bila tidak ada.</summary>
+    public IReadOnlyList<AriseInfo> Arises { get; init; } = [];
     /// <summary>Peta navigasi ronde (Areas + rintangan Navigation) untuk cari jalur; null di luar ronde.</summary>
     public NavMap? Nav { get; init; }
     public (double X, double Z)? CameraLook { get; init; }

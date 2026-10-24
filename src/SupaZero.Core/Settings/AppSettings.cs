@@ -97,7 +97,9 @@ public sealed record SkillBinding(string Name, string Key, bool Enabled, int Coo
 
 public sealed record CombatSettings(
     int AttackIntervalMs = 150,
-    List<SkillBinding>? Skills = null)
+    List<SkillBinding>? Skills = null,
+    /// <summary>v0.2.67: Shadow Lord: dekati mayat berprompt ARISE lalu tahan E sampai bangkit jadi sekutu.</summary>
+    bool AutoArise = true)
 {
     public static List<SkillBinding> DefaultSkills() =>
     [

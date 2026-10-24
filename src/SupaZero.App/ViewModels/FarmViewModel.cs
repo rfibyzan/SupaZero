@@ -171,6 +171,7 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(CircleText));
     });
 
+    public bool AutoArise { get => S.Combat.AutoArise; set { S.Combat = S.Combat with { AutoArise = value }; _root.Save(); } }
     public decimal AttackIntervalMs { get => S.Combat.AttackIntervalMs; set { S.Combat = S.Combat with { AttackIntervalMs = (int)value }; _root.Save(); } }
 
     public bool AutoNavigate { get => S.Navigation.AutoNavigate; set { S.Navigation = S.Navigation with { AutoNavigate = value }; _root.Save(); } }

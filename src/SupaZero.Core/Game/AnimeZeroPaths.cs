@@ -10,6 +10,10 @@ public static class AnimeZeroPaths
     public const long PlaceId = 114574503491412;
 
     // Workspace
+    /// <summary>v0.2.67 (Shadow Lord): Workspace.AriseShadows.&lt;n&gt; (Part di lantai mayat) .Arise ProximityPrompt
+    /// (ActionText "ARISE", ObjectText = nama musuh, HoldDuration 0.9, KeyCode E, MaxActivationDistance 10, tanpa line of sight).</summary>
+    public const string AriseShadows = "AriseShadows";
+    public const string ArisePrompt = "Arise";
     public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; terparkir di Y=-5000, aktif = di lantai. Dipungut cukup dilewati.
     public const double PooledDropParkedY = -1000;
     public const string Enemies = "enemies";            // Workspace.enemies: Model bernama angka (HRP + Humanoid); mati = Model dihapus
