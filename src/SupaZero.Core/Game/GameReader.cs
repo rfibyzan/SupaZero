@@ -89,7 +89,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         var hud = HudText.Parse(hudRaw);
         // v0.2.49: "Break the rubble to continue!" → rubble jadi target serang (Adornee BillboardGui PlayerGui.RubbleBar).
         var playerPosEarly = ReadPlayerPos(roots.LocalPlayer);
-        var rubble = ReadRubble(pg, ws, hudRaw, playerPosEarly);
+        var rubble = ReadRubble(pg, ws, hudRaw, playerPosEarly, voteShown, hud?.Enter == true);
         var enemyList = ReadEnemies(enemies);
         if (rubble is { } rb && !enemyList.Any(e => e.Alive))
         {
@@ -572,7 +572,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// Attachment "RubbleBar" di Workspace.World.Map.Border2.Blocker (Part dinding 101x57x4 di depan rubble).
     /// Target = titik dinding Blocker terdekat ke pemain (setinggi pemain), bukan pusat dinding.
     /// </summary>
-    private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw, Settings.Vec3? me)
+    private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw, Settings.Vec3? me, bool voteShown = false, bool enterHint = false)
     {
         _rubbleInfo = null; _rubbleHp = null;
         if (pg == 0) return null;
@@ -582,7 +582,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         // v0.2.63: rubble hancur sendiri bila lama tidak dipukul. Tanpa teks HUD "Break the rubble", rubble tetap dianggap aktif
         // bila BillboardGui RubbleBar ada dan Blocker yang ditempelinya masih padat (CanCollide true), agar langsung diserang.
         bool sure = hint || (bossBar != 0 && IsShown(bossBar, pg));
-        if (!sure && bar == 0) return null;
+        // v0.2.73 (aturan Byzan 24 Okt 22:54): rubble HANYA diserang saat teks HUD atas "Break the rubble to continue!"
+        // (atau RubbleBossBar tampil). Cadangan v0.2.63 (Blocker padat + RubbleBar) salah aktif sebelum wave mulai.
+        if (!sure) return null;
         string info = "RubbleBar tidak ada";
         long holder = 0;
         if (bar != 0)
@@ -617,6 +619,11 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         }
         if (!sure && (holder == 0 || !string.Equals(Prop(holder, "CanCollide"), "true", StringComparison.OrdinalIgnoreCase)))
         { _rubbleHp = null; return null; }
+        // v0.2.73: semua Border*.Blocker sudah padat dan punya RubbleBar sejak awal stage, jadi cadangan v0.2.63 salah aktif saat
+        // vote "Get ready" (screenshot Byzan 24 Okt 22:54: jalan ke rubble padahal wave belum mulai, vote tak diklik).
+        // Cadangan hanya dipakai bila rubble sudah terpukul (nyawa < 100%) atau HUD menyuruh masuk area berikutnya.
+        if (!sure && (voteShown || hudRaw?.Contains("ready", StringComparison.OrdinalIgnoreCase) == true || !(enterHint || _rubbleHp is < 0.995)))
+        { _rubbleHp = null; _rubbleInfo = null; return null; }
         if (holder != 0 && props.TryGetWorldPosition(holder, out float x, out float y, out float z))
         {
             var c = new Settings.Vec3(x, y, z);
