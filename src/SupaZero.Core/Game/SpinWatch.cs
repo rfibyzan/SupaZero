@@ -7,7 +7,7 @@ public sealed record PowerSpinObs(bool AutoRunning, string? Status, string? Resu
     int? RollsLeft, int? LuckyLeft, IReadOnlyList<string> Pity);
 
 /// <summary>Satu pembacaan layar Trait Reroll.</summary>
-public sealed record TraitSpinObs(bool Open, string? Power, string? Trait, string? Chance, IReadOnlyList<string> Buffs);
+public sealed record TraitSpinObs(bool AutoRunning, string? Power, string? Trait, string? Chance, IReadOnlyList<string> Buffs, int? DiceLeft = null);
 
 /// <summary>Laporan auto spin yang sudah berhenti.</summary>
 public sealed record SpinReport(bool IsTrait, string Title, string? Result, string? Rarity, string? Chance, IReadOnlyList<string> Buffs,
@@ -15,12 +15,10 @@ public sealed record SpinReport(bool IsTrait, string Title, string? Result, stri
 
 /// <summary>
 /// Pantau auto spin bawaan game (hanya membaca GUI). Power: frame AutoStatus terlihat = auto jalan, hilang = selesai.
-/// Trait: layar Trait Reroll terbuka dan hasil trait berubah berulang (auto reroll); hasil diam ≥ TraitIdle atau layar ditutup = selesai.
+/// Trait: Trait Reroll.SurfaceGui.MainFrame.Left.Content.AutoStatus ("Auto Rerolling") terlihat atau AutoButton.Sub = "On" = auto jalan.
 /// </summary>
 public sealed class SpinWatcher
 {
-    public static readonly TimeSpan TraitIdle = TimeSpan.FromSeconds(8);
-    public const int TraitMinChanges = 3;
     private static readonly Regex SpinNRx = new(@"Spin\s+(\d+)", RegexOptions.IgnoreCase);
     private static readonly Regex StopsRx = new(@"Stops at\s+(.+)$", RegexOptions.IgnoreCase);
     private static readonly Regex ModeRx = new(@"Auto Spinning:\s*([^•]+)", RegexOptions.IgnoreCase);
@@ -31,9 +29,9 @@ public sealed class SpinWatcher
     private PowerSpinObs? _pFirst, _pLast;
     private string? _pLastStatus;
     // Trait
-    private DateTime? _tStart, _tChangedAt;
-    private int _tChanges;
-    private TraitSpinObs? _tLast;
+    private DateTime? _tStart;
+    private int _tOff;
+    private TraitSpinObs? _tFirst, _tLast;
 
     public SpinReport? ObservePower(PowerSpinObs o, DateTime now)
     {
@@ -62,28 +60,23 @@ public sealed class SpinWatcher
 
     public SpinReport? ObserveTrait(TraitSpinObs o, DateTime now)
     {
-        if (o.Open && o.Trait is not null)
+        if (o.AutoRunning)
         {
-            if (_tLast is null || _tLast.Power != o.Power) { _tLast = o; _tStart = now; _tChangedAt = now; _tChanges = 0; return null; }
-            if (_tLast.Trait != o.Trait || _tLast.Chance != o.Chance)
-            {
-                _tChanges++; _tChangedAt = now; _tLast = o;
-                return null;
-            }
-            _tLast = o;
-            if (_tChanges < TraitMinChanges || now - _tChangedAt!.Value < TraitIdle) return null;
+            if (_tStart is null) { _tStart = now; _tFirst = o; }
+            _tOff = 0; _tLast = o;
+            return null;
         }
-        else if (_tLast is null || _tChanges < TraitMinChanges) { if (!o.Open) ResetTrait(); return null; }
-
-        var last = _tLast!; var start = _tStart ?? now; var end = _tChangedAt ?? now;
-        ResetTrait();
-        // Tetap ingat power yang sama agar trait diam tidak dilaporkan lagi.
-        if (o.Open) { _tLast = last; _tStart = now; _tChangedAt = now; }
-        return new SpinReport(true, "Auto reroll trait selesai", last.Trait, null, last.Chance, last.Buffs, last.Power,
-            null, null, null, null, null, [], end - start, false);
+        if (_tStart is null) return null;
+        if (++_tOff < 2) return null;
+        var first = _tFirst!; var start = _tStart.Value;
+        // Hasil akhir = pembacaan sekarang (kartu sudah berhenti), cadangan pembacaan terakhir saat auto jalan.
+        var fin = o.Trait is not null ? o : _tLast ?? o;
+        int? used = first.DiceLeft is { } b && o.DiceLeft is { } a2 && b >= a2 ? b - a2 : null;
+        _tStart = null; _tOff = 0; _tFirst = _tLast = null;
+        return new SpinReport(true, "Auto reroll trait selesai", fin.Trait, null, fin.Chance, fin.Buffs, fin.Power ?? first.Power,
+            null, used, o.DiceLeft ?? fin.DiceLeft, null, null, [], now - start, false);
     }
 
-    private void ResetTrait() { _tLast = null; _tStart = _tChangedAt = null; _tChanges = 0; }
 }
 
 public sealed partial class GameReader
@@ -159,10 +152,14 @@ public sealed partial class GameReader
     {
         long root = reader.ResolvePath(pg, TraitRoot);
         if (root == 0) return null;
-        if (!IsShown(root, pg)) return new TraitSpinObs(false, null, null, null, []);
-        string? header = Plain(reader.ResolvePath(root, TraitPowerName));
+        bool shown = IsShown(root, pg);
+        long st = reader.FindChild(root, "AutoStatus");
+        bool running = shown && ((st != 0 && IsVisibleFlag(st))
+            || string.Equals(Plain(reader.ResolvePath(root, "Buttons.AutoButton.AutoButton.Sub")), "On", StringComparison.OrdinalIgnoreCase));
+        string? header = shown ? Plain(reader.ResolvePath(root, TraitPowerName)) : null;
         string? power = header is null ? null : CounterRx.Replace(header, string.Empty).Trim();
         var t = power is null ? null : Powers.TraitFor(power);
-        return new TraitSpinObs(true, power, t?.Name, t?.Chance, t?.Buffs ?? []);
+        int? dice = shown ? FirstInt(Plain(reader.ResolvePath(root, "DicesDisplay.Txt"))) : null;
+        return new TraitSpinObs(running, power, t?.Name, t?.Chance, t?.Buffs ?? [], dice);
     }
 }

@@ -26,19 +26,19 @@ public class SpinWatcherTests
     }
 
     [Fact]
-    public void TraitReportsAfterIdleOnlyWhenRerolledRepeatedly()
+    public void TraitReportsWhenAutoRerollStops()
     {
         var w = new SpinWatcher(); var t = new DateTime(2026, 10, 24, 9, 0, 0);
-        TraitSpinObs O(string trait) => new(true, "Cursed King", trait, "1%", []);
-        Assert.Null(w.ObserveTrait(O("A"), t));
-        Assert.Null(w.ObserveTrait(O("B"), t.AddSeconds(2)));
-        Assert.Null(w.ObserveTrait(O("B"), t.AddSeconds(20)));   // 1 perubahan = reroll manual, tidak dilaporkan
-        Assert.Null(w.ObserveTrait(O("C"), t.AddSeconds(22)));
-        Assert.Null(w.ObserveTrait(O("D"), t.AddSeconds(24)));
-        Assert.Null(w.ObserveTrait(O("D"), t.AddSeconds(28)));
-        var r = w.ObserveTrait(O("D"), t.AddSeconds(33));
+        TraitSpinObs O(bool run, string trait, int dice) => new(run, "Mochi Commander", trait, "0.039%", ["+12%"], dice);
+        Assert.Null(w.ObserveTrait(O(false, "A", 1900), t));
+        Assert.Null(w.ObserveTrait(O(true, "B", 1900), t.AddSeconds(2)));
+        Assert.Null(w.ObserveTrait(O(true, "C", 1880), t.AddSeconds(30)));
+        Assert.Null(w.ObserveTrait(O(false, "Sniper", 1878), t.AddSeconds(32)));
+        var r = w.ObserveTrait(O(false, "Sniper", 1878), t.AddSeconds(34));
         Assert.NotNull(r);
-        Assert.Equal("D", r!.Result);
-        Assert.Null(w.ObserveTrait(O("D"), t.AddSeconds(50)));
+        Assert.Equal("Sniper", r!.Result);
+        Assert.Equal(22, r.Used);
+        Assert.Equal(1878, r.LeftAfter);
+        Assert.Null(w.ObserveTrait(O(false, "Sniper", 1878), t.AddSeconds(36)));
     }
 }

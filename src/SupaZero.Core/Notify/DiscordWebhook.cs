@@ -44,7 +44,9 @@ public static class DiscordWebhook
             if (r.Power is { Length: > 0 } pw) f.Add(new("Power", pw, true));
             f.Add(new("Trait", r.Result ?? "(belum terbaca)", true));
             if (r.Chance is { Length: > 0 } c) f.Add(new("Peluang", c, true));
-            if (r.Buffs.Count > 0) f.Add(new("Buff", string.Join("\n", r.Buffs), false));
+            if (r.Buffs.Count > 0) f.Add(new("Buff", string.Join(" ", r.Buffs), true));
+            if (r.Used is { } tu) f.Add(new("Dadu terpakai", tu.ToString(), true));
+            if (r.LeftAfter is { } tl) f.Add(new("Sisa dadu", tl.ToString(), true));
             f.Add(new("Durasi", Dur(r.Duration), true));
             return new(r.Title, null, Purple, f);
         }
