@@ -94,10 +94,16 @@ public sealed class FarmViewModel : ObservableObject
     {
         var nums = ActNumbers();
         if (S.Farm.Act > 0 && !nums.Contains(S.Farm.Act)) Farm(f => f with { Act = nums.Where(n => n <= f.Act).DefaultIfEmpty(nums[0]).Max() });
-        Acts.Clear();
-        Acts.Add(AllActsLabel);
-        foreach (int n in nums) Acts.Add("Act " + n);
+        var want = new List<string> { AllActsLabel };
+        want.AddRange(nums.Select(n => "Act " + n));
+        if (!Acts.SequenceEqual(want))
+        {
+            // Clear() membuat ComboBox jatuh ke SelectedIndex -1 (kotak Act kosong); isi ulang lalu set ulang pilihan setelah layout.
+            Acts.Clear();
+            foreach (var x in want) Acts.Add(x);
+        }
         Raise(nameof(ActIndex));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Raise(nameof(ActIndex)), Avalonia.Threading.DispatcherPriority.Background);
     }
     public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
         ? "Tuntas: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
