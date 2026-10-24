@@ -83,7 +83,9 @@ public sealed record FarmSettings(
     /// <summary>Urutan pilihan kartu Mirror Blessing (nama dipisah koma). Tidak cocok → rarity tertinggi.</summary>
     string BlessingPriority = "Sharper Edge, Shard Snack, Big Heart, Chain Shatter, Swift Steps",
     /// <summary>Floor Trials yang dipilih di panel (0 = biarkan pilihan game / floor berikutnya).</summary>
-    int TrialsFloor = 0);
+    int TrialsFloor = 0,
+    /// <summary>Sekali tiap Start, di lobby sebelum Create Room: buka menu Trait lalu Spin (tombol LobbyHUD) untuk membaca power + trait terpasang.</summary>
+    bool CheckPowersInLobby = true);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 /// <summary>Discord webhook: notifikasi menang/kalah (dengan drop) dan macro berhenti.</summary>

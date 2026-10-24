@@ -97,6 +97,8 @@ public sealed record GameSnapshot
     public CameraInfo? Camera { get; init; }
     /// <summary>Musuh hidup/mati di Workspace.enemies (kosong bila tidak terbaca).</summary>
     public IReadOnlyList<EnemyInfo> Enemies { get; init; } = [];
+    /// <summary>Rubble yang harus dihancurkan (juga dimasukkan ke Enemies sebagai "Rubble" bila tidak ada musuh hidup).</summary>
+    public Settings.Vec3? RubblePos { get; init; }
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
     public Settings.Vec3? NextAreaPos { get; init; }
 
@@ -104,6 +106,11 @@ public sealed record GameSnapshot
     public GuiRect? AreasButton { get; init; }
     /// <summary>Kartu teleport di panel Areas (Name = judul kartu, mis. "Story").</summary>
     public IReadOnlyList<LobbyEntry> TeleportCards { get; init; } = [];
+    /// <summary>v0.2.49: tombol menu di LobbyHUD (Name = "Trait" / "Spin") untuk cek power + trait sebelum Create Room.</summary>
+    public IReadOnlyList<LobbyEntry> HubMenuButtons { get; init; } = [];
+    /// <summary>Layar Trait Reroll / daftar slot karakter (menu Spin) sedang tampil.</summary>
+    public bool TraitMenuOpen { get; init; }
+    public bool SpinMenuOpen { get; init; }
     /// <summary>Lingkaran Create Room terdeteksi: part yang memuat teks "Start Here" di Workspace.</summary>
     public IReadOnlyList<Settings.Vec3> StartCircles { get; init; } = [];
     /// <summary>Room dari QuqueRooms.*.JoinHitbox + status terisi (dibaca ulang tiap tick).</summary>
@@ -201,7 +208,7 @@ public sealed record GameSnapshot
             if (!Attached) return GameScreen.Unknown;
             if (EndScreenVisible || IsDefeat) return IsDefeat ? GameScreen.Defeat : GameScreen.Victory;
             // Vote hanya sebelum musuh muncul; ada musuh hidup = ronde berjalan (vote basi tidak boleh menahan Fight).
-            if (StartVoteVisible && EnemyCount <= 0) return GameScreen.StartVote;
+            if (StartVoteVisible && (EnemyCount <= 0 || (Enemies.Count > 0 && !Enemies.Any(e => e.Alive)))) return GameScreen.StartVote;
             if (Blessings.Count > 0) return GameScreen.BlessingPick;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;
             if (QueueSkip is not null) return GameScreen.QueueWaiting;

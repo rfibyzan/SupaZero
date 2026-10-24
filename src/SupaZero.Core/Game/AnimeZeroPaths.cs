@@ -30,6 +30,17 @@ public static class AnimeZeroPaths
     // Vote mulai (tiap awal stage, timer 48 dtk). Tombol Yes ~(960,232) di 1920x1080.
     public const string StartVote = "StartVote";        // [V] nama frame
     public const string StartVoteYes = "Yes";           // [V]
+    public const string StartVoteButtonPath = "Holder.Main.StartButton"; // [V] snapshot 24 Okt 2026, ImageButton ~(960,232)
+    public const string StartVoteButton = "StartButton";
+    // Rubble (screenshot + snapshot PlayerGui 24 Okt 2026): HUD "Break the rubble to continue!", BillboardGui PlayerGui.RubbleBar
+    // "Rubble [BREAK IT]" (Adornee = bagian rubble di world), ScreenGui PlayerGui.RubbleBossBar (Enabled saat rubble besar).
+    public const string RubbleBar = "RubbleBar";
+    public const string RubbleBossBar = "RubbleBossBar";
+    public const string RubbleName = "Rubble";
+    // Menu cek power di lobby (LobbyHUD.LeftSideButtons, "Spinning" terlihat di research.md).
+    public const string LobbyHud = "LobbyHUD";
+    public const string MenuTrait = "Trait";
+    public const string MenuSpin = "Spin";
     public const double StartVoteYesX = 960, StartVoteYesY = 232;
 
     // Layar akhir

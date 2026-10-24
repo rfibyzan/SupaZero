@@ -53,7 +53,15 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         // Vote mulai
         long vote = Find(pg, AnimeZeroPaths.StartVote);
         // ScreenGui StartVote bisa tetap Enabled selama ronde (frame di dalamnya disembunyikan) → wajib tombol Yes terlihat.
-        long voteYesNode = vote != 0 ? Find(vote, AnimeZeroPaths.StartVoteYes) : 0;
+        // Snapshot PlayerGui 24 Okt 2026: StartVote.Holder.Main.StartButton (ImageButton); "Yes" hanya Text di StartButton.Txt(Shadow).Txt,
+        // tidak ada node bernama "Yes" → dulu tidak pernah terdeteksi (Yes tidak diklik).
+        long voteYesNode = 0;
+        if (vote != 0)
+        {
+            voteYesNode = reader.ResolvePath(vote, AnimeZeroPaths.StartVoteButtonPath);
+            if (voteYesNode == 0) voteYesNode = Find(vote, AnimeZeroPaths.StartVoteButton);
+            if (voteYesNode == 0) voteYesNode = Find(vote, AnimeZeroPaths.StartVoteYes);
+        }
         bool voteShown = vote != 0 && IsShown(vote, pg) && voteYesNode != 0 && IsShown(voteYesNode, pg);
         GuiRect? voteYes = voteShown ? Rect(voteYesNode) : null;
 
@@ -77,6 +85,14 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         bool treeShown = tree != 0 && IsShown(tree, pg);
 
         var hud = HudText.Parse(hudRaw);
+        // v0.2.49: "Break the rubble to continue!" → rubble jadi target serang (Adornee BillboardGui PlayerGui.RubbleBar).
+        var rubble = ReadRubble(pg, hudRaw);
+        var enemyList = ReadEnemies(enemies);
+        if (rubble is { } rb && !enemyList.Any(e => e.Alive))
+        {
+            enemyList.Add(new EnemyInfo(AnimeZeroPaths.RubbleName, rb, 1, 1));
+            enemyCount = Math.Max(enemyCount, 0) + 1;
+        }
         var playerPos = ReadPlayerPos(roots.LocalPlayer);
 
         var snap = new GameSnapshot
@@ -85,10 +101,11 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             PlayerPos = playerPos,
             CameraLook = ReadCameraLook(ws),
             Camera = ReadCamera(ws),
-            Enemies = ReadEnemies(enemies),
+            Enemies = enemyList,
+            RubblePos = rubble,
             Pickups = ReadPickups(ws),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
-            NextAreaPos = hud is { AreaTotal: > 0 } && hud.Area < hud.AreaTotal ? ReadAreaPos(ws, hud.Area + 1) : null,
+            NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
             LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],
             LobbyMaps = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyMapsList), pg) : [],
             LobbyActs = lobbyShown ? ReadActs(lobby, pg) : [],
@@ -127,7 +144,14 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         if (snap.Screen != GameScreen.Lobby) return snap;
         var (areas, cards) = ScanHub(pg);
         var startRooms = ReadRooms(ws);
-        return snap with { AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws) };
+        long traitRoot = reader.ResolvePath(pg, TraitRoot), invList = reader.ResolvePath(pg, InventoryList);
+        return snap with
+        {
+            AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws),
+            HubMenuButtons = ScanMenuButtons(pg),
+            TraitMenuOpen = traitRoot != 0 && IsShown(traitRoot, pg),
+            SpinMenuOpen = invList != 0 && IsShown(invList, pg),
+        };
     }
 
     // ---------- Hub lobby ----------
@@ -188,6 +212,51 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             }
         }
         return _hub = (areas, cards);
+    }
+
+    private long _menuAt;
+    private IReadOnlyList<LobbyEntry> _menuButtons = [];
+
+    /// <summary>
+    /// Tombol menu Trait / Spin di PlayerGui.LobbyHUD (nama node atau teks terlihat mengandung "trait" / "spin" / "roll").
+    /// Hanya LobbyHUD (tombol navigasi kiri), tidak pernah isi menu Spin/Trait (tombol roll di sana memakai Spins/Rerolls).
+    /// </summary>
+    private IReadOnlyList<LobbyEntry> ScanMenuButtons(long pg)
+    {
+        long now = Environment.TickCount64;
+        if (now - _menuAt < 1000) return _menuButtons;
+        _menuAt = now;
+        var found = new Dictionary<string, LobbyEntry>(StringComparer.Ordinal);
+        long hud = pg != 0 ? reader.FindChild(pg, AnimeZeroPaths.LobbyHud) : 0;
+        if (hud == 0 || !IsShown(hud, pg)) return _menuButtons = [];
+        var q = new Queue<(long Node, int Depth)>();
+        q.Enqueue((hud, 0));
+        int seen = 0;
+        while (q.Count > 0 && seen++ < 800)
+        {
+            var (n, depth) = q.Dequeue();
+            if (n != hud)
+            {
+                string name = reader.GetName(n);
+                string? text = Plain(n);
+                string? key = MenuKey(name) ?? MenuKey(text);
+                if (key is not null && !found.ContainsKey(key) && IsShown(n, pg))
+                {
+                    long btn = IsButton(reader.GetClassName(n)) ? n : ButtonFor(n);
+                    if (HubRect(btn) is { W: > 4, H: > 4 } r) found[key] = new LobbyEntry(key, false, false, r);
+                }
+            }
+            if (depth < 5) foreach (long c in reader.GetChildren(n, 64)) q.Enqueue((c, depth + 1));
+        }
+        return _menuButtons = found.Values.ToList();
+    }
+
+    private static string? MenuKey(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        if (s.Contains("trait", StringComparison.OrdinalIgnoreCase)) return AnimeZeroPaths.MenuTrait;
+        if (s.Contains("spin", StringComparison.OrdinalIgnoreCase) || s.Contains("roll", StringComparison.OrdinalIgnoreCase)) return AnimeZeroPaths.MenuSpin;
+        return null;
     }
 
     private long ResolveGuiPath(long pg, string? path)
@@ -465,6 +534,24 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     /// <summary>Musuh: Workspace.enemies.&lt;angka&gt; (Model) → HumanoidRootPart posisi, Humanoid Health/MaxHealth.</summary>
+    /// <summary>
+    /// Posisi rubble yang harus dihancurkan. Aktif bila teks HUD menyebut "rubble" atau RubbleBossBar Enabled.
+    /// Posisi = Adornee BillboardGui PlayerGui.RubbleBar (offset Misc.Adornee), cadangan: parent BillboardGui bila di Workspace.
+    /// </summary>
+    private Settings.Vec3? ReadRubble(long pg, string? hudRaw)
+    {
+        if (pg == 0) return null;
+        bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
+        long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
+        if (!hint && !(bossBar != 0 && IsShown(bossBar, pg))) return null;
+        long bar = reader.FindChild(pg, AnimeZeroPaths.RubbleBar);
+        if (bar == 0) return null;
+        if (reader.Offsets.TryResolve("Misc.Adornee", out long ao) && M.TryReadPointer(bar + ao, out long ad) && ad != 0
+            && reader.GetParent(ad) != 0 && props.TryGetWorldPosition(ad, out float x, out float y, out float z))
+            return new(x, y, z);
+        return null;
+    }
+
     private List<EnemyInfo> ReadEnemies(long folder)
     {
         var list = new List<EnemyInfo>();

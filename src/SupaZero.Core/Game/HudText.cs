@@ -3,9 +3,14 @@ using System.Text.RegularExpressions;
 namespace SupaZero.Core.Game;
 
 /// <summary>Isi teks EnemyCount di RoundHUD, mis. "Easy · Area 3/5 · 8 left" atau "Story complete".</summary>
-public sealed record HudInfo(string? Difficulty, int Area, int AreaTotal, int EnemiesLeft, bool StoryComplete)
+public sealed record HudInfo(string? Difficulty, int Area, int AreaTotal, int EnemiesLeft, bool StoryComplete, bool Enter = false)
 {
     public bool IsFinalArea => AreaTotal > 0 && Area >= AreaTotal;
+    /// <summary>
+    /// Area yang harus dituju setelah bersih. "Enter area 4/5" (screenshot 24 Okt 2026, penanda "AREA 4 280 studs") = area 3 sudah
+    /// bersih dan tujuan Area 4 → <see cref="Area"/> sendiri. "Area 3/5 · 0 left" = masih di area 3 → Area + 1. 0 = tidak ada.
+    /// </summary>
+    public int TargetArea => AreaTotal <= 0 ? 0 : Enter ? Area : Area < AreaTotal ? Area + 1 : 0;
 }
 
 public static partial class HudText
@@ -31,6 +36,7 @@ public static partial class HudText
             a.Success ? int.Parse(a.Groups[1].Value) : 0,
             a.Success ? int.Parse(a.Groups[2].Value) : 0,
             l.Success ? int.Parse(l.Groups[1].Value) : -1,
-            false);
+            false,
+            Enter: Regex.IsMatch(t, @"\benter\s+area", RegexOptions.IgnoreCase));
     }
 }

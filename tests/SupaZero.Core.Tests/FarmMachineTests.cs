@@ -530,4 +530,55 @@ public class FarmMachineTests
         var done = snap with { LobbyRewards = [cards[0], cards[1] with { Targeted = true }] };
         Assert.Contains(Real(m.Step(done, 5000)), x => x is ClickAction c && c.Reason.Contains("Start"));
     }
+
+    // ---------- v0.2.49 ----------
+    [Fact]
+    public void Lobby_PowerCheck_OpensTraitThenSpin_ThenWalks()
+    {
+        var (m, _) = New();
+        var btns = new List<LobbyEntry> { new("Trait", false, false, new GuiRect(10, 300, 80, 80)), new("Spin", false, false, new GuiRect(10, 400, 80, 80)) };
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], HubMenuButtons = btns };
+        var c1 = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(lobby, 0))));
+        Assert.Equal(50, c1.X); Assert.Equal(340, c1.Y);              // tombol Trait
+        Assert.Empty(Real(m.Step(lobby with { TraitMenuOpen = true }, 500)));  // membaca
+        var close = Real(m.Step(lobby with { TraitMenuOpen = true }, 3600));
+        Assert.Contains(close, a => a is ClickAction { Y: 340 });      // tutup Trait (klik tombol yang sama)
+        var c2 = Real(m.Step(lobby, 4000));
+        Assert.Contains(c2, a => a is ClickAction { Y: 440 });         // tombol Spin
+        m.Step(lobby with { SpinMenuOpen = true }, 4500);
+        Assert.Contains(Real(m.Step(lobby with { SpinMenuOpen = true }, 8000)), a => a is ClickAction { Y: 440 });
+        var walk = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(lobby, 8500))));
+        Assert.Equal([VirtualKeys.D], walk.Keys);                      // lanjut jalan ke lingkaran
+    }
+
+    [Fact]
+    public void Lobby_PowerCheck_MenuNeverOpens_SkipsAfterTimeout()
+    {
+        var (m, _) = New();
+        var btns = new List<LobbyEntry> { new("Trait", false, false, new GuiRect(10, 300, 80, 80)) };
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], HubMenuButtons = btns };
+        m.Step(lobby, 0);
+        var after = Real(m.Step(lobby, FarmMachine.PowerMenuTimeoutMs + 100));
+        Assert.DoesNotContain(after, a => a is ClickAction);
+        Assert.Contains(Real(m.Step(lobby, FarmMachine.PowerMenuTimeoutMs + 300)), a => a is MoveAction { Keys.Count: > 0 });
+    }
+
+    [Fact]
+    public void Rubble_IsTreatedAsEnemyTarget()
+    {
+        var s = new GameSnapshot { Attached = true, EnemyCount = 1, Enemies = [new EnemyInfo("Rubble", new Vec3(5, 0, 5), 1, 1)], RubblePos = new Vec3(5, 0, 5) };
+        Assert.Single(FarmMachine.Targets(s));
+    }
+
+    [Theory]
+    [InlineData("Nightmare · Enter area 4/5", 4, true)]
+    [InlineData("Enter area 5/5", 5, true)]
+    [InlineData("Easy · Area 3/5 · 0 left", 4, false)]
+    [InlineData("Easy · Area 5/5 · 0 left", 0, false)]
+    public void Hud_EnterArea_TargetsThatArea(string text, int target, bool enter)
+    {
+        var h = HudText.Parse(text)!;
+        Assert.Equal(enter, h.Enter);
+        Assert.Equal(target, h.TargetArea);
+    }
 }

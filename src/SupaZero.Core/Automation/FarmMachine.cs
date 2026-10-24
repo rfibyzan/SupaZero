@@ -39,6 +39,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     public void Reset()
     {
+        _pcStep = 0; _pcStepAt = null; _pcOpenAt = null;
         _cooldowns.Clear();
         _roomBan.Clear();
         _pickupBan.Clear();
@@ -166,6 +167,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         var f = S.Farm;
         if (!f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
+        if (f.CheckPowersInLobby && PowerCheck(s, now) is { } pc) return pc;
         Phase = MacroPhase.WalkingToLobby;
 
         // Kandidat: room QuqueRooms (lewati yang terisi pemain lain), cadangan "Start Here", lalu rekaman manual.
@@ -291,6 +293,62 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         }
         Status = "Lingkaran Create Room dan tombol Areas tidak terbaca.";
         return [new MoveAction([], "Tunggu"), .. Note("no-hub", now, 8000, "Tombol Areas / lingkaran 'Start Here' tidak terbaca. Cek di RIE atau rekam posisi lingkaran manual.")];
+    }
+
+    // ---------- Cek power + trait (sekali tiap Start) ----------
+    private int _pcStep;          // 0 = Trait, 1 = Spin, 2 = selesai
+    private long? _pcStepAt, _pcOpenAt;
+    public const int PowerMenuReadMs = 3000, PowerMenuTimeoutMs = 15000;
+
+    /// <summary>
+    /// Lobby, sebelum Create Room: klik tombol Trait di LobbyHUD → tunggu layar Trait terbaca (3 dtk) → klik lagi (tutup) →
+    /// tombol Spin → daftar slot karakter terbaca → tutup. Hanya tombol LobbyHUD yang diklik, tidak ada tombol di dalam menu
+    /// (roll/reroll memakai Spins/Rerolls). Tombol tidak terbaca / menu tidak terbuka → langkah dilewati.
+    /// </summary>
+    private List<MacroAction>? PowerCheck(GameSnapshot s, long now)
+    {
+        if (_pcStep >= 2) return null;
+        Phase = MacroPhase.Lobby;
+        string key = _pcStep == 0 ? AnimeZeroPaths.MenuTrait : AnimeZeroPaths.MenuSpin;
+        bool open = _pcStep == 0 ? s.TraitMenuOpen : s.SpinMenuOpen;
+        GuiRect? btn = s.HubMenuButtons.FirstOrDefault(b => b.Name == key)?.Rect;
+        _pcStepAt ??= now;
+        var stand = new MoveAction([], "Cek power");
+
+        void Next() { _pcStep++; _pcStepAt = null; _pcOpenAt = null; }
+
+        if (open)
+        {
+            _pcOpenAt ??= now;
+            Status = $"Cek power: menu {key} terbuka, membaca…";
+            if (now - _pcOpenAt.Value < PowerMenuReadMs) return [stand];
+            var acts = new List<MacroAction> { stand };
+            if (btn is { } b && InWindow(s, b.CenterX, b.CenterY)) acts.Add(new ClickAction(b.CenterX, b.CenterY, $"Tutup menu {key}"));
+            if (_pcStep == 1 || s.Equipped.Count > 0)
+            {
+                string eq = s.Equipped.Count == 0 ? "belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
+                    $"slot {p.Loadout} {p.Name}{(p.Level is { } lv ? $" Lv.{lv}" : "")}{(p.Trait is { } t ? $" ({t.Name})" : "")}"));
+                acts.AddRange(Note("pc-" + key, now, 1000, $"Cek power ({key}): {eq}."));
+            }
+            Next();
+            return acts;
+        }
+        if (now - _pcStepAt.Value > PowerMenuTimeoutMs)
+        {
+            Next();
+            return [stand, .. Note("pc-skip-" + key, now, 1000, $"Menu {key} tidak terbuka dalam {PowerMenuTimeoutMs / 1000} dtk → dilewati.")];
+        }
+        if (btn is { } r)
+        {
+            Status = $"Cek power: buka menu {key}.";
+            if (!InWindow(s, r.CenterX, r.CenterY)) { Next(); return [stand, .. Note("pc-out-" + key, now, 1000, $"Tombol {key} di luar jendela Roblox → dilewati.")]; }
+            return Ready("pc-" + key, now, 3000) ? [stand, new ClickAction(r.CenterX, r.CenterY, $"Tombol {key} (LobbyHUD)")] : [stand];
+        }
+        // Tombol tidak terbaca → langsung lewati (tidak menahan jalan ke room), lanjut langkah berikutnya di tick yang sama.
+        if (s.HubMenuButtons.Count > 0 || s.AreasButton is not null)
+            _pending.AddRange(Note("pc-nobtn-" + key, now, 60000, $"Tombol {key} di LobbyHUD tidak terbaca → cek {key} dilewati (pakai power tersimpan)."));
+        Next();
+        return PowerCheck(s, now);
     }
 
     private List<MacroAction> LobbyMenu(GameSnapshot s, AppSettings S, long now)
@@ -473,8 +531,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 Status = $"{area} bersih, area berikutnya tidak terbaca.";
                 return [new MoveAction([], "Tujuan tidak ada"), .. Note("nav-none", now, 6000, $"{area} bersih tapi posisi area berikutnya (World.Spawns/Areas) tidak terbaca.")];
             }
-            var walk = WalkPath(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.Area + 1}", S.Navigation.AttackWhenStuck);
-            Status = walk.Count == 0 ? $"Sampai area {hud!.Area + 1}, menunggu musuh." : $"{area} bersih → jalan ke area {hud!.Area + 1}.";
+            var walk = WalkPath(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.TargetArea}", S.Navigation.AttackWhenStuck);
+            Status = walk.Count == 0 ? $"Sampai area {hud!.TargetArea}, menunggu musuh." : $"{(hud!.Enter ? $"Masuk area {hud.TargetArea}/{hud.AreaTotal}" : $"{area} bersih")} → jalan ke area {hud.TargetArea}.";
             return walk.Count == 0 ? [new MoveAction([], "Sampai")] : walk;
         }
         Phase = MacroPhase.Fighting;
