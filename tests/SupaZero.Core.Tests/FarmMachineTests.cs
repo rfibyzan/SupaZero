@@ -275,7 +275,7 @@ public class FarmMachineTests
         var (m, _) = New();
         var hub = new GameSnapshot
         {
-            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1),
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
             StartCircles = [new Vec3(300, 0, 0)], AreasButton = new GuiRect(40, 540, 80, 80),
         };
         Assert.Equal("Tombol Areas", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);

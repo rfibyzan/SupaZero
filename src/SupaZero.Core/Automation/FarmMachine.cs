@@ -302,9 +302,10 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         if (card?.Rect is { } cr)
         {
             Status = $"Teleport: Areas → {card.Name}";
-            if (!Ready("tp-card", now, 2500)) return pre;
-            _teleportAt = now;
-            return [.. pre, new MoveAction([], "Teleport"), new ClickAction(cr.CenterX, cr.CenterY, $"Teleport {card.Name}")];
+            // v0.2.90: klik hanya bila kartu terlihat di dalam panel Areas (Clipping) dan jendela Roblox; selain itu scroll/diam.
+            var click = ClickEntry(s, card, s.AreasView, "tp-card", $"Teleport {card.Name}", now) ?? [];
+            if (click.Any(a => a is ClickAction)) _teleportAt = now;
+            return [.. pre, new MoveAction([], "Teleport"), .. click];
         }
         if (s.AreasButton is { } ab)
         {
