@@ -514,8 +514,11 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     {
         long ult = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudUltimate) : 0;
         if (ult == 0 || !IsShown(ult, pg)) return null;
+        // v0.2.66: snapshot UltimateFrame (24 Okt) tidak punya anak "Locked"; tanpa penanda itu status siap tidak
+        // diketahui → null (G hanya di sela skill), bukan "siap" terus yang membuat G menyela skill tiap 1,5 dtk.
         long lk = reader.FindChild(ult, AnimeZeroPaths.HudUltimateLock);
-        return !(lk != 0 && IsShown(lk, pg));
+        if (lk == 0) return null;
+        return !IsShown(lk, pg);
     }
 
     /// <summary>Cooldown skill dari HUD: tiap skillBox → (tombol, sisa detik atau null bila siap, terkunci).</summary>
