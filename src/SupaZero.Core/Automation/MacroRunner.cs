@@ -68,7 +68,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 if (snap.CameraFollowsPlayer is { } follow && follow != _camFollow)
                 {
                     _camFollow = follow;
-                    if (!follow) Log?.Invoke($"Kamera tidak mengikuti karakter (animasi/cutscene; subject {snap.Camera?.Subject ?? "?"}) → shift lock, putar & arah kamera ditahan.");
+                    if (!follow) Log?.Invoke($"Kamera tidak mengikuti karakter (animasi/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, putar & arah kamera ditahan.");
                     else Log?.Invoke("Kamera kembali mengikuti karakter.");
                 }
                 _camFree = snap.CameraFollowsPlayer == false;

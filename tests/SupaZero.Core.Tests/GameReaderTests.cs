@@ -87,5 +87,23 @@ public class ShiftLockCameraTests
         Assert.True(s.ShiftLockFromCamera);
     }
 
+    [Fact]
+    public void UltimateFov_NotFollowing()
+    {
+        // Watch 24 Okt 23:34: kamera ult 6 stud dari karakter, FOV 43.9
+        var s = Snap(1.75, 12);
+        s = s with { Camera = s.Camera! with { Fov = 43.9 } };
+        Assert.False(s.CameraFollowsPlayer);
+        Assert.Null(s.ShiftLockFromCamera);
+    }
+
+    [Fact]
+    public void NormalFov_Follows()
+    {
+        var s = Snap(1.75, 12);
+        s = s with { Camera = s.Camera! with { Fov = 70.4 } };
+        Assert.True(s.CameraFollowsPlayer);
+    }
+
     [Fact] public void CameraFar_IsNull() => Assert.Null(Snap(1.75, 80).ShiftLockFromCamera);
 }

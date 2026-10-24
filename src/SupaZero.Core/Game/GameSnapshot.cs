@@ -115,11 +115,17 @@ public sealed record GameSnapshot
     /// v0.2.77: kamera benar-benar mengikuti karakter: CameraSubject = Humanoid/karakter pemain (bila terbaca) dan jarak kamera ≤ 40 stud.
     /// false saat animasi Ultimate/cutscene memindah kamera; null bila tidak terbaca. Saat false, status shift lock dari kamera tidak dipakai.
     /// </summary>
+    /// <summary>FieldOfView kamera saat bermain normal (Anime Zero/Roblox default).</summary>
+    public const double NormalFov = 70;
+
     public bool? CameraFollowsPlayer
     {
         get
         {
             if (Camera is not { } c || PlayerPos is not { } p) return null;
+            // v0.2.78: Watch Byzan 24 Okt 23:34: selama animasi Ultimate FieldOfView melompat 11..120 (normal tepat 70) sementara kamera
+            // tetap ≤40 stud dari karakter → FOV di luar 70±1 = kamera dikendalikan skrip.
+            if (Math.Abs(c.Fov - NormalFov) > 1.0) return false;
             if (c.Subject is { } subj && !string.IsNullOrEmpty(LocalPlayer)
                 && !(subj.EndsWith("." + LocalPlayer + ".Humanoid", StringComparison.Ordinal) || subj.EndsWith("." + LocalPlayer, StringComparison.Ordinal)
                      || subj.EndsWith("." + LocalPlayer + ".HumanoidRootPart", StringComparison.Ordinal)))
