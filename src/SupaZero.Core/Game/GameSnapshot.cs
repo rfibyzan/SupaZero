@@ -33,6 +33,9 @@ public sealed record AriseInfo(string Name, Settings.Vec3 Pos, double Hold, doub
 /// <summary>Kamera: posisi, LookVector, FieldOfView (vertikal, derajat), ViewportSize (= area klien).</summary>
 public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)
 {
+    /// <summary>v0.2.77: Camera.CameraSubject (path lengkap, mis. "Workspace.Astakun17.Humanoid"); null bila offset tidak ada.</summary>
+    public string? Subject { get; init; }
+
     /// <summary>Proyeksi titik dunia ke koordinat klien; null bila di belakang kamera. Asumsi kamera tanpa roll.</summary>
     public (double X, double Y)? WorldToScreen(Settings.Vec3 p)
     {
@@ -108,11 +111,29 @@ public sealed record GameSnapshot
     /// karakter; tanpa shift lock kamera menatap tepat ke karakter (≈0). Ikon shift lock Anime Zero = kursor bawaan Roblox,
     /// PlayerScripts/UserInputService/HUD.HUD.Cursor tidak berubah (snapshot Byzan 24 Okt 23:18), jadi dibaca dari geometri kamera.
     /// </summary>
-    public double? CameraSideOffset
+    /// <summary>
+    /// v0.2.77: kamera benar-benar mengikuti karakter: CameraSubject = Humanoid/karakter pemain (bila terbaca) dan jarak kamera ≤ 40 stud.
+    /// false saat animasi Ultimate/cutscene memindah kamera; null bila tidak terbaca. Saat false, status shift lock dari kamera tidak dipakai.
+    /// </summary>
+    public bool? CameraFollowsPlayer
     {
         get
         {
             if (Camera is not { } c || PlayerPos is not { } p) return null;
+            if (c.Subject is { } subj && !string.IsNullOrEmpty(LocalPlayer)
+                && !(subj.EndsWith("." + LocalPlayer + ".Humanoid", StringComparison.Ordinal) || subj.EndsWith("." + LocalPlayer, StringComparison.Ordinal)
+                     || subj.EndsWith("." + LocalPlayer + ".HumanoidRootPart", StringComparison.Ordinal)))
+                return false;
+            double dx = c.Pos.X - p.X, dy = c.Pos.Y - p.Y, dz = c.Pos.Z - p.Z;
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz) <= 40;
+        }
+    }
+
+    public double? CameraSideOffset
+    {
+        get
+        {
+            if (Camera is not { } c || PlayerPos is not { } p || CameraFollowsPlayer != true) return null;
             double lx = c.Look.X, lz = c.Look.Z, l = Math.Sqrt(lx * lx + lz * lz);
             if (l < 1e-3) return null;
             double rx = -lz / l, rz = lx / l;

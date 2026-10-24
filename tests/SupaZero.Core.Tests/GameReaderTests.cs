@@ -69,4 +69,23 @@ public class ShiftLockCameraTests
     [Fact] public void Locked_OffsetRight() => Assert.True(Snap(1.75, 12).ShiftLockFromCamera);
     [Fact] public void Unlocked_Centered() => Assert.False(Snap(0.1, 12).ShiftLockFromCamera);
     [Fact] public void Ambiguous_IsNull() => Assert.Null(Snap(0.8, 12).ShiftLockFromCamera);
+
+    [Fact]
+    public void Cutscene_SubjectNotPlayer_IsNull()
+    {
+        var s = Snap(1.75, 12) with { LocalPlayer = "Astakun17" };
+        s = s with { Camera = s.Camera! with { Subject = "Workspace.Effects.KaiselDragon" } };
+        Assert.False(s.CameraFollowsPlayer);
+        Assert.Null(s.ShiftLockFromCamera);
+    }
+
+    [Fact]
+    public void Subject_PlayerHumanoid_Follows()
+    {
+        var s = Snap(1.75, 12) with { LocalPlayer = "Astakun17" };
+        s = s with { Camera = s.Camera! with { Subject = "Workspace.Astakun17.Humanoid" } };
+        Assert.True(s.ShiftLockFromCamera);
+    }
+
+    [Fact] public void CameraFar_IsNull() => Assert.Null(Snap(1.75, 80).ShiftLockFromCamera);
 }

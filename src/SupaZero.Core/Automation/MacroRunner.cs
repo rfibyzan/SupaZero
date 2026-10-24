@@ -65,6 +65,14 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 if (input.ClientSize() is { } cs) snap = snap with { ClientW = cs.W, ClientH = cs.H };
                 DetectShiftLock(input.IsTargetForeground());
                 // v0.2.75: bila geser kamera terbaca dari memori, itu sumber utama status shift lock (deteksi kursor jadi cadangan).
+                if (snap.CameraFollowsPlayer is { } follow && follow != _camFollow)
+                {
+                    _camFollow = follow;
+                    if (!follow) Log?.Invoke($"Kamera tidak mengikuti karakter (animasi/cutscene; subject {snap.Camera?.Subject ?? "?"}) → shift lock, putar & arah kamera ditahan.");
+                    else Log?.Invoke("Kamera kembali mengikuti karakter.");
+                }
+                _camFree = snap.CameraFollowsPlayer == false;
+                _slKnown = snap.ShiftLockFromCamera is not null;
                 if (snap.ShiftLockFromCamera is { } camLock)
                 {
                     if (camLock != _shiftLockMem) Log?.Invoke(string.Create(System.Globalization.CultureInfo.InvariantCulture,
@@ -100,6 +108,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     private const ushort ShiftVk = 0xA0; // VK_LSHIFT = tombol Shift Lock bawaan Roblox
     private bool _shiftLock;
     private bool? _shiftLockMem;
+    private bool? _camFollow;
+    private bool _camFree, _slKnown;
     private int _centeredTicks, _offTicks;
     private (double X, double Y)? _lastAimFar;
     private CancellationTokenSource? _turnCts;
@@ -115,6 +125,9 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     {
         if (screen != _slScreen) { _slScreen = screen; _slFails = 0; }
         if (screen == GameScreen.Unknown || now - _slLastPress < 2500) return;
+        // v0.2.77 (aturan Byzan: jangan menebak kondisi): di dalam ronde, Shift hanya ditekan bila status shift lock terbaca pasti
+        // dari kamera. Saat animasi Ultimate/cutscene (kamera tidak mengikuti karakter) atau geser kamera ragu → tidak menekan apa pun.
+        if (screen == GameScreen.InRound && (_camFree || !_slKnown)) return;
         bool want = screen == GameScreen.InRound && !actions.Any(a => a is ClickAction or ScrollAction);
         // Kursor diam di tengah 1-4 tick belum pasti shift lock → tunggu deteksi dulu, jangan tekan Shift (bisa membalik).
         if (!_shiftLock && _centeredTicks > 0) return;
@@ -254,6 +267,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 Log?.Invoke($"Scroll {sc.Reason} ({sc.X:0},{sc.Y:0}) x{Math.Abs(sc.Notches)}");
                 input.ScrollClient(sc.X, sc.Y, sc.Notches);
                 break;
+            case AimAction or TurnAction when _camFree:
+                break; // v0.2.77: kamera sedang dipindah animasi → arah layar tidak valid
             case AimAction am:
                 // Kursor sedang di tengah tapi shift lock belum pasti → jangan geser absolut (bisa menyentak kamera).
                 if (_centeredTicks > 0 && !_shiftLock) break;

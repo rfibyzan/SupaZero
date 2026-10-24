@@ -728,7 +728,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         var a = Vec(pos); var l = Vec(lv); var v = Nums(vs);
         if (a is null || l is null || v.Length < 2) return null;
         double fov = p.TryGetValue("FieldOfView", out var f) ? Num(f, 70) : 70;
-        return new CameraInfo(a, l, fov, v[0], v[1]);
+        string? subj = p.TryGetValue("CameraSubject", out var cs) && cs != "nil" && cs.Length > 0 ? cs : null;
+        return new CameraInfo(a, l, fov, v[0], v[1]) { Subject = subj };
     }
 
     private static double[] Nums(string s) => s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
