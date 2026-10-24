@@ -13,6 +13,7 @@ public static class AnimeZeroPaths
     public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; terparkir di Y=-5000, aktif = di lantai. Dipungut cukup dilewati.
     public const double PooledDropParkedY = -1000;
     public const string Enemies = "enemies";            // Workspace.enemies: Model bernama angka (HRP + Humanoid); mati = Model dihapus
+    public const string WorldMap = "Map";               // [V] S16: Part CanCollide (AlleyBarrier1-4 tembus pandang 54×60×5) = dinding
     public const string World = "World";                // Workspace.World: Areas 1-5, Spawns 1-5, Navigation, TpBack
     public const string WorldAreas = "Areas";
     public const string WorldNavigation = "Navigation"; // [V] S15 Hxh: jejak rintangan (Part datar Y=3); ER2: node "navN" 4×4×4 (tangga)

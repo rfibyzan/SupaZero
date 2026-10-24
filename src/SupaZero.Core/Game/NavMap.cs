@@ -4,14 +4,18 @@ namespace SupaZero.Core.Game;
 /// Persegi berorientasi di bidang XZ (Part: posisi, Size X/Z, yaw dari LookVector). Size.Z searah LookVector,
 /// Size.X searah RightVector (= Look × Up).
 /// </summary>
-public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, double LookX, double LookZ, double Y)
+public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, double LookX, double LookZ, double Y, double HalfY = 0, bool Tilted = false)
 {
-    public static NavRect FromPart(Settings.Vec3 pos, Settings.Vec3 size, double lookX = 0, double lookZ = -1)
+    public static NavRect FromPart(Settings.Vec3 pos, Settings.Vec3 size, double lookX = 0, double lookZ = -1, double lookY = 0)
     {
         double l = Math.Sqrt(lookX * lookX + lookZ * lookZ);
+        bool tilted = Math.Abs(lookY) > 0.05;
         if (l < 1e-6) { lookX = 0; lookZ = -1; l = 1; }
-        return new(pos.X, pos.Z, Math.Abs(size.X) / 2, Math.Abs(size.Z) / 2, lookX / l, lookZ / l, pos.Y);
+        return new(pos.X, pos.Z, Math.Abs(size.X) / 2, Math.Abs(size.Z) / 2, lookX / l, lookZ / l, pos.Y, Math.Abs(size.Y) / 2, tilted);
     }
+
+    /// <summary>Menghalangi badan yang kakinya di <paramref name="footY"/>: tegak (tidak miring/ramp), atas di atas langkah, bawah di bawah kepala.</summary>
+    public bool BlocksBodyAt(double footY) => !Tilted && Y + HalfY > footY + 2.5 && Y - HalfY < footY + 5;
 
     /// <summary>Titik di dalam persegi yang diperbesar <paramref name="grow"/> stud tiap sisi.</summary>
     public bool Contains(double px, double pz, double grow = 0)
@@ -36,7 +40,8 @@ public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, dou
 /// Walkable = kotak Workspace.World.Areas.&lt;n&gt; (wilayah main); Obstacles = jejak rintangan di Workspace.World.Navigation
 /// (Hxh: Part datar Y=3 bernama prop/bangunan) + Barriers/NpcBarriers; Nodes = titik jalan "navN" 4×4×4 (Evil Reflection: tangga).
 /// </summary>
-public sealed record NavMap(IReadOnlyList<NavRect> Walkable, IReadOnlyList<NavRect> Obstacles, IReadOnlyList<Settings.Vec3> Nodes)
+/// <remarks>Solids = Part CanCollide di Workspace.World.Map (mis. AlleyBarrier tembus pandang), disaring per tinggi badan saat cari jalur.</remarks>
+public sealed record NavMap(IReadOnlyList<NavRect> Walkable, IReadOnlyList<NavRect> Obstacles, IReadOnlyList<Settings.Vec3> Nodes, IReadOnlyList<NavRect>? Solids = null)
 {
-    public bool IsEmpty => Walkable.Count == 0 && Obstacles.Count == 0 && Nodes.Count == 0;
+    public bool IsEmpty => Walkable.Count == 0 && Obstacles.Count == 0 && Nodes.Count == 0 && (Solids?.Count ?? 0) == 0;
 }

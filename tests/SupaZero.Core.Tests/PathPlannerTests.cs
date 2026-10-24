@@ -22,6 +22,20 @@ public class PathPlannerTests
     }
 
     [Fact]
+    public void Solids_WallBlocks_FloorAndRampIgnored()
+    {
+        var area = NavRect.FromPart(new(0, 3, 0), new(100, 80, 60));
+        var wall = NavRect.FromPart(new(11, 18, 0), new(82, 60, 5));            // seperti AlleyBarrier (tembus pandang, CanCollide)
+        var floor = NavRect.FromPart(new(0, -0.5, 0), new(200, 1, 200));       // Baseplate: di bawah kaki
+        var ramp = NavRect.FromPart(new(-40, 3, 0), new(10, 1, 20), 0, -0.97, 0.26); // miring
+        var map = new NavMap([area], [], [], [wall, floor, ramp]);
+        var path = new PathPlanner().Find(map, new(40, 3, -15), new(40, 3, 15));
+        Assert.NotNull(path);
+        Assert.Contains(path!, w => w.X < -28);
+        Assert.True(new PathPlanner().Clear(new NavMap([area], [], [], [floor, ramp]), new(40, 3, -15), new(40, 3, 15)));
+    }
+
+    [Fact]
     public void Clear_StraightLineOpen()
     {
         var pl = new PathPlanner();

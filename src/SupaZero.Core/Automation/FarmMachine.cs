@@ -754,6 +754,13 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         { _path = null; return WalkTo(s, target, radius, now, label, attackWhenStuck); }
         bool stuck = _stuckRef is not null && now - _stuckSince >= 1500;
         bool goalMoved = _pathGoal is not { } g || Navigator.Distance2D(g.X, g.Z, target.X, target.Z) > 6;
+        // Tersangkut di objek yang tidak ada di peta: tandai titik ~2,5 stud di depan (arah titik belok) sebagai rintangan lalu cari ulang.
+        if (stuck && _path is { Count: > 0 } cur && now - _pathAt > 1500)
+        {
+            var w0 = cur[0];
+            double d = Math.Max(0.01, Navigator.Distance2D(p.X, p.Z, w0.X, w0.Z));
+            _planner.Block(p.X + (w0.X - p.X) / d * 2.5, p.Z + (w0.Z - p.Z) / d * 2.5);
+        }
         if (_path is null || goalMoved || stuck && now - _pathAt > 1500 || now - _pathAt > 4000)
         {
             _pathGoal = target;

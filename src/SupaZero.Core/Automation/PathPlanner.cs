@@ -22,7 +22,7 @@ public sealed class PathPlanner
     /// <summary>Titik belok dari <paramref name="from"/> ke <paramref name="to"/> (tidak termasuk titik awal), atau null bila tidak ada jalur.</summary>
     public List<Vec3>? Find(NavMap map, Vec3 from, Vec3 to)
     {
-        if (!ReferenceEquals(map, _map) || !Inside(from) || !Inside(to)) Build(map, from, to);
+        if (NeedBuild(map, from, to)) Build(map, from, to);
         var s = Nearest(Cell(from)); var g = Nearest(Cell(to));
         if (s < 0 || g < 0) return null;
         var cells = AStar(s, g);
@@ -36,10 +36,24 @@ public sealed class PathPlanner
     /// <summary>Apakah garis lurus dari a ke b bebas rintangan (grid sudah dibangun untuk map ini).</summary>
     public bool Clear(NavMap map, Vec3 a, Vec3 b)
     {
-        if (!ReferenceEquals(map, _map) || !Inside(a) || !Inside(b)) Build(map, a, b);
+        if (NeedBuild(map, a, b)) Build(map, a, b);
         int ca = Cell(a), cb = Cell(b);
         return ca >= 0 && cb >= 0 && Line(ca, cb);
     }
+
+    private double _builtY;
+    private readonly List<(double X, double Z, double R)> _blocks = [];
+
+    /// <summary>Tandai titik tempat karakter tersangkut (objek yang tidak ada di peta) sebagai rintangan untuk map ini.</summary>
+    public void Block(double x, double z, double r = 2.5)
+    {
+        if (_blocks.Count >= 30) _blocks.RemoveAt(0);
+        _blocks.Add((x, z, r));
+        if (_w > 0) Paint((x - r, z - r, x + r, z + r), (px, pz) => Navigator.Distance2D(px, pz, x, z) <= r, false);
+    }
+
+    private bool NeedBuild(NavMap map, Vec3 a, Vec3 b) =>
+        !ReferenceEquals(map, _map) || !Inside(a) || !Inside(b) || Math.Abs(a.Y - _builtY) > 6;
 
     private bool Inside(Vec3 p) => _w > 0 && p.X >= _minX && p.Z >= _minZ && p.X < _minX + _w * _cell && p.Z < _minZ + _h * _cell;
     private int Cell(Vec3 p)
@@ -50,7 +64,9 @@ public sealed class PathPlanner
 
     private void Build(NavMap map, Vec3 from, Vec3 to)
     {
+        if (!ReferenceEquals(map, _map)) _blocks.Clear();
         _map = map;
+        _builtY = from.Y;
         double minX = Math.Min(from.X, to.X), minZ = Math.Min(from.Z, to.Z), maxX = Math.Max(from.X, to.X), maxZ = Math.Max(from.Z, to.Z);
         foreach (var r in map.Walkable) { var b = r.Bounds(AreaGrow); minX = Math.Min(minX, b.MinX); minZ = Math.Min(minZ, b.MinZ); maxX = Math.Max(maxX, b.MaxX); maxZ = Math.Max(maxZ, b.MaxZ); }
         foreach (var n in map.Nodes) { minX = Math.Min(minX, n.X - NodeRadius); minZ = Math.Min(minZ, n.Z - NodeRadius); maxX = Math.Max(maxX, n.X + NodeRadius); maxZ = Math.Max(maxZ, n.Z + NodeRadius); }
@@ -70,6 +86,13 @@ public sealed class PathPlanner
         if (!open) foreach (var p in new[] { from, to }) Connect(p);
         foreach (var p in new[] { from, to }) Paint((p.X - EndpointRadius, p.Z - EndpointRadius, p.X + EndpointRadius, p.Z + EndpointRadius), (x, z) => Navigator.Distance2D(x, z, p.X, p.Z) <= EndpointRadius, true);
         foreach (var r in map.Obstacles) Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
+        // Part padat di Map setinggi badan (HumanoidRootPart ≈ 3 stud di atas kaki); lantai, ramp, dan atap dilewati.
+        double footY = from.Y - 3;
+        if (map.Solids is { } solids)
+            foreach (var r in solids)
+                if (r.BlocksBodyAt(footY) && !r.Contains(from.X, from.Z) && !r.Contains(to.X, to.Z))
+                    Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
+        foreach (var (bx, bz, br) in _blocks) Paint((bx - br, bz - br, bx + br, bz + br), (x, z) => Navigator.Distance2D(x, z, bx, bz) <= br, false);
     }
 
     private void Connect(Vec3 p)
