@@ -91,7 +91,24 @@ public sealed class PathPlanner
     }
 
     private bool NeedBuild(NavMap map, Vec3 a, Vec3 b) =>
-        !ReferenceEquals(map, _map) || !Inside(a) || !Inside(b) || Math.Abs(a.Y - _builtY) > 6;
+        !ReferenceEquals(map, _map) || !Inside(a) || !Inside(b) || Math.Abs(FootY(map, a) - _builtY) > 3;
+
+    /// <summary>
+    /// v0.2.64: tinggi kaki = atas lantai tertinggi tepat di bawah karakter, bukan HRP.Y − 3. Saat lompat/dash (HRP Y ≥ 8)
+    /// jalan timur Hxh/Shadow Gate tidak lagi terhitung lantai → jalur parsial ke gang buntu (log Byzan 24 Okt 2026 20:54).
+    /// </summary>
+    public static double FootY(NavMap map, Vec3 from)
+    {
+        double best = double.NegativeInfinity;
+        if (map.Solids is { } solids)
+            foreach (var r in solids)
+            {
+                if (r.Tilted || !r.Contains(from.X, from.Z)) continue;
+                double top = r.Y + r.HalfY;
+                if (top <= from.Y - 1 && top >= from.Y - 30 && top > best) best = top;
+            }
+        return double.IsNegativeInfinity(best) ? from.Y - 3 : best;
+    }
 
     private bool Inside(Vec3 p) => _w > 0 && p.X >= _minX && p.Z >= _minZ && p.X < _minX + _w * _cell && p.Z < _minZ + _h * _cell;
     private int Cell(Vec3 p)
@@ -104,7 +121,7 @@ public sealed class PathPlanner
     {
         if (!ReferenceEquals(map, _map)) _blocks.Clear();
         _map = map;
-        _builtY = from.Y;
+        _builtY = FootY(map, from);
         double minX = Math.Min(from.X, to.X), minZ = Math.Min(from.Z, to.Z), maxX = Math.Max(from.X, to.X), maxZ = Math.Max(from.Z, to.Z);
         foreach (var r in map.Walkable) { var b = r.Bounds(AreaGrow); minX = Math.Min(minX, b.MinX); minZ = Math.Min(minZ, b.MinZ); maxX = Math.Max(maxX, b.MaxX); maxZ = Math.Max(maxZ, b.MaxZ); }
         foreach (var n in map.Nodes) { minX = Math.Min(minX, n.X - NodeRadius); minZ = Math.Min(minZ, n.Z - NodeRadius); maxX = Math.Max(maxX, n.X + NodeRadius); maxZ = Math.Max(maxZ, n.Z + NodeRadius); }
@@ -121,7 +138,7 @@ public sealed class PathPlanner
         if (open) Array.Fill(_free, true);
         foreach (var r in map.Walkable) Paint(r.Bounds(AreaGrow), (x, z) => r.Contains(x, z, AreaGrow), true);
         foreach (var n in map.Nodes) Paint((n.X - NodeRadius, n.Z - NodeRadius, n.X + NodeRadius, n.Z + NodeRadius), (x, z) => Navigator.Distance2D(x, z, n.X, n.Z) <= NodeRadius, true);
-        double footY = from.Y - 3;
+        double footY = _builtY;
         // v0.2.47: lantai padat (Baseplate, platform jalan) di luar kotak Areas = boleh dilewati dengan biaya lebih (bukan jurang/void).
         if (!open && map.Solids is { } floors)
             foreach (var r in floors)

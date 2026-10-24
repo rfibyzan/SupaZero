@@ -97,4 +97,21 @@ public class PathPlannerTests
         // Tidak ada titik belok yang masuk gang AlleyBarrier4 (x 301..309, z -135..-96).
         Assert.DoesNotContain(path!, p => p.X is > 298 and < 312 && p.Z is > -135 and < -96);
     }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(6)]
+    [InlineData(8)]
+    [InlineData(12)]
+    public void Hxh_Area4To5_FromEastStreet_WorksWhileJumping(double y)
+    {
+        // Log Byzan 24 Okt 2026 20:54 (Shadow Gate 5S, peta sama dengan Hxh): dari (535,-193) parsial ke gang buntu saat HRP di udara.
+        var map = HxhS1(); var pl = new PathPlanner();
+        var entry = new Vec3(295, 2, -53.3);
+        var path = pl.Find(map, new Vec3(535, y, -193), entry);
+        Assert.NotNull(path);
+        Assert.False(pl.Partial, pl.LastFailure);
+        Assert.Equal(entry, path![^1]);
+        Assert.DoesNotContain(path!, p => p.X is > 298 and < 312 && p.Z is > -135 and < -96);
+    }
 }
