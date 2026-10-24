@@ -93,7 +93,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         var enemyList = ReadEnemies(enemies);
         if (rubble is { } rb && !enemyList.Any(e => e.Alive))
         {
-            enemyList.Add(new EnemyInfo(AnimeZeroPaths.RubbleName, rb, 1, 1));
+            enemyList.Add(new EnemyInfo(AnimeZeroPaths.RubbleName, rb, Math.Max(0.01, _rubbleHp ?? 1), 1));
             enemyCount = Math.Max(enemyCount, 0) + 1;
         }
         var playerPos = playerPosEarly;
@@ -106,7 +106,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Camera = ReadCamera(ws),
             Enemies = enemyList,
             RubblePos = rubble,
-            RubbleInfo = _rubbleInfo,
+            RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; nyawa {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
@@ -544,6 +544,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// Posisi = Adornee BillboardGui PlayerGui.RubbleBar (offset Misc.Adornee), cadangan: parent BillboardGui bila di Workspace.
     /// </summary>
     private string? _rubbleInfo;
+    private double? _rubbleHp;
 
     /// <summary>
     /// Snapshot RIE saat rubble aktif (Byzan, 24 Okt 2026, Hxh Area 3→4): BillboardGui PlayerGui.RubbleBar menempel ke
@@ -552,7 +553,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// </summary>
     private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw, Settings.Vec3? me)
     {
-        _rubbleInfo = null;
+        _rubbleInfo = null; _rubbleHp = null;
         if (pg == 0) return null;
         bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
         long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
@@ -562,6 +563,13 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         long bar = reader.FindChild(pg, AnimeZeroPaths.RubbleBar);
         if (bar != 0)
         {
+            // Nyawa rubble: teks "87%" di BillboardGui RubbleBar.
+            foreach (var t in Texts(bar, 0))
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(t, @"(\d+(?:[.,]\d+)?)\s*%");
+                if (m.Success && double.TryParse(m.Groups[1].Value.Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double pct))
+                { _rubbleHp = pct / 100.0; break; }
+            }
             if (!reader.Offsets.TryResolve("Misc.Adornee", out long ao)) info = "offset Misc.Adornee tidak ada";
             else if (!M.TryReadPointer(bar + ao, out long ad) || ad == 0) info = "Adornee kosong";
             else

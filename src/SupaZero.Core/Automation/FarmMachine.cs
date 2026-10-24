@@ -586,9 +586,13 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             {
                 // Jarak serang dipertahankan: lebih jauh dari jarak + toleransi → kejar; dalam pita → roaming di lingkaran berjari-jari jarak serang
                 // (terlalu dekat otomatis mundur karena titik roaming ada di lingkaran itu).
-                approaching = lootWalk is null && d > S.Navigation.AttackRange + RangeTolerance(S.Navigation.AttackRange);
+                bool isRubble = target.Name == AnimeZeroPaths.RubbleName;
+                // Rubble = dinding solid: cukup dekat (≤ 12 stud) lalu serang; jalan lurus tanpa A* (titiknya di dalam dinding).
+                double range = isRubble ? Math.Min(12, S.Navigation.AttackRange) : S.Navigation.AttackRange;
+                approaching = lootWalk is null && d > range + (isRubble ? 2 : RangeTolerance(S.Navigation.AttackRange));
+                if (isRubble) Status += $" · rubble {target.Health:P0}";
                 if (lootWalk is not null) { actions.AddRange(lootWalk); Status += $" · {lootStatus}"; }
-                var walk = lootWalk is not null ? [] : approaching ? WalkPath(s, target.Pos, S.Navigation.AttackRange, now, $"musuh #{target.Name}", false) : [];
+                var walk = lootWalk is not null ? [] : approaching ? WalkPath(s, target.Pos, range, now, isRubble ? "rubble" : $"musuh #{target.Name}", isRubble) : [];
                 if (lootWalk is null) actions.AddRange(walk.Count > 0 ? walk : [new MoveAction([], "Dekat musuh")]);
             }
             // Bidik ke tengah kelompok: rata-rata posisi musuh hidup ≤ 15 stud dari target (skill kebanyakan AOE).
@@ -601,7 +605,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (S.Navigation.AimAtEnemy && s.ShiftLock)
             {
                 // Shift lock: kursor terkunci di tengah → putar kamera (yaw) ke arah musuh dengan gerak relatif.
-                // Yaw dan pitch dihitung dari posisi kamera (shift lock menggeser kamera ke kanan bahu); pitch dijaga -40°..+10°.
+                // Yaw dan pitch dihitung dari posisi kamera (shift lock menggeser kamera ke kanan bahu); pitch dijaga -80°..+10°.
                 int dx = 0, dy = 0;
                 if (s.Camera is { } cam)
                 {
@@ -616,7 +620,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             else if (S.Navigation.AimAtEnemy && s.Camera is { } cam2 && Ready("cam-drag", now, 700))
             {
                 // Tanpa shift lock: skill mengikuti kursor, jadi kamera ikut diputar (klik kanan tahan + geser)
-                // bila musuh melenceng > 20° dari tengah atau pitch keluar batas -40°..+10°.
+                // bila musuh melenceng > 20° dari tengah atau pitch keluar batas -80°..+10°.
                 double ex = aimPos.X - cam2.Pos.X, ey = aimPos.Y - cam2.Pos.Y, ez = aimPos.Z - cam2.Pos.Z;
                 int tdx = Turn(cam2.Look.X, cam2.Look.Z, ex, ez, S.Navigation.TurnPixelsPerDegree, gain: 1, deadzone: 20, max: 200);
                 int tdy = Pitch(cam2.Look, ex, ey, ez, S.Navigation.TurnPixelsPerDegree, gain: 1, deadzone: 8, max: 150);
@@ -1141,7 +1145,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         double ll = Math.Sqrt(look.X * look.X + look.Z * look.Z), tl = Math.Sqrt(dx * dx + dz * dz);
         if (ll < 1e-6 && Math.Abs(look.Y) < 1e-6) return 0;
         double cur = Math.Atan2(look.Y, ll) * 180 / Math.PI;
-        double want = Math.Clamp(tl < 1e-6 ? -40 : Math.Atan2(dy, tl) * 180 / Math.PI, -40, 10);
+        double want = Math.Clamp(tl < 1e-6 ? -80 : Math.Atan2(dy, tl) * 180 / Math.PI, -80, 10); // -80°: musuh menggerombol di bawah saat pemain di udara
         double err = cur - want; // positif = kamera terlalu mendongak → mouse ke bawah
         if (Math.Abs(err) < deadzone) return 0;
         return (int)Math.Clamp(Math.Round(err * gain * Math.Max(0.5, pxPerDeg)), -max, max);
