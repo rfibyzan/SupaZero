@@ -545,8 +545,9 @@ public class FarmMachineTests
         var snap = new GameSnapshot
         {
             Attached = true, EnemyCount = 2, BossTag = "IMMUNE", BossSpawn = new(61.85, 279, -146.55),
-            Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100), new("7", new(47.6, 281.5, -252.7), 100, 100)],
+            Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100, 2), new("7", new(62, 281.5, -150), 100, 100)],
         };
+        // v0.2.81: yang dilewati = model ber-2 Highlight, walau summon berdiri dekat BossSpawn.
         Assert.Equal("7", Assert.Single(FarmMachine.Targets(snap)).Name);
         Assert.Equal(2, FarmMachine.Targets(snap with { BossTag = "BOSS" }).Count);
     }
@@ -558,7 +559,7 @@ public class FarmMachineTests
         var snap = new GameSnapshot
         {
             Attached = true, EnemyCount = 1, BossTag = "IMMUNE", BossSpawn = new(61.85, 279, -146.55),
-            Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100)],
+            Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100, 2)],
             PlayerPos = new(72, 243, -440), CameraLook = (0, 1),
             CurrentArea = new AreaBox(new(61.85, 303.5, -208.55), new(200, 70, 200)),
         };

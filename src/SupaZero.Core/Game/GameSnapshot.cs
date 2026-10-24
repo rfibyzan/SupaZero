@@ -16,9 +16,14 @@ public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory,
 
 /// <summary>Status satu kotak skill di HUD: Key dari keybind.Txt; Remaining detik cooldown (null = siap); Locked = MasteryLock tampil.</summary>
 /// <summary>Musuh di Workspace.enemies: posisi HumanoidRootPart + darah Humanoid.</summary>
-public sealed record EnemyInfo(string Name, Settings.Vec3 Pos, double Health, double MaxHealth)
+public sealed record EnemyInfo(string Name, Settings.Vec3 Pos, double Health, double MaxHealth, int Highlights = 1)
 {
     public bool Alive => Health > 0;
+    /// <summary>
+    /// v0.2.81: tanda boss IMMUNE dari model. Snapshot RIE Evil Reflections (Byzan, 24 Okt 23:52 vs 23:53): saat [IMMUNE] model boss
+    /// punya DUA anak Highlight bernama "Highlight" (musuh biasa satu); setelah bisa diserang, Highlight kedua hilang.
+    /// </summary>
+    public bool ImmuneMark => Highlights >= 2;
 }
 
 /// <summary>Item di lantai ronde (Workspace.PooledDrops): Kind "cash" (koin) atau "health" (plus hijau). Dipungut dengan dilewati.</summary>

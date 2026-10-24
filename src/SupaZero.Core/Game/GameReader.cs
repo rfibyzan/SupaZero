@@ -653,7 +653,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 if (hp_.TryGetValue("Health", out var h)) hp = Num(h, 1);
                 if (hp_.TryGetValue("MaxHealth", out var mh)) max = Num(mh, 1);
             }
-            list.Add(new EnemyInfo(reader.GetName(m), new(x, y, z), hp, max));
+            int hl = 0;
+            foreach (long ch in reader.GetChildren(m, 64))
+                if (reader.GetName(ch) == "Highlight" && reader.GetClassName(ch) == "Highlight") hl++;
+            list.Add(new EnemyInfo(reader.GetName(m), new(x, y, z), hp, max, hl));
         }
         return list;
     }

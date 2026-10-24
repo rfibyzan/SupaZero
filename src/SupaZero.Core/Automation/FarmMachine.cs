@@ -1052,16 +1052,15 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
     private static string Wave(GameSnapshot s) => s.RunWave is { Length: > 0 } w ? w + " · " : "";
 
-    /// <summary>Musuh yang boleh diserang: boss IMMUNE (berdiri di Markers.BossSpawn) dilewati selama masih ada musuh lain.</summary>
+    /// <summary>
+    /// Musuh yang boleh diserang. v0.2.81 (jangan menebak): saat BossBar [IMMUNE], yang dilewati hanya model bertanda pasti
+    /// (<see cref="EnemyInfo.ImmuneMark"/>: 2 Highlight). Tebakan lama "dekat Markers.BossSpawn 12 stud" dihapus.
+    /// </summary>
     public static List<EnemyInfo> Targets(GameSnapshot s)
     {
         var alive = s.Enemies.Where(e => e.Alive).ToList();
-        if (!s.BossImmune || s.BossSpawn is not { } bs) return alive;
-        return alive.Where(e => Navigator.Distance2D(e.Pos.X, e.Pos.Z, bs.X, bs.Z) > BossSpawnRadius).ToList();
+        return s.BossImmune ? alive.Where(e => !e.ImmuneMark).ToList() : alive;
     }
-
-    /// <summary>Boss IMMUNE dianggap yang berada sejauh ini dari Markers.BossSpawn (snapshot: tepat di titiknya).</summary>
-    public const double BossSpawnRadius = 12;
 
     /// <summary>Klik kartu reward <paramref name="want"/> sampai bertanda UNTARGET (= ditarget). null = sudah / tidak berlaku.</summary>
     private List<MacroAction>? DropTarget(GameSnapshot s, IReadOnlyList<RewardCard> cards, GuiRect? view, string want, string key, long now)
