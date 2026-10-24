@@ -41,6 +41,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     {
         _cooldowns.Clear();
         _roomBan.Clear();
+        _pickupBan.Clear();
+        _pickupKey = null;
         _scrolls.Clear();
         _diffAt = null;
         _roomTarget = null;
@@ -455,6 +457,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (left == 0)
         {
             Phase = MacroPhase.Navigating;
+            // Area bersih: pungut koin/health di sekitar dulu (cukup dilewati), baru lanjut ke area berikutnya.
+            if (Pickup(s, now, PickupClearRadius, healthOnly: false, S) is { } pick) return pick;
             if (!S.Navigation.AutoNavigate) { Status = $"{area} bersih (Auto navigasi mati)."; return []; }
             if (s.NextAreaPos is null && s.CurrentArea is { } cur && s.PlayerPos is { } pIn && !cur.Contains(pIn, 10))
             {
@@ -479,6 +483,14 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         bool approaching = false;
         EnemyInfo? tgt = null;
         var candidates = Targets(s);
+        // Darah rendah saat bertarung: ambil health terdekat dulu.
+        if (s.PlayerHp is { } hp && hp < LowHpPickup && Pickup(s, now, PickupHealthRadius, healthOnly: true, S) is { } heal)
+        {
+            Status = $"{Status} · darah {hp:P0} → ambil health";
+            return heal;
+        }
+        // Belum ada musuh yang bisa diincar (summon belum muncul, boss IMMUNE): pungut item sambil menunggu.
+        if (candidates.Count == 0 && Pickup(s, now, PickupClearRadius, healthOnly: false, S) is { } idlePick) return idlePick;
         if (s.PlayerPos is { } meIn && candidates.Count == 0)
         {
             // Hanya boss IMMUNE yang tersisa / musuh belum muncul: masuk ke area (mis. naik tangga dari spawn raid).
@@ -668,6 +680,45 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private readonly Random _rng = new();
 
     /// <summary>Jalan ke tujuan dengan W/A/S/D; tersangkut ≥1,5 dtk → lompat (+ serang bila diizinkan, untuk rubble).</summary>
+    // ---------- Item di lantai (Workspace.PooledDrops) ----------
+
+    /// <summary>Radius pungut koin/health saat area bersih; radius health saat darah rendah; ambang darah rendah.</summary>
+    internal const double PickupClearRadius = 90, PickupHealthRadius = 60, LowHpPickup = 0.5;
+    /// <summary>Item yang tidak terambil dalam waktu ini (terhalang/tidak terjangkau) dilewati.</summary>
+    internal const long PickupGiveUpMs = 6000;
+    private readonly Dictionary<string, long> _pickupBan = new(StringComparer.Ordinal);
+    private string? _pickupKey;
+    private long _pickupSince;
+
+    private static string PickupKey(PickupInfo p) => $"{p.Kind}@{Math.Round(p.Pos.X)},{Math.Round(p.Pos.Z)}";
+
+    /// <summary>Jalan melewati item terdekat (koin/health) dalam radius. null = tidak ada item yang perlu diambil.</summary>
+    private List<MacroAction>? Pickup(GameSnapshot s, long now, double radius, bool healthOnly, AppSettings S)
+    {
+        if (s.PlayerPos is not { } me || s.Pickups.Count == 0) { _pickupKey = null; return null; }
+        // Health hanya dipungut bila darah tidak penuh (pickup terbuang bila penuh).
+        bool wantHealth = s.PlayerHp is not { } hpNow || hpNow < 0.95;
+        var best = s.Pickups
+            .Where(p => (healthOnly ? p.IsHealth : (!p.IsHealth || wantHealth)) && !(_pickupBan.TryGetValue(PickupKey(p), out long until) && until > now))
+            .Select(p => (p, d: Navigator.Distance2D(me.X, me.Z, p.Pos.X, p.Pos.Z)))
+            .Where(t => t.d <= radius && Math.Abs(t.p.Pos.Y - me.Y) <= 25)
+            .OrderBy(t => t.d).FirstOrDefault();
+        if (best.p is null) { _pickupKey = null; return null; }
+        string key = PickupKey(best.p);
+        if (_pickupKey != key) { _pickupKey = key; _pickupSince = now; }
+        else if (now - _pickupSince > PickupGiveUpMs)
+        {
+            _pickupBan[key] = now + 60_000;
+            _pickupKey = null;
+            return [new MoveAction([], "Lewati item"), .. Note("pickup-ban", now, 4000, $"Item {best.p.Kind} tidak terambil dalam {PickupGiveUpMs / 1000} dtk, dilewati.")];
+        }
+        string what = best.p.IsHealth ? "health" : "koin";
+        var walk = WalkTo(s, best.p.Pos, 1.0, now, what, false);
+        int left = s.Pickups.Count;
+        Status = $"Ambil {what} ({best.d:0} stud, {left} item)";
+        return walk.Count > 0 ? walk : [new MoveAction([], $"Di atas {what}")];
+    }
+
     private List<MacroAction> WalkTo(GameSnapshot s, Vec3 target, double radius, long now, string label, bool attackWhenStuck)
     {
         if (s.PlayerPos is not { } p || s.CameraLook is not { } look)

@@ -86,6 +86,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             CameraLook = ReadCameraLook(ws),
             Camera = ReadCamera(ws),
             Enemies = ReadEnemies(enemies),
+            Pickups = ReadPickups(ws),
+            PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { AreaTotal: > 0 } && hud.Area < hud.AreaTotal ? ReadAreaPos(ws, hud.Area + 1) : null,
             LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],
             LobbyMaps = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyMapsList), pg) : [],
@@ -482,6 +484,33 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             list.Add(new EnemyInfo(reader.GetName(m), new(x, y, z), hp, max));
         }
         return list;
+    }
+
+    /// <summary>Item aktif di Workspace.PooledDrops (cash/health). Yang terparkir (Y = -5000) dilewati.</summary>
+    private List<PickupInfo> ReadPickups(long ws)
+    {
+        var list = new List<PickupInfo>();
+        long folder = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.PooledDrops) : 0;
+        if (folder == 0) return list;
+        foreach (long d in reader.GetChildren(folder, 256))
+        {
+            if (!props.TryGetWorldPosition(d, out float x, out float y, out float z) || y < AnimeZeroPaths.PooledDropParkedY) continue;
+            list.Add(new PickupInfo(reader.GetName(d), new(x, y, z)));
+        }
+        return list;
+    }
+
+    /// <summary>Darah karakter (Character.Humanoid Health/MaxHealth) 0..1.</summary>
+    private double? ReadPlayerHp(long localPlayer)
+    {
+        if (localPlayer == 0 || !reader.Offsets.TryResolve("Player.ModelInstance", out long mo)) return null;
+        if (!M.TryReadPointer(localPlayer + mo, out long character) || character == 0) return null;
+        long hum = reader.FindChild(character, "Humanoid");
+        if (hum == 0) return null;
+        var p = props.Read(hum, "Humanoid");
+        if (!p.TryGetValue("Health", out var h) || !p.TryGetValue("MaxHealth", out var mh)) return null;
+        double max = Num(mh, 0);
+        return max > 0 ? Math.Clamp(Num(h, 0) / max, 0, 1) : null;
     }
 
     private CameraInfo? ReadCamera(long ws)

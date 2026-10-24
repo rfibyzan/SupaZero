@@ -21,6 +21,12 @@ public sealed record EnemyInfo(string Name, Settings.Vec3 Pos, double Health, do
     public bool Alive => Health > 0;
 }
 
+/// <summary>Item di lantai ronde (Workspace.PooledDrops): Kind "cash" (koin) atau "health" (plus hijau). Dipungut dengan dilewati.</summary>
+public sealed record PickupInfo(string Kind, Settings.Vec3 Pos)
+{
+    public bool IsHealth => Kind.StartsWith("health", StringComparison.OrdinalIgnoreCase);
+}
+
 /// <summary>Kamera: posisi, LookVector, FieldOfView (vertikal, derajat), ViewportSize (= area klien).</summary>
 public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)
 {
@@ -82,6 +88,9 @@ public sealed record GameSnapshot
 
     // Karakter + kamera (untuk Navigator)
     public Settings.Vec3? PlayerPos { get; init; }
+    /// <summary>Darah karakter 0..1 (Humanoid Health/MaxHealth), null bila tidak terbaca.</summary>
+    public double? PlayerHp { get; init; }
+    public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
     public (double X, double Z)? CameraLook { get; init; }
     public CameraInfo? Camera { get; init; }
     /// <summary>Musuh hidup/mati di Workspace.enemies (kosong bila tidak terbaca).</summary>

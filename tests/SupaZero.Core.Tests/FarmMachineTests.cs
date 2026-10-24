@@ -188,6 +188,38 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void AreaCleared_PicksUpCoinsFirst_ThenGivesUp()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 0, Hud = HudText.Parse("Easy · Area 2/5 · 0 left"),
+            PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), NextAreaPos = new Vec3(0, 0, -50),
+            PlayerHp = 1, Pickups = [new("cash", new(20, 0, 0)), new("health", new(5, 0, 0))],
+        };
+        var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
+        Assert.Equal([VirtualKeys.D], move.Keys); // health dilewati karena darah penuh → koin di +X
+        Assert.Contains("koin", m.Status);
+        m.Step(snap, 3000);
+        m.Step(snap, 6500); // tidak terambil → dilewati
+        Assert.Contains(Real(m.Step(snap, 7000)), x => x is MoveAction mv && mv.Keys.SequenceEqual([VirtualKeys.W]));
+    }
+
+    [Fact]
+    public void LowHp_GrabsHealthBeforeEnemy()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, PlayerPos = new(0, 3, 0), CameraLook = (0, -1), PlayerHp = 0.3,
+            Enemies = [new("1", new(0, 3, -40), 100, 100)], Pickups = [new("health", new(-15, 3, 0))],
+        };
+        var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
+        Assert.Equal([VirtualKeys.A], move.Keys);
+        Assert.Contains("health", m.Status);
+    }
+
+    [Fact]
     public void Lobby_FarCircle_UsesAreasTeleport()
     {
         var (m, _) = New();

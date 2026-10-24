@@ -10,6 +10,8 @@ public static class AnimeZeroPaths
     public const long PlaceId = 114574503491412;
 
     // Workspace
+    public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; terparkir di Y=-5000, aktif = di lantai. Dipungut cukup dilewati.
+    public const double PooledDropParkedY = -1000;
     public const string Enemies = "enemies";            // Workspace.enemies: Model bernama angka (HRP + Humanoid); mati = Model dihapus
     public const string World = "World";                // Workspace.World: Areas 1-5, Spawns 1-5, Navigation, TpBack
     public const string WorldAreas = "Areas";
