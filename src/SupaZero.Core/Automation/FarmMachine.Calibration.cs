@@ -75,7 +75,9 @@ public sealed partial class FarmMachine
             }
             case 1:
                 Status = "Kalibrasi trait: menunggu teleport ke Matilda.";
-                if (s.TeleportCards.Count == 0 && dt >= TraitTeleportSettleMs) { Go(2); return [new MoveAction([VirtualKeys.W], "Maju ke Matilda")]; }
+                // v0.2.86: maju W buta = menebak arah (Byzan). Posisi NPC Matilda belum terbukti RIE → berhenti di sini.
+                if (s.TeleportCards.Count == 0 && dt >= TraitTeleportSettleMs)
+                    return Skip("posisi NPC Matilda belum terbaca (perlu snapshot RIE) → tidak maju; buka panel Trait sendiri bila perlu.");
                 if (dt > 10_000) return Skip("panel Areas tidak tertutup setelah klik Traits.");
                 return [stand];
             case 2:
