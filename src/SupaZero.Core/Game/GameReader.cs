@@ -557,10 +557,13 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         if (pg == 0) return null;
         bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
         long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
-        if (!hint && !(bossBar != 0 && IsShown(bossBar, pg))) return null;
+        long bar = reader.FindChild(pg, AnimeZeroPaths.RubbleBar);
+        // v0.2.63: rubble hancur sendiri bila lama tidak dipukul. Tanpa teks HUD "Break the rubble", rubble tetap dianggap aktif
+        // bila BillboardGui RubbleBar ada dan Blocker yang ditempelinya masih padat (CanCollide true), agar langsung diserang.
+        bool sure = hint || (bossBar != 0 && IsShown(bossBar, pg));
+        if (!sure && bar == 0) return null;
         string info = "RubbleBar tidak ada";
         long holder = 0;
-        long bar = reader.FindChild(pg, AnimeZeroPaths.RubbleBar);
         if (bar != 0)
         {
             // Nyawa rubble: teks "87%" di BillboardGui RubbleBar.
@@ -591,6 +594,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 if (blk != 0 && reader.FindChild(blk, AnimeZeroPaths.RubbleBar) != 0) { holder = blk; info += $"; pakai {reader.GetName(b)}.Blocker"; break; }
             }
         }
+        if (!sure && (holder == 0 || !string.Equals(Prop(holder, "CanCollide"), "true", StringComparison.OrdinalIgnoreCase)))
+        { _rubbleHp = null; return null; }
         if (holder != 0 && props.TryGetWorldPosition(holder, out float x, out float y, out float z))
         {
             var c = new Settings.Vec3(x, y, z);
