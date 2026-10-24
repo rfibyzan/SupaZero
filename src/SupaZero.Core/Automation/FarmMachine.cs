@@ -530,7 +530,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 Status = "Jalan masuk area pertarungan.";
                 return walkIn.Count > 0 ? walkIn : [new MoveAction([], "Sampai area")];
             }
-            if (s.NextAreaPos is not { } next)
+            if (EnterTarget(s, S, now) is not { } next)
             {
                 Status = $"{area} bersih, area berikutnya tidak terbaca.";
                 return [new MoveAction([], "Tujuan tidak ada"), .. Note("nav-none", now, 6000, $"{area} bersih tapi posisi area berikutnya (World.Spawns/Areas) tidak terbaca.")];
@@ -552,6 +552,12 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         {
             Status = $"{Status} · darah {hp:P0} → ambil health";
             return heal;
+        }
+        // Item dekat (≤ 20 stud) diambil sambil bertarung, tidak menunggu semua musuh mati. Gagal 6 dtk → dilewati 60 dtk.
+        if (Pickup(s, now, PickupNearRadius, healthOnly: false, S) is { } nearPick)
+        {
+            Status = $"{Status} · ambil item dekat";
+            return nearPick;
         }
         // Belum ada musuh yang bisa diincar (summon belum muncul, boss IMMUNE): pungut item sambil menunggu.
         if (candidates.Count == 0 && Pickup(s, now, PickupClearRadius, healthOnly: false, S) is { } idlePick) return idlePick;
@@ -618,7 +624,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
 
         // Tidak ada target (hitungan enemies > 0 tapi model belum punya HumanoidRootPart/HP): jangan serang udara.
         // HUD "Enter area N" → jalan ke area itu; selain itu tunggu.
-        if (tgt is null && hud is { Enter: true } && s.NextAreaPos is { } enterPos && S.Navigation.AutoNavigate)
+        if (tgt is null && hud is { Enter: true } && EnterTarget(s, S, now) is { } enterPos && S.Navigation.AutoNavigate)
         {
             Phase = MacroPhase.Navigating;
             var go = WalkPath(s, enterPos, S.Navigation.ArriveRadius, now, $"area {hud.TargetArea}", S.Navigation.AttackWhenStuck);
@@ -770,7 +776,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     // ---------- Item di lantai (Workspace.PooledDrops) ----------
 
     /// <summary>Radius pungut koin/health saat area bersih; radius health saat darah rendah; ambang darah rendah.</summary>
-    internal const double PickupClearRadius = 90, PickupHealthRadius = 60, LowHpPickup = 0.5;
+    internal const double PickupClearRadius = 90, PickupHealthRadius = 60, PickupNearRadius = 20, LowHpPickup = 0.5;
     /// <summary>Item yang tidak terambil dalam waktu ini (terhalang/tidak terjangkau) dilewati.</summary>
     internal const long PickupGiveUpMs = 6000;
     private readonly Dictionary<string, long> _pickupBan = new(StringComparer.Ordinal);
@@ -800,7 +806,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return [new MoveAction([], "Lewati item"), .. Note("pickup-ban", now, 4000, $"Item {best.p.Kind} tidak terambil dalam {PickupGiveUpMs / 1000} dtk, dilewati.")];
         }
         string what = best.p.IsHealth ? "health" : "koin";
-        var walk = WalkPath(s, best.p.Pos, 1.0, now, what, false);
+        // Radius 2 (bukan 1): item terambil saat tersentuh; radius 1 bikin karakter maju-mundur pelan di atas item.
+        var walk = WalkPath(s, best.p.Pos, 2.0, now, what, false);
         int left = s.Pickups.Count;
         Status = $"Ambil {what} ({best.d:0} stud, {left} item)";
         return walk.Count > 0 ? walk : [new MoveAction([], $"Di atas {what}")];
@@ -812,6 +819,40 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private List<Vec3>? _path;
     private Vec3? _pathGoal;
     private long _pathAt;
+    private int _enterArea, _enterDepth;
+    private long _enterNearSince;
+
+    /// <summary>
+    /// Tujuan "Enter area N". Bila sudah sampai di titik masuk tapi HUD masih "Enter area N" (pemicu game ada lebih dalam,
+    /// mis. Hxh Area 2 berhenti ~31 stud dari penanda), maju bertahap 15 stud tiap 1,5 dtk ke pusat kotak Areas.N.
+    /// </summary>
+    private Settings.Vec3? EnterTarget(GameSnapshot s, AppSettings S, long now)
+    {
+        if (s.NextAreaPos is not { } baseP) return null;
+        var hud = s.Hud;
+        int n = hud?.TargetArea ?? 0;
+        if (n != _enterArea || hud is not { Enter: true }) { _enterArea = n; _enterDepth = 0; _enterNearSince = 0; }
+        Settings.Vec3 Target()
+        {
+            if (_enterDepth == 0 || s.NextAreaCenter is not { } c) return baseP;
+            double dx = c.X - baseP.X, dz = c.Z - baseP.Z, len = Math.Sqrt(dx * dx + dz * dz);
+            if (len < 1) return baseP;
+            double t = Math.Min(len, _enterDepth * 15.0) / len;
+            return new(baseP.X + dx * t, baseP.Y, baseP.Z + dz * t);
+        }
+        var tgt = Target();
+        if (hud is { Enter: true } && s.PlayerPos is { } p)
+        {
+            double d = Math.Sqrt((p.X - tgt.X) * (p.X - tgt.X) + (p.Z - tgt.Z) * (p.Z - tgt.Z));
+            if (d <= S.Navigation.ArriveRadius + 3)
+            {
+                if (_enterNearSince == 0) _enterNearSince = now;
+                else if (now - _enterNearSince >= 1500) { _enterDepth++; _enterNearSince = 0; _path = null; tgt = Target(); }
+            }
+            else _enterNearSince = 0;
+        }
+        return tgt;
+    }
     private string? _pathNote;
 
     /// <summary>

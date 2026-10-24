@@ -110,6 +110,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Pickups = ReadPickups(ws),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
+            NextAreaCenter = hud is { TargetArea: > 0 } ? ReadAreaCenter(ws, hud.TargetArea) : null,
             LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],
             LobbyMaps = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyMapsList), pg) : [],
             LobbyActs = lobbyShown ? ReadActs(lobby, pg) : [],
@@ -690,6 +691,14 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     /// <summary>Posisi area ke-n: Workspace.World.Spawns[n] lalu Areas[n] (Part, Model, atau Folder berisi Part).</summary>
+    private Settings.Vec3? ReadAreaCenter(long ws, int n)
+    {
+        long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;
+        long areas = world != 0 ? reader.FindChild(world, AnimeZeroPaths.WorldAreas) : 0;
+        long part = areas != 0 ? reader.FindChild(areas, n.ToString()) : 0;
+        return part != 0 && props.TryGetWorldPosition(part, out float x, out float y, out float z) ? new(x, y, z) : null;
+    }
+
     private Settings.Vec3? ReadAreaPos(long ws, int n)
     {
         long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;

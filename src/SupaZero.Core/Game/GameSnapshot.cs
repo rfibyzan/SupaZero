@@ -103,6 +103,8 @@ public sealed record GameSnapshot
     public string? RubbleInfo { get; init; }
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
     public Settings.Vec3? NextAreaPos { get; init; }
+    /// <summary>Pusat kotak World.Areas.&lt;TargetArea&gt; (dipakai untuk terus maju bila HUD "Enter area" belum hilang).</summary>
+    public Settings.Vec3? NextAreaCenter { get; init; }
 
     // Lobby hub: tombol Areas (HUD kiri) → panel MATCHES "Click to Teleport" → dekat lingkaran "Start Here".
     public GuiRect? AreasButton { get; init; }
