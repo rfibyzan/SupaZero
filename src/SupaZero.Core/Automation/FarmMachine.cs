@@ -31,6 +31,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     public MacroPhase Phase { get; private set; } = MacroPhase.Idle;
     public int StagesCleared { get; private set; }
     public int Defeats { get; private set; }
+    private double? _lastHp;
+    private int _afterWinClicks;
     /// <summary>Map/act yang sedang dimainkan (dari menu Create Room).</summary>
     public string CurrentMap => _selectedMap;
     public int CurrentAct => _selectedAct;
@@ -74,12 +76,25 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             if (screen is GameScreen.Victory or GameScreen.Defeat)
             {
                 RoundEnded?.Invoke(new Notify.RoundReport(screen == GameScreen.Victory, _selectedMap, actBefore, _lastHud?.Difficulty,
-                    _roundStart is long rs ? TimeSpan.FromMilliseconds(nowMs - rs) : null, StagesCleared, s.ResultText, s.Drops));
+                    _roundStart is long rs ? TimeSpan.FromMilliseconds(nowMs - rs) : null, StagesCleared, s.ResultText, s.Drops,
+                    Matches(S.Farm.Mode, nameof(FarmMode.Infinite))));
+                Diagnostic?.Invoke($"EndScreen: '{s.ResultText ?? "?"}' · darah terakhir {(_lastHp is double lh ? lh.ToString("P0") : "?")} · " +
+                    $"Next {(s.NextButton is { } n1 ? $"({n1.CenterX:0},{n1.CenterY:0})" : "-")} · Retry {(s.RetryButton is { } r1 ? $"({r1.CenterX:0},{r1.CenterY:0})" : "-")} · " +
+                    $"Leave {(s.LeaveButton is { } l1 ? $"({l1.CenterX:0},{l1.CenterY:0})" : "-")} · mode {S.Farm.Mode}, setelah menang {S.Farm.AfterWin}.");
                 _roundStart = null;
             }
         }
         _lastScreen = screen;
         if (s.Hud is not null) _lastHud = s.Hud;
+        if (screen == GameScreen.InRound && s.PlayerHp is double hpNow)
+        {
+            // Log diagnosa: darah turun melewati 50% / 25%, dan saat 0.
+            foreach (var th in new[] { 0.5, 0.25, 0.0001 })
+                if (_lastHp is double prev && prev >= th && hpNow < th)
+                    Diagnostic?.Invoke($"Darah {hpNow:P0} ({Wave(s)}{s.Enemies.Count(e => e.Alive)} musuh hidup" +
+                        (s.PlayerPos is { } pp ? $", di ({pp.X:0},{pp.Z:0})" : "") + (s.BossName is { Length: > 0 } bn ? $", boss {bn}" : "") + ").");
+            _lastHp = hpNow;
+        }
 
         var actions = screen switch
         {
@@ -107,7 +122,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (to == GameScreen.Victory)
         {
             StagesCleared++;
-            if (_selectedAct > 0 && _selectedMap.Length > 0)
+            if (_selectedAct > 0 && _selectedMap.Length > 0 && !Matches(settings().Farm.Mode, nameof(FarmMode.Infinite)))
             {
                 ActCleared?.Invoke(_selectedMap, _selectedAct);
                 _selectedAct++; // Next stage = act berikutnya
@@ -120,6 +135,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             _pendingBuyConfirm = false;
         }
         if (to == GameScreen.Victory) _retries = 0;
+        _afterWinClicks = 0;
         if (to == GameScreen.Defeat) Defeats++;
         if (to is not (GameScreen.LobbyMenu or GameScreen.TrialsMenu)) { _diffAt = null; _scrolls.Clear(); _targetTries.Clear(); }
         _stuckRef = null;
@@ -1061,8 +1077,13 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             return Note("no-btn", now, 5000, $"Tombol {label} tidak terbaca di EndScreen.");
         }
         Phase = MacroPhase.Advancing;
-        Status = $"Menang (ke-{StagesCleared}) → {label}";
-        return Ready("after-win", now, 2500) ? [new ClickAction(b.CenterX, b.CenterY, label)] : [];
+        Status = Matches(S.Farm.Mode, nameof(FarmMode.Infinite)) ? $"Infinite selesai ({s.ResultText}) → {label}" : $"Menang (ke-{StagesCleared}) → {label}";
+        if (!Ready("after-win", now, 2500)) return [];
+        _afterWinClicks++;
+        var click = new ClickAction(b.CenterX, b.CenterY, label);
+        return _afterWinClicks % 4 == 0
+            ? [click, new NoteAction($"Masih di EndScreen setelah {_afterWinClicks}x klik {label} di ({b.CenterX:0},{b.CenterY:0}).")]
+            : [click];
     }
 
     /// <summary>null = upgrade selesai/tidak bisa, lanjut.</summary>
@@ -1168,6 +1189,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private HudInfo? _lastHud;
     /// <summary>Dipanggil sekali saat layar berubah ke Victory/Defeat (untuk webhook).</summary>
     public Action<Notify.RoundReport>? RoundEnded { get; set; }
+    /// <summary>Log diagnosa (darah turun, isi EndScreen) tanpa mengubah daftar aksi.</summary>
+    public Action<string>? Diagnostic { get; set; }
 
     /// <summary>Nomor act dari teks "Act 3", "Training [Act 1]", "Act 1 Training". 0 = tidak ada.</summary>
     public static int ActNumber(string? text)

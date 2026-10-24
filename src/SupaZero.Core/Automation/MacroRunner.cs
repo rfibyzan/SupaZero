@@ -30,6 +30,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     {
         if (IsRunning) return;
         Machine.Reset();
+        Machine.Diagnostic ??= m => Log?.Invoke(m);
         LastStopReason = null;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
@@ -168,7 +169,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 }
                 // Shift lock aktif: kursor dikunci di tengah, klik GUI (Vote Yes, Retry, Next) jatuh di tengah layar.
                 // → matikan shift lock (Shift), klik, lalu nyalakan lagi agar gaya main tetap sama.
-                // v0.2.57: hanya bila shift lock sudah pasti terdeteksi. Kursor yang kebetulan diam di tengah (lobby) bukan shift lock:
+                // v0.2.58: hanya bila shift lock sudah pasti terdeteksi. Kursor yang kebetulan diam di tengah (lobby) bukan shift lock:
                 // menekan Shift di situ justru MENYALAKAN shift lock dan klik kartu Teleport jatuh di tengah layar.
                 bool unlock = _shiftLock;
                 if (unlock)

@@ -5,7 +5,7 @@ namespace SupaZero.Core.Notify;
 
 /// <summary>Laporan akhir ronde untuk webhook.</summary>
 public sealed record RoundReport(bool Victory, string Map, int Act, string? Difficulty, TimeSpan? Duration, int StagesCleared,
-    string? ResultText, IReadOnlyList<string> Drops);
+    string? ResultText, IReadOnlyList<string> Drops, bool Infinite = false);
 
 /// <summary>Kirim embed ke Discord webhook (HTTP POST dari aplikasi; tidak menyentuh Roblox).</summary>
 public static class DiscordWebhook
@@ -28,6 +28,8 @@ public static class DiscordWebhook
         if (r.Duration is { } t) fields.Add(new("Waktu", t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss"), true));
         fields.Add(new("Stage selesai", r.StagesCleared.ToString(), true));
         fields.Add(new("Drop", r.Drops.Count > 0 ? string.Join("\n", r.Drops.Take(25)) : "(belum terbaca)", false));
+        // Infinite tidak punya "menang": ronde selesai saat karakter mati, EndScreen menampilkan "WAVE n".
+        if (r.Infinite) return new("Infinite selesai (karakter mati)", r.ResultText, Blue, fields);
         return new(r.Victory ? "Menang" : "Kalah", r.ResultText, r.Victory ? Green : Red, fields);
     }
 
