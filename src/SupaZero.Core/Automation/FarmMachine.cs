@@ -514,6 +514,10 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         var hud = s.Hud;
         int left = s.EnemyCount >= 0 ? s.EnemyCount : hud?.EnemiesLeft ?? -1;
         string area = hud is { AreaTotal: > 0 } ? $"Area {hud.Area}/{hud.AreaTotal}" : "Area ?";
+        if (s.HudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true)
+            _pending.AddRange(Note("rubble-diag", now, 8000, s.RubblePos is { } rp
+                ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Rubble di ({rp.X:0},{rp.Y:0},{rp.Z:0}) [{s.RubbleInfo}], pemain {(s.PlayerPos is { } pp ? $"({pp.X:0},{pp.Z:0})" : "?")}.")
+                : $"Rubble aktif tapi posisinya tidak terbaca: {s.RubbleInfo}."));
         if (left == 0)
         {
             Phase = MacroPhase.Navigating;

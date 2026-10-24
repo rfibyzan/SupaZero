@@ -63,7 +63,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             if (voteYesNode == 0) voteYesNode = Find(vote, AnimeZeroPaths.StartVoteYes);
         }
         bool voteShown = vote != 0 && IsShown(vote, pg) && voteYesNode != 0 && IsShown(voteYesNode, pg);
-        GuiRect? voteYes = voteShown ? Rect(voteYesNode) : null;
+        // ScreenGui StartVote memakai IgnoreGuiInset: AbsolutePosition StartButton (≈960,232) sudah koordinat klien.
+        // Dengan Inset 58 klik jatuh ~58 px di bawah tombol (screenshot Byzan 24 Okt 2026) → pakai inset lobby (0).
+        GuiRect? voteYes = voteShown ? HubRect(voteYesNode) : null;
 
         // Layar akhir
         long end = Find(pg, AnimeZeroPaths.EndScreen);
@@ -86,7 +88,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
 
         var hud = HudText.Parse(hudRaw);
         // v0.2.49: "Break the rubble to continue!" → rubble jadi target serang (Adornee BillboardGui PlayerGui.RubbleBar).
-        var rubble = ReadRubble(pg, hudRaw);
+        var rubble = ReadRubble(pg, ws, hudRaw);
         var enemyList = ReadEnemies(enemies);
         if (rubble is { } rb && !enemyList.Any(e => e.Alive))
         {
@@ -103,6 +105,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Camera = ReadCamera(ws),
             Enemies = enemyList,
             RubblePos = rubble,
+            RubbleInfo = _rubbleInfo,
             Pickups = ReadPickups(ws),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
@@ -538,17 +541,43 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// Posisi rubble yang harus dihancurkan. Aktif bila teks HUD menyebut "rubble" atau RubbleBossBar Enabled.
     /// Posisi = Adornee BillboardGui PlayerGui.RubbleBar (offset Misc.Adornee), cadangan: parent BillboardGui bila di Workspace.
     /// </summary>
-    private Settings.Vec3? ReadRubble(long pg, string? hudRaw)
+    private string? _rubbleInfo;
+
+    private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw)
     {
+        _rubbleInfo = null;
         if (pg == 0) return null;
         bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
         long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
         if (!hint && !(bossBar != 0 && IsShown(bossBar, pg))) return null;
+        string adInfo = "RubbleBar tidak ada";
         long bar = reader.FindChild(pg, AnimeZeroPaths.RubbleBar);
-        if (bar == 0) return null;
-        if (reader.Offsets.TryResolve("Misc.Adornee", out long ao) && M.TryReadPointer(bar + ao, out long ad) && ad != 0
-            && reader.GetParent(ad) != 0 && props.TryGetWorldPosition(ad, out float x, out float y, out float z))
-            return new(x, y, z);
+        if (bar != 0)
+        {
+            // 1) Adornee BillboardGui (bisa Part atau Model → PositionOf mencari BasePart anak).
+            if (!reader.Offsets.TryResolve("Misc.Adornee", out long ao)) adInfo = "offset Misc.Adornee tidak ada";
+            else if (!M.TryReadPointer(bar + ao, out long ad) || ad == 0) adInfo = "Adornee kosong";
+            else if (PositionOf(ad) is { } p) { _rubbleInfo = $"Adornee {reader.GetClassName(ad)} {reader.GetName(ad)}"; return p; }
+            else adInfo = $"Adornee {reader.GetClassName(ad)} {reader.GetName(ad)} tanpa posisi";
+        }
+        // 2) Cari instance bernama *Rubble* di Workspace (BFS dangkal, terdekat ke pemain bila banyak).
+        if (ws != 0)
+        {
+            var q = new Queue<(long, int)>();
+            q.Enqueue((ws, 0));
+            int guard = 0;
+            while (q.Count > 0 && guard++ < 3000)
+            {
+                var (n, d) = q.Dequeue();
+                if (n != ws && reader.GetName(n).Contains("rubble", StringComparison.OrdinalIgnoreCase) && PositionOf(n) is { } p)
+                {
+                    _rubbleInfo = $"{adInfo}; pakai Workspace {reader.GetName(n)}";
+                    return p;
+                }
+                if (d < 5) foreach (long k in reader.GetChildren(n, 256)) q.Enqueue((k, d + 1));
+            }
+        }
+        _rubbleInfo = $"{adInfo}; tidak ada instance *Rubble* di Workspace";
         return null;
     }
 

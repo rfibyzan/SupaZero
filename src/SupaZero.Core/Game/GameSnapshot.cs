@@ -99,6 +99,8 @@ public sealed record GameSnapshot
     public IReadOnlyList<EnemyInfo> Enemies { get; init; } = [];
     /// <summary>Rubble yang harus dihancurkan (juga dimasukkan ke Enemies sebagai "Rubble" bila tidak ada musuh hidup).</summary>
     public Settings.Vec3? RubblePos { get; init; }
+    /// <summary>Diagnosa sumber posisi rubble (log).</summary>
+    public string? RubbleInfo { get; init; }
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
     public Settings.Vec3? NextAreaPos { get; init; }
 
