@@ -48,11 +48,12 @@ public sealed class PathPlanner
     private List<Vec3>? FindPass(Vec3 from, Vec3 to)
     {
         UsedOutside = false; Partial = false;
-        var s = Nearest(Cell(from)); var g = Nearest(Cell(to));
+        var s = Nearest(Cell(from)); var g = Nearest(Cell(to), Cell(from), 30);
         LastFailure = s < 0 ? $"posisi karakter ({from.X:0},{from.Z:0}) tertutup rintangan"
             : g < 0 ? $"tujuan ({to.X:0},{to.Z:0}) tertutup rintangan" : null;
         if (s < 0) return null;
         if (g < 0) g = Cell(to);
+        bool goalShifted = g != Cell(to);
         var cells = AStar(s, g, out bool reached);
         if (cells is null) { LastFailure ??= "tidak ada sel yang bisa didekati"; return null; }
         Partial = !reached;
@@ -60,7 +61,8 @@ public sealed class PathPlanner
         UsedOutside = _allowOutside && cells.Any(c => _outside[c]);
         var pts = Smooth(cells);
         var result = pts.Skip(1).Select(c => new Vec3(_minX + (c % _w + 0.5) * _cell, to.Y, _minZ + (c / _w + 0.5) * _cell)).ToList();
-        if (reached) { if (result.Count > 0) result[^1] = to; else result.Add(to); }
+        if (reached && !goalShifted) { if (result.Count > 0) result[^1] = to; else result.Add(to); }
+        if (reached && goalShifted) LastFailure = $"tujuan ({to.X:0},{to.Z:0}) di dalam rintangan, berhenti di sisi terdekat";
         return result.Count > 0 ? result : null;
     }
 
@@ -132,7 +134,9 @@ public sealed class PathPlanner
         // Part padat di Map setinggi badan (HumanoidRootPart ≈ 3 stud di atas kaki); lantai, ramp, dan atap dilewati.
         if (map.Solids is { } solids)
             foreach (var r in solids)
-                if (r.BlocksBodyAt(footY) && !r.Contains(from.X, from.Z) && !r.Contains(to.X, to.Z))
+                // v0.2.56: tujuan di dalam gedung (penanda "AREA 5" di fasad Hxh) tidak lagi membuat gedung itu dianggap tembus;
+                // tujuan digeser ke sel bebas terdekat (Nearest). Hanya part yang sedang diinjak pemain yang dikecualikan.
+                if (r.BlocksBodyAt(footY) && !r.Contains(from.X, from.Z))
                     Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
         foreach (var (bx, bz, br) in _blocks) Paint((bx - br, bz - br, bx + br, bz + br), (x, z) => Navigator.Distance2D(x, z, bx, bz) <= br, false);
     }
@@ -192,19 +196,27 @@ public sealed class PathPlanner
     }
 
     /// <summary>Sel bebas terdekat (karakter bisa berdiri di tepi rintangan yang diinflasi).</summary>
-    private int Nearest(int c)
+    private int Nearest(int c, int prefer = -1, int maxR = 12)
     {
         if (c < 0) return -1;
         if (Free(c)) return c;
         int cx = c % _w, cz = c / _w;
-        for (int r = 1; r <= 12; r++)
+        int px = prefer >= 0 ? prefer % _w : cx, pz = prefer >= 0 ? prefer / _w : cz;
+        for (int r = 1; r <= maxR; r++)
+        {
+            int best = -1; long bestD = long.MaxValue;
             for (int dz = -r; dz <= r; dz++)
                 for (int dx = -r; dx <= r; dx++)
                 {
                     if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r) continue;
                     int x = cx + dx, z = cz + dz;
-                    if (x >= 0 && z >= 0 && x < _w && z < _h && Free(z * _w + x)) return z * _w + x;
+                    if (x < 0 || z < 0 || x >= _w || z >= _h || !Free(z * _w + x)) continue;
+                    // Dari beberapa sel bebas sejarak sama, pilih yang paling dekat ke pemain (sisi gedung yang menghadap pemain).
+                    long d = (long)(x - px) * (x - px) + (long)(z - pz) * (z - pz);
+                    if (d < bestD) { bestD = d; best = z * _w + x; }
                 }
+            if (best >= 0) return best;
+        }
         return -1;
     }
 
