@@ -986,6 +986,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             // Diagnosa (maks 1x / 10 dtk): posisi, tujuan, jenis jalur, jumlah rintangan peta → bisa dicocokkan dengan snapshot.
             _pending.AddRange(Note("path-diag", now, 10000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
                 $"Jalur ke {label}: dari ({p.X:0},{p.Z:0}) ke ({target.X:0},{target.Z:0}), {(clear ? "lurus" : _path is null ? "tidak ketemu" : $"{_path.Count} titik{(_planner.UsedOutside ? ", lewat luar Areas" : "")}{(_planner.Partial ? ", parsial" : "")}")}; peta {nav.Walkable.Count} area, {nav.Solids?.Count ?? 0} rintangan.")));
+            if (_path is null || _planner.Partial)
+                _pending.AddRange(Note("border-diag", now, 15000, $"Border/Blocker: {nav.BorderDiag ?? "?"}. HUD: \"{s.HudRaw ?? "-"}\"."));
             if (_path is null)
             {
                 return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu: {_planner.LastFailure ?? "?"}. Jalan lurus.")];

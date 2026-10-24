@@ -27,12 +27,19 @@ public sealed partial class GameReader
         // v0.2.69: rubble hancur → Border*.Blocker hanya berganti CanCollide (jumlah anak Map tetap), jadi cache lama masih
         // menganggapnya dinding → jalur ke area berikut "tidak tersambung" dan karakter nyangkut (log Byzan 24 Okt 22:31, Area 5).
         long blockSig = 17;
+        var borderDiag = new List<string>();
         foreach (long b in mapChildren)
         {
-            if (!reader.GetName(b).StartsWith("Border", StringComparison.Ordinal)) continue;
+            string bn = reader.GetName(b);
+            if (!bn.StartsWith("Border", StringComparison.Ordinal)) continue;
             long blk = reader.FindChild(b, "Blocker");
-            bool solid = blk != 0 && props.Read(blk).TryGetValue("CanCollide", out var bc) && bc == "true";
+            var bp = blk != 0 ? props.Read(blk) : null;
+            bool solid = bp is not null && bp.TryGetValue("CanCollide", out var bc) && bc == "true";
             blockSig = blockSig * 31 + b + (blk == 0 ? 0 : solid ? 2 : 1);
+            string where = bp is not null && ParseVec(bp.GetValueOrDefault("Position")) is { } bpos
+                ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $" ({bpos.X:0},{bpos.Z:0})") : "";
+            bool rub = blk != 0 && reader.FindChild(blk, AnimeZeroPaths.RubbleBar) != 0;
+            borderDiag.Add($"{bn} {(blk == 0 ? "tanpa Blocker" : solid ? "padat" : "terbuka")}{(rub ? " +RubbleBar" : "")}{where}");
         }
         key ^= blockSig << 3;
         if (_navCache is { } c && c.Key == key && c.Count == count) return c.Map;
@@ -62,7 +69,7 @@ public sealed partial class GameReader
         var solids = new List<NavRect>();
         long mapF = reader.FindChild(world, AnimeZeroPaths.WorldMap);
         if (mapF != 0) CollectSolids(mapF, 0, solids);
-        var map = new NavMap(walk, obstacles, nodes, solids);
+        var map = new NavMap(walk, obstacles, nodes, solids) { BorderDiag = borderDiag.Count > 0 ? string.Join("; ", borderDiag) : "tidak ada Border* di World.Map" };
         _navCache = (key, count, map);
         return map;
     }

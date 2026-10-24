@@ -46,5 +46,7 @@ public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, dou
 /// <remarks>Solids = Part CanCollide di Workspace.World.Map (mis. AlleyBarrier tembus pandang), disaring per tinggi badan saat cari jalur.</remarks>
 public sealed record NavMap(IReadOnlyList<NavRect> Walkable, IReadOnlyList<NavRect> Obstacles, IReadOnlyList<Settings.Vec3> Nodes, IReadOnlyList<NavRect>? Solids = null)
 {
+    /// <summary>v0.2.74: diagnosa World.Map.Border*.Blocker: "Border4 padat rubble (x,z)" dll. Dicatat saat jalur tidak tersambung.</summary>
+    public string? BorderDiag { get; init; }
     public bool IsEmpty => Walkable.Count == 0 && Obstacles.Count == 0 && Nodes.Count == 0 && (Solids?.Count ?? 0) == 0;
 }
