@@ -515,11 +515,18 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     {
         long ult = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudUltimate) : 0;
         if (ult == 0 || !IsShown(ult, pg)) return null;
-        // v0.2.66: snapshot UltimateFrame (24 Okt) tidak punya anak "Locked"; tanpa penanda itu status siap tidak
-        // diketahui → null (G hanya di sela skill), bukan "siap" terus yang membuat G menyela skill tiap 1,5 dtk.
+        // v0.2.68: Locked tampil → belum bisa. Aktif (Progress tampil / tombol bukan "G", mis. "KAISEL") → G lagi = naga.
+        // Penuh → ≥ 3 anak "ImageLabel" (kilau). Selain itu kosong/mengisi.
         long lk = reader.FindChild(ult, AnimeZeroPaths.HudUltimateLock);
-        if (lk == 0) return null;
-        return !IsShown(lk, pg);
+        if (lk != 0 && IsShown(lk, pg)) return false;
+        long prog = reader.FindChild(ult, AnimeZeroPaths.HudUltimateProgress);
+        if (prog != 0 && IsShown(prog, pg)) return true;
+        long frame = reader.ResolvePath(pg, AnimeZeroPaths.HudUltimateFrame);
+        long keyNode = frame != 0 ? reader.ResolvePath(frame, AnimeZeroPaths.HudUltimateKey) : 0;
+        string? key = keyNode != 0 ? Text(keyNode)?.Trim() : null;
+        if (!string.IsNullOrEmpty(key) && !key.Equals("G", StringComparison.OrdinalIgnoreCase)) return true;
+        int sparkles = reader.GetChildren(ult, 128).Count(c => reader.GetName(c) == AnimeZeroPaths.HudUltimateSparkle);
+        return sparkles >= 3;
     }
 
     /// <summary>Cooldown skill dari HUD: tiap skillBox → (tombol, sisa detik atau null bila siap, terkunci).</summary>

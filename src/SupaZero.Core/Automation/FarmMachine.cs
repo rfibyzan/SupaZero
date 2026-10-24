@@ -876,6 +876,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     private readonly Dictionary<string, long> _ariseBan = new(StringComparer.Ordinal);
     private string? _ariseKey;
     private long _ariseSince, _ariseLastHold;
+    private int _ariseHolds;
 
     private static string AriseKey(AriseInfo a) => $"{Math.Round(a.Pos.X)},{Math.Round(a.Pos.Z)}";
 
@@ -890,8 +891,9 @@ public sealed class FarmMachine(Func<AppSettings> settings)
             .OrderBy(t => t.d).FirstOrDefault();
         if (best.a is null) { _ariseKey = null; return null; }
         string key = AriseKey(best.a);
-        if (_ariseKey != key) { _ariseKey = key; _ariseSince = now; }
-        else if (now - _ariseSince > AriseGiveUpMs)
+        if (_ariseKey != key) { _ariseKey = key; _ariseSince = now; _ariseHolds = 0; }
+        // Sudah 2× tahan E tapi prompt masih ada (mis. kapasitas Shadows penuh) → lewati 60 dtk.
+        else if (now - _ariseSince > AriseGiveUpMs || (_ariseHolds >= 2 && now - _ariseLastHold >= 1500))
         {
             _ariseBan[key] = now + 60_000;
             _ariseKey = null;
@@ -907,6 +909,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
         if (now - _ariseLastHold >= 1500)
         {
             _ariseLastHold = now;
+            _ariseHolds++;
             int ms = (int)Math.Round(best.a.Hold * 1000) + 250;
             return [new MoveAction([], "Diam sebentar untuk Arise"), new KeyAction(VirtualKeys.E, ms, $"Arise {best.a.Name} (tahan E {ms} ms)")];
         }

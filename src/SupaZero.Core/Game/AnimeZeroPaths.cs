@@ -89,6 +89,12 @@ public static class AnimeZeroPaths
     /// Glow, FrameOutline, BGProgress, icon.left/right.icon; keybind.Txt = "G". v0.2.66: "Locked" tidak ada di template → siap = tidak diketahui.</summary>
     public const string HudUltimate = "HUD.HUD.BottomLeftHolder.UltimateFrame.Ultimate";
     public const string HudUltimateLock = "Locked";
+    /// <summary>v0.2.68 (snapshot PlayerGui 24 Okt): penuh = puluhan anak "ImageLabel" (kilau) langsung di bawah Ultimate;
+    /// aktif (naga Kaisel) = Progress Visible + UltimateFrame.keybind.Txt bukan "G" (mis. "KAISEL"); kosong = tanpa kilau, Txt "G".</summary>
+    public const string HudUltimateFrame = "HUD.HUD.BottomLeftHolder.UltimateFrame";
+    public const string HudUltimateSparkle = "ImageLabel";
+    public const string HudUltimateProgress = "Progress";
+    public const string HudUltimateKey = "keybind.Txt";
     public const string HudSkillBox = "skillBox";
     public const string HudSkillKey = "keybind.Txt";
     public const string HudSkillCd = "Frame.cd.Txt";
