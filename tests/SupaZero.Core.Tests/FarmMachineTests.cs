@@ -743,4 +743,14 @@ public class FarmMachineTests
         Assert.Contains(all, a => a is ClickAction c && c.Reason.StartsWith("Leave"));
         Assert.True(FarmMachine.OpensOtherPanel("Trials"));
     }
+
+    [Fact]
+    public void Calibration_StatusPrefixDoesNotStack()
+    {
+        var (m, _) = New();
+        m.StartCalibration();
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
+        for (long t = 0; t <= 9000; t += 300) m.Step(lobby, t);
+        Assert.DoesNotContain("Kalibrasi: Kalibrasi", m.Status);
+    }
 }

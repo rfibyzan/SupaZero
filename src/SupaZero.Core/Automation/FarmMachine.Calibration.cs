@@ -40,6 +40,9 @@ public sealed partial class FarmMachine
         _pcStep = 0; _pcStepAt = null; _pcOpenAt = null;
     }
 
+    /// <summary>Awalan status sekali saja (v0.2.84: Status yang tidak diperbarui tiap tick menumpuk "Kalibrasi: Kalibrasi: …").</summary>
+    private void CalPrefix() { if (!Status.StartsWith("Kalibrasi", StringComparison.Ordinal)) Status = "Kalibrasi: " + Status; }
+
     private bool CalStable(string sig, long now)
     {
         if (sig != _calSig) { _calSig = sig; _calSigSince = now; return false; }
@@ -77,10 +80,10 @@ public sealed partial class FarmMachine
                         _pending.Add(new NoteAction("Kalibrasi: " + _calNotes[^1]));
                     }
                 }
-                if (PowerCheck(s, now) is { } pc) { Status = "Kalibrasi: " + Status; return pc; }
+                if (PowerCheck(s, now) is { } pc) { CalPrefix(); return pc; }
                 if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
                 var walk = WalkToLobby(s, S, now, force: true);
-                Status = "Kalibrasi: " + Status;
+                CalPrefix();
                 return walk;
             case GameScreen.LobbyMenu:
                 return CalMenu(s, now);
