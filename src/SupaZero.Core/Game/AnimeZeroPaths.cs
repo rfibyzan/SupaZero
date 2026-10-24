@@ -19,6 +19,7 @@ public static class AnimeZeroPaths
     public const string WorldNavigation = "Navigation"; // [V] S15 Hxh: jejak rintangan (Part datar Y=3); ER2: node "navN" 4×4×4 (tangga)
     public static readonly string[] WorldBarrierFolders = ["Barriers", "NpcBarriers"]; // [V] ada (kosong di S15)
     public const string WorldSpawns = "Spawns";
+    public const string WorldAreaEntries = "AreaEntries"; // [V] S1 24 Okt 2026 Hxh: AreaEntries.5 (295,2,-53) = titik penanda game "AREA 5 n studs"
 
     // PlayerGui: HUD ronde
     public const string RoundHud = "RoundHUD";

@@ -17,6 +17,9 @@ public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, dou
     /// <summary>Menghalangi badan yang kakinya di <paramref name="footY"/>: tegak (tidak miring/ramp), atas di atas langkah, bawah di bawah kepala.</summary>
     public bool BlocksBodyAt(double footY) => !Tilted && Y + HalfY > footY + 2.5 && Y - HalfY < footY + 5;
 
+    /// <summary>v0.2.47: lantai yang bisa diinjak kaki di <paramref name="footY"/> (atas part di antara 4 stud di bawah kaki dan batas langkah).</summary>
+    public bool IsFloorAt(double footY) => Y + HalfY <= footY + 2.5 && Y + HalfY >= footY - 4;
+
     /// <summary>Titik di dalam persegi yang diperbesar <paramref name="grow"/> stud tiap sisi.</summary>
     public bool Contains(double px, double pz, double grow = 0)
     {

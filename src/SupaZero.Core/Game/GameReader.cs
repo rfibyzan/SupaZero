@@ -557,7 +557,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     {
         long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;
         if (world == 0) return null;
-        foreach (string folder in new[] { AnimeZeroPaths.WorldSpawns, AnimeZeroPaths.WorldAreas })
+        // v0.2.47: AreaEntries.<n> dulu (titik masuk resmi, sama dengan penanda "AREA n" di layar). Spawns.<n> ada di ujung area sebelumnya.
+        foreach (string folder in new[] { AnimeZeroPaths.WorldAreaEntries, AnimeZeroPaths.WorldSpawns, AnimeZeroPaths.WorldAreas })
         {
             long f = reader.FindChild(world, folder);
             long node = f != 0 ? reader.FindChild(f, n.ToString()) : 0;

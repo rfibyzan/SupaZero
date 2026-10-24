@@ -64,4 +64,37 @@ public class PathPlannerTests
         var move = Assert.IsType<MoveAction>(Assert.Single(m.Step(snap, 0), a => a is MoveAction { Keys.Count: > 0 }));
         Assert.Contains(VirtualKeys.A, move.Keys); // ke kiri (-X) dulu, bukan lurus S menabrak dinding
     }
+
+    // ---------- v0.2.47: peta asli Hxh (snapshot S1 Byzan, titik nyangkut Area 4 → 5) ----------
+    private static NavMap HxhS1()
+    {
+        var w = new List<NavRect>(); var o = new List<NavRect>(); var so = new List<NavRect>();
+        foreach (var line in File.ReadLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "hxh_s1_navmap.txt")))
+        {
+            if (line.StartsWith('#') || line.Length < 3) continue;
+            var f = line.Split(' ');
+            double D(int i) => double.Parse(f[i], System.Globalization.CultureInfo.InvariantCulture);
+            var r = NavRect.FromPart(new(D(1), D(2), D(3)), new(D(4), D(5), D(6)), D(7), D(9), D(8));
+            (f[0] switch { "W" => w, "O" => o, _ => so }).Add(r);
+        }
+        return new NavMap(w, o, [], so);
+    }
+
+    [Fact]
+    public void Hxh_Area4To5_LoopsAroundBlock_NotIntoAlley()
+    {
+        var map = HxhS1();
+        var pl = new PathPlanner();
+        var from = new Vec3(305, 4.5, -141.6);   // depan AlleyBarrier4 (11,6 stud) seperti screenshot Byzan
+        var entry = new Vec3(295, 2, -53.3);     // World.AreaEntries.5 (penanda "AREA 5 87 studs")
+        Assert.False(pl.Clear(map, from, entry)); // lurus ke utara = gang buntu (AlleyBarrier4 + celah bangunan)
+        var path = pl.Find(map, from, entry);
+        Assert.NotNull(path);
+        Assert.False(pl.Partial, pl.LastFailure);
+        Assert.True(pl.UsedOutside);
+        Assert.Contains(path!, p => p.X > 560);  // memutar lewat jalan timur
+        Assert.Equal(entry, path![^1]);
+        // Tidak ada titik belok yang masuk gang AlleyBarrier4 (x 301..309, z -135..-96).
+        Assert.DoesNotContain(path!, p => p.X is > 298 and < 312 && p.Z is > -135 and < -96);
+    }
 }

@@ -17,7 +17,7 @@ Status: v0.2.0 (23 Okt 2026), AutoFarm. Belum diuji live.
 - Teks HUD "Areas", kartu "Click to Teleport" + judul "Story", dan kartu teleport. (Lingkaran sudah terverifikasi: Systems.QuqueRooms.*.JoinHitbox.)
 - StartVote + Yes, EndScreen + Next/Retry/Leave, ResultText, BossBar.
 - `ModesList`, `MapsList`, `ActsList`: struktur entri, penanda terkunci ("*Lock*") dan terpilih ("*Select*").
-- `Workspace.World.Spawns/Areas[n]` benar-benar titik area ke-n.
+- `Workspace.World.Spawns/Areas[n]` benar-benar titik area ke-n. (S1 24 Okt: Spawns.n ada di ujung area n-1 menghadap area n; AreaEntries.n = titik penanda "AREA n", dipakai lebih dulu sejak v0.2.47.)
 - Isi kolom SkillTree.
 
 ## Belum dikerjakan

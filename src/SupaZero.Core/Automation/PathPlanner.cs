@@ -12,17 +12,42 @@ public sealed class PathPlanner
 {
     /// <summary>Margin kotak Areas, jari-jari node nav, tebal badan (inflasi rintangan), stud.</summary>
     public const double AreaGrow = 1, NodeRadius = 5, BodyInflate = 1.6, EndpointRadius = 4;
+    /// <summary>
+    /// v0.2.47: biaya langkah di lantai di luar kotak Areas. Rute resmi antar-area bisa keluar kotak Areas
+    /// (Hxh Area 4 → 5: memutar blok lewat jalan timur x≈598 lalu ke barat di z≈-56), jadi lantai padat di luar Areas
+    /// tetap bisa dilewati, tapi hanya bila tidak ada jalur penuh di dalam kotak Areas (pass kedua).
+    /// </summary>
+    public const double OutsideCost = 1.5;
     private const int MaxCells = 300_000;
 
     private NavMap? _map;
     private double _minX, _minZ, _cell;
     private int _w, _h;
     private bool[] _free = [];
+    private bool[] _outside = [];
+    private bool _allowOutside;
+    private bool Free(int i) => _free[i] && (_allowOutside || !_outside[i]);
 
     /// <summary>Titik belok dari <paramref name="from"/> ke <paramref name="to"/> (tidak termasuk titik awal), atau null bila tidak ada jalur.</summary>
     public List<Vec3>? Find(NavMap map, Vec3 from, Vec3 to)
     {
         if (NeedBuild(map, from, to)) Build(map, from, to);
+        _allowOutside = false;
+        var first = FindPass(from, to);
+        if (first is not null && !Partial || !_outside.Any(o => o)) { UsedOutside = false; return first; }
+        // Pass kedua: boleh lewat lantai di luar kotak Areas (jalan memutar blok).
+        string? firstFail = LastFailure; bool firstPartial = Partial;
+        _allowOutside = true;
+        var second = FindPass(from, to);
+        _allowOutside = false;
+        if (second is not null && !Partial) return second;
+        LastFailure = firstFail; Partial = firstPartial; UsedOutside = false;
+        return first;
+    }
+
+    private List<Vec3>? FindPass(Vec3 from, Vec3 to)
+    {
+        UsedOutside = false; Partial = false;
         var s = Nearest(Cell(from)); var g = Nearest(Cell(to));
         LastFailure = s < 0 ? $"posisi karakter ({from.X:0},{from.Z:0}) tertutup rintangan"
             : g < 0 ? $"tujuan ({to.X:0},{to.Z:0}) tertutup rintangan" : null;
@@ -32,6 +57,7 @@ public sealed class PathPlanner
         if (cells is null) { LastFailure ??= "tidak ada sel yang bisa didekati"; return null; }
         Partial = !reached;
         if (!reached) LastFailure ??= $"tujuan ({to.X:0},{to.Z:0}) tidak tersambung (pintu/Blocker tertutup?), jalan ke titik terdekat";
+        UsedOutside = _allowOutside && cells.Any(c => _outside[c]);
         var pts = Smooth(cells);
         var result = pts.Skip(1).Select(c => new Vec3(_minX + (c % _w + 0.5) * _cell, to.Y, _minZ + (c / _w + 0.5) * _cell)).ToList();
         if (reached) { if (result.Count > 0) result[^1] = to; else result.Add(to); }
@@ -43,6 +69,7 @@ public sealed class PathPlanner
     {
         if (NeedBuild(map, a, b)) Build(map, a, b);
         int ca = Cell(a), cb = Cell(b);
+        _allowOutside = false;
         return ca >= 0 && cb >= 0 && Line(ca, cb);
     }
 
@@ -87,22 +114,46 @@ public sealed class PathPlanner
         _w = Math.Max(1, (int)Math.Ceiling((maxX - minX) / _cell));
         _h = Math.Max(1, (int)Math.Ceiling((maxZ - minZ) / _cell));
         _free = new bool[_w * _h];
+        _outside = new bool[_w * _h];
         bool open = map.Walkable.Count == 0 && map.Nodes.Count == 0;
         if (open) Array.Fill(_free, true);
         foreach (var r in map.Walkable) Paint(r.Bounds(AreaGrow), (x, z) => r.Contains(x, z, AreaGrow), true);
         foreach (var n in map.Nodes) Paint((n.X - NodeRadius, n.Z - NodeRadius, n.X + NodeRadius, n.Z + NodeRadius), (x, z) => Navigator.Distance2D(x, z, n.X, n.Z) <= NodeRadius, true);
+        double footY = from.Y - 3;
+        // v0.2.47: lantai padat (Baseplate, platform jalan) di luar kotak Areas = boleh dilewati dengan biaya lebih (bukan jurang/void).
+        if (!open && map.Solids is { } floors)
+            foreach (var r in floors)
+                if (r.IsFloorAt(footY) && r.HalfX >= 2 && r.HalfZ >= 2)
+                    PaintOutside(r);
         // Titik awal/tujuan di luar wilayah jalan (mis. spawn raid 56 stud sebelum node tangga): sambungkan dengan koridor lurus ke sel jalan terdekat.
         if (!open) foreach (var p in new[] { from, to }) Connect(p);
         foreach (var p in new[] { from, to }) Paint((p.X - EndpointRadius, p.Z - EndpointRadius, p.X + EndpointRadius, p.Z + EndpointRadius), (x, z) => Navigator.Distance2D(x, z, p.X, p.Z) <= EndpointRadius, true);
         foreach (var r in map.Obstacles) Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
         // Part padat di Map setinggi badan (HumanoidRootPart ≈ 3 stud di atas kaki); lantai, ramp, dan atap dilewati.
-        double footY = from.Y - 3;
         if (map.Solids is { } solids)
             foreach (var r in solids)
                 if (r.BlocksBodyAt(footY) && !r.Contains(from.X, from.Z) && !r.Contains(to.X, to.Z))
                     Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
         foreach (var (bx, bz, br) in _blocks) Paint((bx - br, bz - br, bx + br, bz + br), (x, z) => Navigator.Distance2D(x, z, bx, bz) <= br, false);
     }
+
+    private void PaintOutside(NavRect r)
+    {
+        var b = r.Bounds();
+        int x0 = Math.Max(0, (int)Math.Floor((b.MinX - _minX) / _cell)), x1 = Math.Min(_w - 1, (int)Math.Floor((b.MaxX - _minX) / _cell));
+        int z0 = Math.Max(0, (int)Math.Floor((b.MinZ - _minZ) / _cell)), z1 = Math.Min(_h - 1, (int)Math.Floor((b.MaxZ - _minZ) / _cell));
+        for (int z = z0; z <= z1; z++)
+            for (int x = x0; x <= x1; x++)
+            {
+                int i = z * _w + x;
+                if (_free[i] || !r.Contains(_minX + (x + 0.5) * _cell, _minZ + (z + 0.5) * _cell)) continue;
+                _free[i] = true;
+                _outside[i] = true;
+            }
+    }
+
+    /// <summary>Jalur terakhir lewat lantai di luar kotak Areas (untuk log).</summary>
+    public bool UsedOutside { get; private set; }
 
     private void Connect(Vec3 p)
     {
@@ -144,7 +195,7 @@ public sealed class PathPlanner
     private int Nearest(int c)
     {
         if (c < 0) return -1;
-        if (_free[c]) return c;
+        if (Free(c)) return c;
         int cx = c % _w, cz = c / _w;
         for (int r = 1; r <= 12; r++)
             for (int dz = -r; dz <= r; dz++)
@@ -152,7 +203,7 @@ public sealed class PathPlanner
                 {
                     if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r) continue;
                     int x = cx + dx, z = cz + dz;
-                    if (x >= 0 && z >= 0 && x < _w && z < _h && _free[z * _w + x]) return z * _w + x;
+                    if (x >= 0 && z >= 0 && x < _w && z < _h && Free(z * _w + x)) return z * _w + x;
                 }
         return -1;
     }
@@ -191,10 +242,10 @@ public sealed class PathPlanner
                     int x = cx + dx, z = cz + dz;
                     if (x < 0 || z < 0 || x >= _w || z >= _h) continue;
                     int n = z * _w + x;
-                    if (!_free[n] || closed.Contains(n)) continue;
+                    if (!Free(n) || closed.Contains(n)) continue;
                     // Diagonal tidak boleh memotong sudut rintangan.
-                    if (dx != 0 && dz != 0 && (!_free[cz * _w + x] || !_free[z * _w + cx])) continue;
-                    double ng = gScore[c] + (dx != 0 && dz != 0 ? 1.4142 : 1);
+                    if (dx != 0 && dz != 0 && (!Free(cz * _w + x) || !Free(z * _w + cx))) continue;
+                    double ng = gScore[c] + (dx != 0 && dz != 0 ? 1.4142 : 1) * (_outside[n] ? OutsideCost : 1);
                     if (gScore.TryGetValue(n, out double old) && old <= ng) continue;
                     gScore[n] = ng;
                     came[n] = c;
@@ -236,7 +287,7 @@ public sealed class PathPlanner
         {
             double t = (double)k / steps;
             int x = (int)(ax + (bx - ax) * t), z = (int)(az + (bz - az) * t);
-            if (x < 0 || z < 0 || x >= _w || z >= _h || !_free[z * _w + x]) return false;
+            if (x < 0 || z < 0 || x >= _w || z >= _h || !Free(z * _w + x)) return false;
         }
         return true;
     }

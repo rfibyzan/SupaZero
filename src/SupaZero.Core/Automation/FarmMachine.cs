@@ -771,6 +771,7 @@ public sealed class FarmMachine(Func<AppSettings> settings)
                 return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu: {_planner.LastFailure ?? "?"}. Jalan lurus.")];
             }
             if (_planner.Partial) _pathNote = $"Jalur ke {label}: {_planner.LastFailure}.";
+            else if (_planner.UsedOutside && _path.Count > 1) _pathNote = $"Jalur ke {label} memutar lewat jalan di luar kotak Areas ({_path.Count} titik belok).";
         }
         // Buang titik belok yang sudah dilewati (≤ 3 stud) atau yang sudah bisa dilihat titik sesudahnya.
         while (_path.Count > 1 && Navigator.Distance2D(p.X, p.Z, _path[0].X, _path[0].Z) <= 3) _path.RemoveAt(0);
