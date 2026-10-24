@@ -883,7 +883,8 @@ public sealed class FarmMachine(Func<AppSettings> settings)
     /// <summary>Mayat ARISE terdekat: jalan ke sana; dalam 4 stud → lepas gerak + tahan E. null = tidak ada mayat.</summary>
     private List<MacroAction>? Arise(GameSnapshot s, long now, AppSettings S)
     {
-        if (s.PlayerPos is not { } me || s.Arises.Count == 0) { _ariseKey = null; return null; }
+        // v0.2.70: kapasitas Shadows penuh (mis. 3/3) → jangan buang waktu ke mayat.
+        if (s.PlayerPos is not { } me || s.Arises.Count == 0 || s.Shadows is { } sh && sh.Count >= sh.Max) { _ariseKey = null; return null; }
         var best = s.Arises
             .Where(a => !(_ariseBan.TryGetValue(AriseKey(a), out long until) && until > now))
             .Select(a => (a, d: Navigator.Distance2D(me.X, me.Z, a.Pos.X, a.Pos.Z)))

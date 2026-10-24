@@ -109,6 +109,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; nyawa {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
             Arises = ReadArises(ws),
+            Shadows = ParseShadows(pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.ShadowsValue) is var sv and not 0 ? Text(sv) : null),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
             NextAreaCenter = hud is { TargetArea: > 0 } ? ReadAreaCenter(ws, hud.TargetArea) : null,
@@ -672,6 +673,12 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     /// <summary>v0.2.67: Workspace.AriseShadows.&lt;n&gt;.Arise (ProximityPrompt Enabled) → posisi Part induk + HoldDuration.</summary>
+    public static (int Count, int Max)? ParseShadows(string? t)
+    {
+        var m = t is null ? null : System.Text.RegularExpressions.Regex.Match(t, @"(\d+)\s*/\s*(\d+)");
+        return m is { Success: true } && int.TryParse(m.Groups[1].Value, out int c) && int.TryParse(m.Groups[2].Value, out int x) && x > 0 ? (c, x) : null;
+    }
+
     private List<AriseInfo> ReadArises(long ws)
     {
         var list = new List<AriseInfo>();

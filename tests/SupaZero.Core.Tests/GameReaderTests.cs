@@ -47,3 +47,12 @@ public class GameReaderTests
         Assert.Equal(GameScreen.InRound, game.Read(roots).Screen);
     }
 }
+
+public class ShadowsParseTests
+{
+    [Theory]
+    [InlineData("2/3", 2, 3)]
+    [InlineData(" 3 / 3 ", 3, 3)]
+    public void Parses(string t, int c, int m) => Assert.Equal((c, m), SupaZero.Core.Game.GameReader.ParseShadows(t));
+    [Fact] public void Null() => Assert.Null(SupaZero.Core.Game.GameReader.ParseShadows("Shadows"));
+}

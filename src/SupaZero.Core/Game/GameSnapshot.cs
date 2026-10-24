@@ -96,6 +96,8 @@ public sealed record GameSnapshot
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
     /// <summary>v0.2.67: prompt ARISE aktif (Shadow Lord), kosong bila tidak ada.</summary>
     public IReadOnlyList<AriseInfo> Arises { get; init; } = [];
+    /// <summary>v0.2.70: jumlah / kapasitas Shadows dari panel System (null bila tidak terbaca).</summary>
+    public (int Count, int Max)? Shadows { get; init; }
     /// <summary>Peta navigasi ronde (Areas + rintangan Navigation) untuk cari jalur; null di luar ronde.</summary>
     public NavMap? Nav { get; init; }
     public (double X, double Z)? CameraLook { get; init; }

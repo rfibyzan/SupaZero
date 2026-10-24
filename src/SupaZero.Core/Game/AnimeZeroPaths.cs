@@ -13,6 +13,8 @@ public static class AnimeZeroPaths
     /// <summary>v0.2.67 (Shadow Lord): Workspace.AriseShadows.&lt;n&gt; (Part di lantai mayat) .Arise ProximityPrompt
     /// (ActionText "ARISE", ObjectText = nama musuh, HoldDuration 0.9, KeyCode E, MaxActivationDistance 10, tanpa line of sight).</summary>
     public const string AriseShadows = "AriseShadows";
+    /// <summary>v0.2.70: kapasitas Shadows, PlayerGui.SystemSideLive.Container.Shadows.Value = "2/3" (snapshot 24 Okt).</summary>
+    public const string ShadowsValue = "SystemSideLive.Container.Shadows.Value";
     public const string ArisePrompt = "Arise";
     public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; terparkir di Y=-5000, aktif = di lantai. Dipungut cukup dilewati.
     public const double PooledDropParkedY = -1000;
