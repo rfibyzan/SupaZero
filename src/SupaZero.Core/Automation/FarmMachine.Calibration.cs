@@ -46,6 +46,7 @@ public sealed partial class FarmMachine
     private int _trStep;
     private long? _trAt;
     public const int TraitTeleportSettleMs = 2000, TraitWalkMs = 10_000, TraitBackMs = 6000;
+    public const string CalRoomCard = "Story";
     public const double TraitSpotMaxDist = 25; // spawn kartu Traits ↔ GuideSpot ≈ 7 stud (RIE)
 
     private List<MacroAction>? CalTraits(GameSnapshot s, long now)
@@ -145,7 +146,8 @@ public sealed partial class FarmMachine
                 if (_calStage >= 6) return CalFinish("menu room ditutup lewat Leave");
                 if (CalTraits(s, now) is { } tr) return tr;
                 if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
-                var walk = WalkToLobby(s, S, now, force: true);
+                // v0.2.89: lingkaran Create Room ada di area Story (Byzan 25 Okt) → kalibrasi selalu pakai kartu "Story", bukan mode farm.
+                var walk = WalkToLobby(s, S, now, force: true, cardName: CalRoomCard);
                 CalPrefix();
                 return walk;
             case GameScreen.LobbyMenu:

@@ -181,9 +181,10 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
 
     private static string Label(string id) => id.StartsWith("room:") ? "room " + id[5..] : id == "manual" ? "lingkaran rekaman" : "lingkaran";
 
-    private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now, bool force = false)
+    private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now, bool force = false, string? cardName = null)
     {
         var f = S.Farm;
+        string want = cardName ?? f.Mode;
         if (!force && !f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
         if (!force && f.CheckPowersInLobby && PowerCheck(s, now) is { } pc) return pc;
         Phase = MacroPhase.WalkingToLobby;
@@ -295,9 +296,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         }
 
         // Teleport lewat Areas → kartu bernama mode itu. v0.2.80: tanpa cadangan kartu Story.
-        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, f.Mode));
+        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, want));
         if (card is null && s.TeleportCards.Count > 0)
-            return [.. pre, new MoveAction([], "Tunggu"), .. Note("tp-nocard", now, 8000, $"Kartu teleport '{f.Mode}' tidak ada (terbaca: {string.Join(", ", s.TeleportCards.Select(c => c.Name))}) → tidak diklik.")];
+            return [.. pre, new MoveAction([], "Tunggu"), .. Note("tp-nocard", now, 8000, $"Kartu teleport '{want}' tidak ada (terbaca: {string.Join(", ", s.TeleportCards.Select(c => c.Name))}) → tidak diklik.")];
         if (card?.Rect is { } cr)
         {
             Status = $"Teleport: Areas → {card.Name}";

@@ -755,6 +755,24 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Calibration_AfterTraits_ClicksStoryCard_EvenIfFarmModeDiffers()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Mode = "Raid", CheckPowersInLobby = false });
+        m.StartCalibration();
+        var far = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(-85.8, 5.4, -90.2), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
+            StartRooms = [new StartRoom("2", new Vec3(-83.7, 6.1, 264.4), false, null, null)],
+            TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(100, 300, 200, 100)), new LobbyEntry("Raid", false, false, new GuiRect(400, 300, 200, 100))],
+            AreasView = new GuiRect(50, 50, 900, 600),
+        };
+        var acts = new List<MacroAction>();
+        for (long t = 0; t <= 19_000; t += 500) acts.AddRange(m.Step(far, t)); // trait dilewati (kartu Traits tidak ada), lalu ke room
+        Assert.Contains(acts, a => a is ClickAction c && c.Reason == "Teleport Story");
+        Assert.DoesNotContain(acts, a => a is ClickAction c && c.Reason == "Teleport Raid");
+    }
+
+    [Fact]
     public void Calibration_Traits_WalksToGuideSpot_ThenExitsZone()
     {
         var (m, _) = New();
