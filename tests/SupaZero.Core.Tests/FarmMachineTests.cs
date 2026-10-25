@@ -500,6 +500,17 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void LobbyUpgrade_UnknownStartSlot_RetriedAfterOthers()
+    {
+        // v0.3.0: nama unit awal unknown (daftar Roll kosong, snapshot 08:19) → slot awal dicoba lagi setelah pindah ke slot lain, agar target yang ternyata unit awal tetap ketemu.
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Twisted Agony" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var t = UnitTree(5, null!) with { SkillUnitName = null, SkillUnits = [new("Slot4", false, false, new GuiRect(278, 799, 132, 132)), new("Slot5", false, true, new GuiRect(424, 799, 132, 132))] };
+        Assert.Contains(m.Step(t, 0), x => x is ClickAction { Reason: var r } && r.Contains("Slot4"));
+        var a = m.Step(t with { SkillUnitSlot = 4, SkillUnitName = "Shadow Lord" }, 1000);
+        Assert.Contains(a, x => x is ClickAction { Reason: var r } && r.Contains("Slot5"));
+    }
+
+    [Fact]
     public void LobbyUpgrade_TargetUnitNotFound_ClosesWithoutBuying()
     {
         var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Kings Gambit" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });

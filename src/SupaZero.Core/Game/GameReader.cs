@@ -151,7 +151,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             BuyButton = treeShown && reader.FindChild(tree, AnimeZeroPaths.BuyFrame) is var bf and not 0 && IsShown(bf, pg)
                 && reader.FindChild(bf, AnimeZeroPaths.BuyButton) is var bb and not 0 && IsShown(bb, pg) ? HubRect(bb) : null,
             SkillUnitSlot = treeShown ? SelectedSlot(tree, AnimeZeroPaths.SkillUnitList, AnimeZeroPaths.SkillUnitSelected) : null,
-            SkillUnitName = treeShown ? SkillUnitName(tree, pg) : null,
+            SkillUnitName = treeShown ? SkillUnitName(tree, pg) : ResetRollTitle(),
             SkillUnitDebug = treeShown ? SkillUnitDebug : null,
             SkillUnits = treeShown ? ReadSkillUnits(tree) : [],
             SkillUnitView = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillUnitList) is var ul and not 0 ? HubRect(ul) : null,
@@ -555,6 +555,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
 
     /// <summary>v0.2.99: diagnosa nama unit (slot SkillTree vs slot Roll + judul) untuk log bila nama tidak terbaca.</summary>
     public string? SkillUnitDebug { get; private set; }
+    private readonly RollTitleTracker _rollTitle = new();
+
+    private string? ResetRollTitle() { _rollTitle.Reset(); return null; }
 
     private string? SkillUnitName(long tree, long pg)
     {
@@ -563,8 +566,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         int? rs = SelectedSlot(roll, AnimeZeroPaths.RollUnitList, AnimeZeroPaths.RollUnitSelected);
         string? title = roll != 0 ? CleanText(reader.ResolvePath(roll, AnimeZeroPaths.RollUnitTitle)) : null;
         SkillUnitDebug = $"SkillTree slot {st?.ToString() ?? "?"}, Roll {(roll == 0 ? "tidak ada" : $"slot {rs?.ToString() ?? "?"}")}, judul Roll \"{title ?? "-"}\"";
-        if (st is null || rs != st) return null;
-        return title;
+        long rl = roll != 0 ? reader.ResolvePath(roll, AnimeZeroPaths.RollUnitList) : 0;
+        bool rollHasSlots = rl != 0 && reader.GetChildren(rl, 64).Any(c => reader.GetName(c) is var nm && nm.StartsWith("Slot", StringComparison.Ordinal) && int.TryParse(nm[4..], out _));
+        if (!rollHasSlots) SkillUnitDebug += " (daftar Roll kosong → judul diterima hanya bila berubah setelah ganti slot)";
+        return _rollTitle.Resolve(st, title, rollHasSlots, rs);
     }
 
     private List<SkillSlot> ReadSlots(long tree, long pg)
