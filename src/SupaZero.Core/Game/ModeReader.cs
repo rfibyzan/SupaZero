@@ -12,7 +12,37 @@ public sealed partial class GameReader
     private GuiRect? ShownClientRect(long node, long pg) => node != 0 && IsShown(node, pg) ? ClientRect(node) : null;
 
     /// <summary>Icon material (rbxassetid) → nama, dari kartu Rewards yang pernah terbaca + tabel bawaan.</summary>
-    private readonly Dictionary<string, string> _materialIcons = new(AnimeZeroPaths.MaterialIcons, StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _materialIcons = new(AnimeZeroPaths.MaterialIcons, StringComparer.Ordinal);
+    /// <summary>v0.3.5: nama key drop EndScreen ("material119") → nama material, dipelajari saat icon-nya cocok dengan kartu Rewards.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _materialKeys = new(StringComparer.Ordinal);
+    /// <summary>Naik tiap ada nama material baru (icon atau key) → aplikasi menyimpan ke settings.</summary>
+    public int MaterialVersion { get; private set; }
+    /// <summary>Isi "icon:rbxassetid://…" / "key:materialNNN" → nama, untuk disimpan antar-sesi.</summary>
+    public Dictionary<string, string> LearnedMaterials()
+    {
+        var d = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var kv in _materialIcons) if (!AnimeZeroPaths.MaterialIcons.ContainsKey(kv.Key)) d["icon:" + kv.Key] = kv.Value;
+        foreach (var kv in _materialKeys) d["key:" + kv.Key] = kv.Value;
+        return d;
+    }
+    public void SeedMaterials(IReadOnlyDictionary<string, string>? saved)
+    {
+        if (saved is null) return;
+        foreach (var kv in saved)
+        {
+            if (kv.Key.StartsWith("icon:", StringComparison.Ordinal)) _materialIcons.TryAdd(kv.Key[5..], kv.Value);
+            else if (kv.Key.StartsWith("key:", StringComparison.Ordinal)) _materialKeys.TryAdd(kv.Key[4..], kv.Value);
+        }
+    }
+    private void Learn(System.Collections.Concurrent.ConcurrentDictionary<string, string> d, string k, string v)
+    {
+        if (d.TryGetValue(k, out var old) && old == v) return;
+        d[k] = v; MaterialVersion++;
+    }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _unknownIcons = new(StringComparer.Ordinal);
+    /// <summary>Drop terakhir yang namanya belum diketahui (key + icon) untuk log diagnosa.</summary>
+    public string? UnknownMaterial { get; set; }
 
     private string? Prop(long node, string name) =>
         node != 0 && props.Read(node).TryGetValue(name, out var v) && v.Length > 0 ? v : null;
@@ -33,7 +63,7 @@ public sealed partial class GameReader
             if (main == 0) continue;
             string? title = TextAt(main, "TxtShadow.Txt");
             string? icon = Prop(reader.FindChild(main, "Icon"), "Image");
-            if (title is not null && icon is not null) _materialIcons[icon] = title;
+            if (title is not null && icon is not null) Learn(_materialIcons, icon, title);
             long pill = reader.FindChild(main, "TargetPill");
             bool targetable = pill != 0 && IsShown(pill, pg);
             string? pillText = targetable ? TextAt(pill, "Pill.Txt(Shadow).Txt") : null;
@@ -99,7 +129,14 @@ public sealed partial class GameReader
             long main = reader.FindChild(item, "Main");
             string? amount = TextAt(main, "AmountShadow.Amount");
             string? icon = Prop(reader.FindChild(main, "Icon"), "Image");
-            string name = icon is not null && _materialIcons.TryGetValue(icon, out var n) ? n : AnimeZeroPaths.DropLabel(key);
+            string name;
+            if (icon is not null && _materialIcons.TryGetValue(icon, out var n)) { name = n; if (key.StartsWith("material", StringComparison.Ordinal)) Learn(_materialKeys, key, n); }
+            else if (_materialKeys.TryGetValue(key, out var kn)) name = kn;
+            else
+            {
+                name = AnimeZeroPaths.DropLabel(key);
+                if (key.StartsWith("material", StringComparison.Ordinal) && icon is not null && _unknownIcons.TryAdd(icon, 0)) UnknownMaterial = $"{key} icon {icon}";
+            }
             list.Add(amount is null ? name : $"{name} {amount}");
         }
         return list;

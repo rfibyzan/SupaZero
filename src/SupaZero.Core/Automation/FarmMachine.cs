@@ -36,6 +36,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     /// <summary>Map/act yang sedang dimainkan (dari menu Create Room).</summary>
     public string CurrentMap => _selectedMap;
     public int CurrentAct => _selectedAct;
+    private bool _actAdvancePending;
     public int Retries => _retries;
     public string Status { get; private set; } = "Idle";
 
@@ -128,7 +129,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             if (_selectedAct > 0 && _selectedMap.Length > 0 && !Matches(settings().Farm.Mode, nameof(FarmMode.Infinite)))
             {
                 ActCleared?.Invoke(_selectedMap, _selectedAct);
-                _selectedAct++; // Next stage = act berikutnya
+                _actAdvancePending = true; // v0.3.5: act naik hanya bila yang diklik Next (Raid/Retry: act tetap; log 25 Okt "Act 212")
             }
         }
         if (to == GameScreen.StartVote || (to == GameScreen.InRound && from is GameScreen.Victory or GameScreen.Defeat))
@@ -1207,6 +1208,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         Status = Matches(S.Farm.Mode, nameof(FarmMode.Infinite)) ? $"Infinite selesai ({s.ResultText}) → {label}" : $"Menang (ke-{StagesCleared}) → {label}";
         if (!Ready("after-win", now, 2500)) return [];
         _afterWinClicks++;
+        if (_actAdvancePending) { if (after == AfterWin.Next) _selectedAct++; _actAdvancePending = false; }
         var click = new ClickAction(b.CenterX, b.CenterY, label) { InRound = true };
         return _afterWinClicks % 4 == 0
             ? [click, new NoteAction($"Masih di EndScreen setelah {_afterWinClicks}x klik {label} di ({b.CenterX:0},{b.CenterY:0}).")]

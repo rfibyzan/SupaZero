@@ -203,6 +203,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             g.Powers = Powers;
             g.AreasButtonPath = Settings.Farm.AreasButtonPath;
             g.StoryCardPath = Settings.Farm.StoryCardPath;
+            g.SeedMaterials(Settings.Farm.KnownMaterialNames);
         }
     }
 
@@ -210,6 +211,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public GameSnapshot ReadSnapshot()
     {
         lock (_readGate) return Session.ReadSnapshot();
+    }
+
+    private object? _matSeeded;
+    private int _matVer = -1;
+
+    /// <summary>v0.3.5: nama material (icon/key materialNNN) yang dipelajari reader disimpan ke settings; reader baru diisi dari settings.</summary>
+    private void SyncMaterials()
+    {
+        if (Session.Game is not { } g) return;
+        if (!ReferenceEquals(g, _matSeeded)) { g.SeedMaterials(Settings.Farm.KnownMaterialNames); _matSeeded = g; _matVer = g.MaterialVersion; }
+        else if (g.MaterialVersion != _matVer)
+        {
+            _matVer = g.MaterialVersion;
+            var all = new Dictionary<string, string>(Settings.Farm.KnownMaterialNames ?? new(), StringComparer.Ordinal);
+            foreach (var kv in g.LearnedMaterials()) all[kv.Key] = kv.Value;
+            Settings.Farm = Settings.Farm with { KnownMaterialNames = all };
+            Save();
+        }
+        if (g.UnknownMaterial is { } u)
+        {
+            g.UnknownMaterial = null;
+            AddLog($"Nama drop belum diketahui: {u}. Buka menu Create Room map/act itu sekali (panel Rewards) agar namanya terbaca.");
+        }
     }
 
     private void Refresh()
@@ -226,6 +250,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         CheckSpin();
         General.Refresh();
         Farm.Refresh();
+        SyncMaterials();
         if (Runner.IsRunning)
         {
             Overlay.Refresh(snap);
