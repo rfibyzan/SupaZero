@@ -289,6 +289,63 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Lobby_AfterTeleport_WalksToFarReadCircle_NoReteleport()
+    {
+        // Byzan 25 Okt 10:18: sesudah teleport Story diam "Menunggu setelah teleport" lalu teleport ulang; lingkaran > 90 stud.
+        var (m, _) = New();
+        var hub = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
+            StartRooms = [new StartRoom("1", new Vec3(400, 0, 0), false)], AreasButton = new GuiRect(40, 540, 80, 80),
+        };
+        Assert.Equal("Tombol Areas", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
+        var panel = hub with { TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))] };
+        Assert.Equal("Teleport Story", Real(m.Step(panel, 5000)).OfType<ClickAction>().Single().Reason);
+        var after = hub with { PlayerPos = new Vec3(150, 0, 0) }; // 250 stud dari lingkaran
+        for (long t = 6000; t <= 25_000; t += 500)
+        {
+            var a = Real(m.Step(after with { PlayerPos = new Vec3(150 + (t - 6000) / 100.0, 0, 0) }, t));
+            Assert.DoesNotContain(a, x => x is ClickAction);
+            Assert.Contains(a.OfType<MoveAction>(), mv => mv.Keys.Count > 0);
+        }
+    }
+
+    [Fact]
+    public void Lobby_CardReadWhilePanelClosed_OpensAreasFirst_AndRetriesWhenNoTeleport()
+    {
+        // Byzan 25 Okt 10:20: kartu Story terbaca walau panel Areas belum dibuka → dulu diklik kosong lalu "Menunggu setelah teleport".
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
+            AreasButton = new GuiRect(40, 540, 80, 80), // lingkaran belum terbaca (jauh)
+            TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))],
+        };
+        Assert.Equal("Tombol Areas", Real(m.Step(snap, 0)).OfType<ClickAction>().Single().Reason);
+        Assert.Equal("Teleport Story", Real(m.Step(snap, 1000)).OfType<ClickAction>().Single().Reason);
+        // Posisi tidak berubah → bukan teleport. Sesudah 3 dtk: buka Areas lagi, bukan diam 12 dtk.
+        var clicks = new List<string>();
+        for (long t = 1500; t <= 6000; t += 500) clicks.AddRange(Real(m.Step(snap, t)).OfType<ClickAction>().Select(c => c.Reason));
+        Assert.Contains("Tombol Areas", clicks);
+    }
+
+    [Fact]
+    public void Lobby_StuckAtRing_SwitchesAfterJoinTimeoutSetting()
+    {
+        // Lingkaran = pembatas: jarak berhenti di ~11 stud. Setelan "Pindah lingkaran" 2 dtk → pindah ≤ 2,5 dtk (dulu 6 dtk + ke tengah).
+        var (m, _) = New(s => s.Farm = s.Farm with { JoinTimeoutSec = 2 });
+        var snap = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(11, 0, 0), CameraLook = (0, -1),
+            StartRooms = [new StartRoom("1", new Vec3(0, 0, 0), false), new StartRoom("2", new Vec3(30, 0, 0), false)],
+        };
+        long switchedAt = -1;
+        for (long t = 0; t <= 6000 && switchedAt < 0; t += 250)
+            if (m.Step(snap, t).OfType<NoteAction>().Any(n => n.Reason.Contains("Tidak bisa join room 1"))) switchedAt = t;
+        Assert.InRange(switchedAt, 1500, 2500);
+    }
+
+    [Fact]
     public void Lobby_NearRoomFailed_RetriesNearInsteadOfTeleport()
     {
         var (m, _) = New();

@@ -179,20 +179,21 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     private readonly Dictionary<string, long> _roomBan = new(StringComparer.Ordinal);
     private string? _roomTarget;
     private long? _teleportAt;
+    private long? _areasClickAt;      // v0.3.8: kartu teleport hanya diklik sesudah tombol Areas diklik (≤ 6 dtk)
+    private Vec3? _tpFrom;            // posisi saat kartu teleport diklik (cek teleport benar terjadi)
     private long? _arrivedAt;
     /// <summary>v0.3.1 (screenshot Byzan 08:24, 25 Okt): karakter sudah di lingkaran tapi jarak terbaca tetap ~11 stud, menu tidak terbuka,
     /// macro terus "jalan" → tidak pernah masuk hitungan JoinTimeout. Jarak tidak membaik ≥ 1 stud selama ini → anggap gagal, pindah lingkaran.</summary>
-    public const long RoomNoProgressMs = 6000;
     private string? _progTarget;
     private double _progBest;
     private long _progBestAt;
 
-    /// <summary>true bila jalan ke room <paramref name="id"/> tidak membuat jarak membaik selama <see cref="RoomNoProgressMs"/>.</summary>
-    private bool RoomStalled(string id, double dist, long now)
+    /// <summary>v0.3.8: batas tertahan = setelan "Pindah lingkaran jika gagal join" (dtk), bukan 6 dtk tetap.</summary>
+    private bool RoomStalled(string id, double dist, long now, long limitMs)
     {
         if (_progTarget != id) { _progTarget = id; _progBest = dist; _progBestAt = now; return false; }
         if (dist < _progBest - 1) { _progBest = dist; _progBestAt = now; return false; }
-        return now - _progBestAt > RoomNoProgressMs;
+        return now - _progBestAt >= limitMs;
     }
 
     private List<MacroAction> BanRoom(string id, long now, string why)
@@ -230,8 +231,11 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         if (f.LobbyCircle is { } manual) cands.Add(("manual", manual));
 
         // Baru teleport (≤ 30 dtk): spawn bisa agak jauh dari lingkaran → tetap jalan (sampai 90 stud), jangan teleport ulang.
+        // v0.3.8 (Byzan 25 Okt 10:18): sesudah teleport, lingkaran yang posisinya terbaca dari memori didatangi berapa pun jaraknya
+        // (dulu dibatasi 90 stud → diam lalu teleport ulang terus).
         bool justTeleported = _teleportAt is long ta && now - ta < 30_000;
-        double maxWalk = justTeleported ? 90 : TeleportIfFartherThan;
+        double maxWalk = justTeleported ? double.MaxValue : TeleportIfFartherThan;
+        long joinMs = Math.Max(1, f.JoinTimeoutSec) * 1000L;
 
         // Room yang gagal join (sudah sampai tapi menu tidak terbuka) di-skip 30 dtk.
         foreach (var k in _roomBan.Where(kv => kv.Value <= now).Select(kv => kv.Key).ToList()) _roomBan.Remove(k);
@@ -285,23 +289,14 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             if (walk.Count > 0)
             {
                 _arrivedAt = null;
-                if (RoomStalled(t.Id, dist, now)) return [.. pre, .. BanRoom(t.Id, now, $"jarak tertahan {dist:0.#} stud {RoomNoProgressMs / 1000} dtk, menu tidak terbuka")];
+                // Lingkaran = pembatas (tidak bisa dimasuki): jarak berhenti turun + menu tidak terbuka selama setelan join → pindah.
+                if (RoomStalled(t.Id, dist, now, joinMs)) return [.. pre, .. BanRoom(t.Id, now, $"jarak tertahan {dist:0.#} stud {joinMs / 1000} dtk, menu tidak terbuka")];
                 return [.. pre, .. walk];
             }
 
             _arrivedAt ??= now;
             long waited = now - _arrivedAt.Value;
-            // Sudah di tepi lingkaran tapi menu belum muncul → masuk ke tengah hitbox.
-            if (waited >= 2000 && dist > 2)
-            {
-                var center = WalkTo(s, t.Pos, 1.5, now, "tengah lingkaran", attackWhenStuck: false);
-                if (center.Count > 0)
-                {
-                    if (RoomStalled(t.Id, dist, now)) return [.. pre, .. BanRoom(t.Id, now, $"tidak bisa ke tengah, jarak {dist:0.#} stud, menu tidak terbuka")];
-                    return [.. pre, .. center];
-                }
-            }
-            if (waited >= Math.Max(1, f.JoinTimeoutSec) * 1000L)
+            if (waited >= joinMs)
                 return BanRoom(t.Id, now, $"{waited / 1000} dtk, jarak {dist:0.#} stud");
             Status = $"Di {Label(t.Id)}, menunggu menu Create Room ({waited / 1000}/{f.JoinTimeoutSec} dtk).";
             return [new MoveAction([], "Sampai")];
@@ -321,28 +316,43 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         }
 
         // Baru saja teleport: tunggu karakter/lingkaran terbaca, jangan teleport ulang (maks 1x / 12 dtk).
-        if (_teleportAt is long tq && now - tq < 12_000)
+        // v0.3.8 (Byzan 25 Okt 10:20 "belum buka tab teleport"): kartu bisa terbaca walau panel Areas tertutup → klik kosong.
+        // Bukti teleport = posisi berubah. 3 dtk tanpa pindah ≥ 20 stud → anggap gagal, buka Areas dulu.
+        if (_teleportAt is long tf && now - tf >= 3000 && _tpFrom is { } from && s.PlayerPos is { } pnow
+            && Navigator.Distance2D(pnow.X, pnow.Z, from.X, from.Z) < 20)
+        {
+            _teleportAt = null; _tpFrom = null; _areasClickAt = null;
+            pre.Add(new NoteAction("Teleport tidak terjadi (posisi tidak berubah 3 dtk) → buka Areas dulu lalu klik kartu lagi."));
+        }
+        else if (_teleportAt is long tq && now - tq < 12_000)
         {
             Status = "Menunggu setelah teleport…";
-            return [.. pre, new MoveAction([], "Tunggu teleport")];
+            string why = s.PlayerPos is null ? "posisi karakter tidak terbaca"
+                : cands.Count == 0 ? "lingkaran room (QuqueRooms / Start Here) belum terbaca"
+                : "semua lingkaran dekat sedang di-skip";
+            return [.. pre, new MoveAction([], "Tunggu teleport"), .. Note("tp-wait", now, 4000, $"Menunggu setelah teleport: {why}.")];
         }
 
         // Teleport lewat Areas → kartu bernama mode itu. v0.2.80: tanpa cadangan kartu Story.
         var card = s.TeleportCards.FirstOrDefault(c => c.Name.Trim().Equals(want, StringComparison.OrdinalIgnoreCase));
         if (card is null && s.TeleportCards.Count > 0)
             return [.. pre, new MoveAction([], "Tunggu"), .. Note("tp-nocard", now, 8000, $"Kartu teleport '{want}' tidak ada (terbaca: {string.Join(", ", s.TeleportCards.Select(c => c.Name))}) → tidak diklik.")];
-        if (card?.Rect is { } cr)
+        bool areasJustClicked = _areasClickAt is long ac && now - ac <= 6000;
+        if (card?.Rect is not null && (areasJustClicked || s.AreasButton is null))
         {
             Status = $"Teleport: Areas → {card.Name}";
             // v0.2.90: klik hanya bila kartu terlihat di dalam panel Areas (Clipping) dan jendela Roblox; selain itu scroll/diam.
             var click = ClickEntry(s, card, s.AreasView, "tp-card", $"Teleport {card.Name}", now) ?? [];
-            if (click.Any(a => a is ClickAction)) _teleportAt = now;
+            if (click.Any(a => a is ClickAction)) { _teleportAt = now; _tpFrom = s.PlayerPos; _areasClickAt = null; }
             return [.. pre, new MoveAction([], "Teleport"), .. click];
         }
         if (s.AreasButton is { } ab)
         {
             Status = "Buka Areas untuk teleport.";
-            return Ready("areas", now, 1500) ? [.. pre, new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")] : pre;
+            if (areasJustClicked) return [.. pre, new MoveAction([], "Tunggu panel Areas")];
+            if (!Ready("areas", now, 1500)) return pre;
+            _areasClickAt = now;
+            return [.. pre, new MoveAction([], "Teleport"), new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas")];
         }
         Status = "Lingkaran Create Room dan tombol Areas tidak terbaca.";
         return [new MoveAction([], "Tunggu"), .. Note("no-hub", now, 8000, "Tombol Areas / lingkaran 'Start Here' tidak terbaca. Cek di RIE atau rekam posisi lingkaran manual.")];
