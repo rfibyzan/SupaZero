@@ -150,6 +150,9 @@ public static class AnimeZeroPaths
     /// <summary>Daftar unit SkillTree: CharacterSlots.Fade.List.SlotN.Hitbox.MainButton.MainButton.SelectedFrame tampil = unit terpilih.</summary>
     public const string SkillUnitList = "CharacterSlots.Fade.List";
     public const string SkillUnitSelected = "Hitbox.MainButton.MainButton.SelectedFrame";
+    /// <summary>v0.2.97 [V] snapshot 25 Okt: ImageButton yang diklik, dan LevelShadow ("Lv.110"; Slot kosong = Visible false, teks kosong).</summary>
+    public const string SkillUnitButton = "Hitbox.MainButton.MainButton";
+    public const string SkillUnitLevel = "Hitbox.MainButton.MainButton.LevelShadow";
     /// <summary>v0.2.93 [V] 3 snapshot + diff 07:49 (25 Okt): pilihan unit di SkillTree ikut memindah Roll.CharacterSlots…SlotN.SelectedFrame,
     /// dan Roll.CharacterInfo.TitleShadow.Title = nama unit (Shadow Lord / Divine Emperor / Twisted Agony / Cursed King). Nama dipakai hanya bila
     /// nomor slot kedua daftar sama.</summary>

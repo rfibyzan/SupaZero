@@ -152,6 +152,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 && reader.FindChild(bf, AnimeZeroPaths.BuyButton) is var bb and not 0 && IsShown(bb, pg) ? HubRect(bb) : null,
             SkillUnitSlot = treeShown ? SelectedSlot(tree, AnimeZeroPaths.SkillUnitList, AnimeZeroPaths.SkillUnitSelected) : null,
             SkillUnitName = treeShown ? SkillUnitName(tree, pg) : null,
+            SkillUnits = treeShown ? ReadSkillUnits(tree) : [],
+            SkillUnitView = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillUnitList) is var ul and not 0 ? HubRect(ul) : null,
             SkillTreeExit = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeExit) is var ex and not 0 && IsShown(ex, pg) ? HubRect(ex) : null,
             UnitsButton = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.UnitsButtonPath) is var ub and not 0 && IsShown(ub, pg) ? HubRect(ub) : null,
         };
@@ -531,6 +533,23 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             if (v != 0) { if (hit is not null) return null; hit = n; }
         }
         return hit;
+    }
+
+    private List<LobbyEntry> ReadSkillUnits(long tree)
+    {
+        var res = new List<LobbyEntry>();
+        long l = reader.ResolvePath(tree, AnimeZeroPaths.SkillUnitList);
+        if (l == 0 || !reader.Offsets.TryResolve("GuiObject.Visible", out long vo)) return res;
+        foreach (long c in reader.GetChildren(l, 64))
+        {
+            string name = reader.GetName(c);
+            if (!name.StartsWith("Slot", StringComparison.Ordinal) || !int.TryParse(name[4..], out _)) continue;
+            long lv = reader.ResolvePath(c, AnimeZeroPaths.SkillUnitLevel), sel = reader.ResolvePath(c, AnimeZeroPaths.SkillUnitSelected);
+            bool owned = lv != 0 && M.TryReadByte(lv + vo, out byte lvv) && lvv != 0 && CleanText(lv) is not null;
+            bool selected = sel != 0 && M.TryReadByte(sel + vo, out byte sv) && sv != 0;
+            res.Add(new LobbyEntry(name, !owned, selected, HubRect(reader.ResolvePath(c, AnimeZeroPaths.SkillUnitButton))));
+        }
+        return res;
     }
 
     private string? SkillUnitName(long tree, long pg)

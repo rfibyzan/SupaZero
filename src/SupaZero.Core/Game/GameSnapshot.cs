@@ -258,6 +258,10 @@ public sealed record GameSnapshot
     public int? SkillUnitSlot { get; init; }
     /// <summary>Nama unit SkillTree (dari Roll.CharacterInfo bila slot terpilih Roll = slot SkillTree), null = tidak pasti.</summary>
     public string? SkillUnitName { get; init; }
+    /// <summary>v0.2.97: daftar unit di bawah SkillTree (Name = "SlotN", Locked = slot kosong tanpa level, Rect = MainButton).</summary>
+    public IReadOnlyList<LobbyEntry> SkillUnits { get; init; } = [];
+    /// <summary>Area tampak daftar unit SkillTree (CharacterSlots.Fade.List, ScrollingFrame horizontal).</summary>
+    public GuiRect? SkillUnitView { get; init; }
     /// <summary>Tombol X SkillTree (Header.ExitButton).</summary>
     public GuiRect? SkillTreeExit { get; init; }
     /// <summary>Tombol Units di LobbyHUD (pembuka SkillTree).</summary>

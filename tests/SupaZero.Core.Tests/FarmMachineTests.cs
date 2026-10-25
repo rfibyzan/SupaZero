@@ -450,15 +450,51 @@ public class FarmMachineTests
         Assert.DoesNotContain(m.Step(lobby with { UnitsButton = units }, 5000), a => a is ClickAction { Reason: "Tombol Units (LobbyHUD)" });
     }
 
+    private static GameSnapshot UnitTree(int sel, string? name) => new()
+    {
+        Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 67,
+        SkillUnitSlot = sel, SkillUnitName = name, SkillTreeExit = new GuiRect(1696, 115, 48, 48),
+        Slots = [new SkillSlot("ATK", 1, true, new GuiRect(740, 380, 100, 100), 1)],
+        SkillUnitView = new GuiRect(171, 769, 446, 177),
+        // Angka dari snapshot Shadow_Lord_Skill_Tree (25 Okt): Slot1..3 tampak, Slot4..5 di kanan (perlu scroll), Slot6 kosong.
+        SkillUnits = [new("Slot1", false, sel == 1, new GuiRect(131, 799, 132, 132)), new("Slot2", false, sel == 2, new GuiRect(278, 799, 132, 132)),
+                      new("Slot3", false, sel == 3, new GuiRect(424, 799, 132, 132)), new("Slot4", false, sel == 4, new GuiRect(571, 799, 132, 132)),
+                      new("Slot5", false, sel == 5, new GuiRect(718, 799, 132, 132)), new("Slot6", true, false, new GuiRect(864, 799, 132, 132))],
+    };
+
     [Fact]
-    public void LobbyUpgrade_OnlyUnitMismatch_ClosesWithoutBuying()
+    public void LobbyUpgrade_TargetUnit_ClicksOtherSlotsUntilNameMatches()
     {
         var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Shadow Lord" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 6,
-            SkillUnitSlot = 2, SkillUnitName = "Cursed King", Slots = [new SkillSlot("ATK", 1, true, new GuiRect(10, 10, 100, 100), 1)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
-        var a = m.Step(tree, 0);
+        var a = m.Step(UnitTree(2, "Cursed King"), 0);
+        Assert.Contains(a, x => x is ClickAction { Reason: "Unit Slot1" });
         Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
-        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("Cursed King ≠"));
+        var b = m.Step(UnitTree(1, "Divine Emperor"), 1000);   // Slot1 bukan target → klik Slot3 (Slot2 sudah diketahui Cursed King)
+        Assert.Contains(b, x => x is ClickAction { Reason: "Unit Slot3" });
+        var c = m.Step(UnitTree(3, "Shadow Lord"), 4000);
+        Assert.Contains(c, x => x is ClickAction { Reason: "Node ATK #2" });
+    }
+
+    [Fact]
+    public void LobbyUpgrade_TargetUnitOutOfView_ScrollsList()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Twisted Agony" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        m.Step(UnitTree(1, "Divine Emperor"), 0);              // klik Slot2
+        m.Step(UnitTree(2, "Cursed King"), 1000);              // klik Slot3
+        var a = m.Step(UnitTree(3, "Shadow Lord"), 2000);      // Slot4 di luar area tampak → scroll, tidak klik
+        Assert.Contains(a, x => x is ScrollAction);
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: "Unit Slot4" });
+    }
+
+    [Fact]
+    public void LobbyUpgrade_TargetUnitNotFound_ClosesWithoutBuying()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Kings Gambit" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var t = UnitTree(1, "Divine Emperor") with { SkillUnits = [new("Slot1", false, true, new GuiRect(131, 799, 132, 132)), new("Slot2", false, false, new GuiRect(278, 799, 132, 132))] };
+        m.Step(t, 0);
+        var a = m.Step(t with { SkillUnitSlot = 2, SkillUnitName = "Cursed King" }, 1000);
+        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("tidak ditemukan"));
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
     }
 
     [Fact]
