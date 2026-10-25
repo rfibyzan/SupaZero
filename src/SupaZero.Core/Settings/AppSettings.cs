@@ -148,7 +148,8 @@ public sealed record UpgradeSettings(
     UpgradeMode Mode = UpgradeMode.Priority,
     List<string>? Priority = null,
     int MaxBuysPerStage = 5,
-    string? OnlyUnit = null)
+    string? OnlyUnit = null,
+    bool DryRun = false)
 {
     /// <summary>v0.2.94: nama unit yang boleh di-upgrade (kosong = unit terpilih apa pun).</summary>
     public string? EffectiveOnlyUnit => string.IsNullOrWhiteSpace(OnlyUnit) ? null : OnlyUnit.Trim();

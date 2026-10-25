@@ -1204,20 +1204,22 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         var stand = new MoveAction([], "Upgrade");
         if (!s.SkillTreeOpen)
         {
-            if (_upClosing) { UpgradeFinish(); return null; }
+            if (_upClosing) { UpgradeFinish(); return up.DryRun ? Stop("Mode uji selesai (tidak ada yang dibeli) → macro berhenti.") : null; }
             _upOpenAt ??= now;
             if (now - _upOpenAt.Value > UnitsOpenTimeoutMs)
             {
                 UpgradeFinish();
+                if (up.DryRun) return Stop($"Mode uji: SkillTree tidak terbuka dalam {UnitsOpenTimeoutMs / 1000} dtk → macro berhenti.");
                 return [stand, .. Note("up-noopen", now, 1000, $"SkillTree tidak terbuka dalam {UnitsOpenTimeoutMs / 1000} dtk → upgrade dilewati.")];
             }
             if (s.UnitsButton is not { } u)
             {
                 if (now - _upOpenAt.Value < 1500) return [stand];
                 UpgradeFinish();
+                if (up.DryRun) return Stop("Mode uji: tombol Units (LobbyHUD) tidak terbaca → macro berhenti.");
                 return [stand, .. Note("up-nounits", now, 1000, "Tombol Units (LobbyHUD) tidak terbaca → upgrade dilewati.")];
             }
-            if (!InWindow(s, u.CenterX, u.CenterY)) { UpgradeFinish(); return [stand, .. Note("up-unitsout", now, 1000, "Tombol Units di luar jendela Roblox → upgrade dilewati.")]; }
+            if (!InWindow(s, u.CenterX, u.CenterY)) { UpgradeFinish(); if (up.DryRun) return Stop("Mode uji: tombol Units di luar jendela Roblox → macro berhenti."); return [stand, .. Note("up-unitsout", now, 1000, "Tombol Units di luar jendela Roblox → upgrade dilewati.")]; }
             Status = "Upgrade: buka Units.";
             return Ready("up-units", now, 3000) ? [stand, new ClickAction(u.CenterX, u.CenterY, "Tombol Units (LobbyHUD)")] : [stand];
         }
@@ -1270,6 +1272,8 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         if (slot.Selected && s.BuyButton is { } buy)
         {
             if (!InWindow(s, buy.CenterX, buy.CenterY)) return Close("tombol Buy di luar jendela");
+            if (up.DryRun)
+                return Close($"MODE UJI: akan beli {slot.Column} #{slot.Index + 1} ({slot.Price} token), tombol Buy terbaca di ({buy.CenterX},{buy.CenterY}) tapi TIDAK diklik");
             if (!Ready("up-buy", now, 800)) return [stand];
             _pendingBuyConfirm = true; _tokensBeforeBuy = tok; _buyAt = now;
             Status = $"Upgrade {s.SkillUnitName ?? "unit"}: beli {slot.Column} #{slot.Index + 1} ({slot.Price} token, sisa {tok})";

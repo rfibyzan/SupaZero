@@ -29,6 +29,7 @@ public sealed class UpgradeViewModel : ObservableObject
 
     public bool Enabled { get => S.Upgrade.Enabled; set => Up(u => u with { Enabled = value }); }
     public int ModeIndex { get => (int)S.Upgrade.Mode; set => Up(u => u with { Mode = (UpgradeMode)Math.Clamp(value, 0, 1) }); }
+    public bool DryRun { get => S.Upgrade.DryRun; set => Up(u => u with { DryRun = value }); }
     public string OnlyUnit { get => S.Upgrade.OnlyUnit ?? ""; set => Up(u => u with { OnlyUnit = value }); }
     public decimal MaxBuysPerStage { get => S.Upgrade.MaxBuysPerStage; set => Up(u => u with { MaxBuysPerStage = (int)value }); }
 

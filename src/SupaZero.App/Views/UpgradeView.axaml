@@ -21,9 +21,10 @@
           <TextBlock Classes="label" Text="Hanya unit (kosong = semua)" />
           <TextBox Grid.Column="1" Text="{Binding OnlyUnit}" Watermark="mis. Shadow Lord" />
         </Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Mode uji (tanpa klik Buy)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding DryRun}" /></Grid>
         <Border Classes="sep" Margin="0,4" />
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom teratas dulu. Bergiliran: satu node per kolom bergantian. Unit tidak diganti. Bila Hanya unit diisi dan unit terpilih beda atau namanya tak terbaca, tidak membeli apa pun." />
+                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom teratas dulu. Bergiliran: satu node per kolom bergantian. Unit tidak diganti. Bila Hanya unit diisi dan unit terpilih beda atau namanya tak terbaca, tidak membeli apa pun. Mode uji: buka Units, pilih node, pastikan tombol Buy terbaca, tulis rencana di log, tutup X, lalu macro berhenti tanpa membeli." />
       </StackPanel>
     </Border>
 

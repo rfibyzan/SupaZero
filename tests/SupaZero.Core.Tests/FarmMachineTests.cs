@@ -471,6 +471,22 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void LobbyUpgrade_DryRun_NeverClicksBuy_ThenStops()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, DryRun = true }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 67,
+            SkillUnitSlot = 3, SkillUnitName = "Shadow Lord", Slots = [new SkillSlot("ATK", 1, true, new GuiRect(10, 10, 100, 100), 1) { Selected = true }],
+            BuyButton = new GuiRect(900, 800, 120, 40), SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        var a = m.Step(tree, 0);
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Buy"));
+        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("MODE UJI"));
+        var b = m.Step(tree, 2000);
+        Assert.Contains(b, x => x is ClickAction { Reason: "Tutup SkillTree (X)" });
+        var c = m.Step(tree with { SkillTreeOpen = false }, 4000);
+        Assert.Contains(c, x => x is StopAction);
+    }
+
+    [Fact]
     public void LobbyUpgrade_PriceAboveTokens_ClosesWithoutBuying()
     {
         var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
