@@ -941,6 +941,42 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Calibration_Traits_CyclesAllUnitsWithNextButton()
+    {
+        // RIE Trait_Reroll 25 Okt 08:54: tombol ">" (582,638 42x42) → "Shadow Lord 3/5" jadi "Mochi Commander 4/5".
+        Assert.Equal((3, 5), FarmMachine.TraitCounter("Shadow Lord 3/5"));
+        var (m, _) = New();
+        m.StartCalibration();
+        var spot = new Vec3(-87.7, 0.4, -97);
+        var baseS = new GameSnapshot { Attached = true, PlayerPos = new Vec3(-87.7, 3, -97), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, TraitSpot = spot, TraitExit = new Vec3(-85.8, 5.4, -90.2) };
+        string[] names = ["Divine Emperor", "Cursed King", "Shadow Lord", "Mochi Commander", "Twisted Agony"];
+        int idx = 2;
+        GameSnapshot Open() => baseS with { TraitMenuOpen = true, TraitHeader = $"{names[idx]} {idx + 1}/5", TraitNext = new GuiRect(582, 638, 42, 42) };
+        var clicks = 0; bool exited = false;
+        for (long t = 0; t <= 40000 && !exited; t += 250)
+        {
+            var a = m.Step(Open(), t);
+            foreach (var c in a.OfType<ClickAction>().Where(c => c.Reason.StartsWith("Trait >"))) { clicks++; idx = (idx + 1) % 5; }
+            exited = a.Any(x => x is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("luar zona"));
+        }
+        Assert.Equal(4, clicks);   // 3/5 → 4 → 5 → 1 → 2: lima unit terbaca, tanpa klik ekstra
+        Assert.True(exited);
+    }
+
+    [Fact]
+    public void Calibration_Traits_NextClickWithoutChange_Stops()
+    {
+        var (m, _) = New();
+        m.StartCalibration();
+        var baseS = new GameSnapshot { Attached = true, PlayerPos = new Vec3(-87.7, 3, -97), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, TraitSpot = new Vec3(-87.7, 0.4, -97), TraitExit = new Vec3(-85.8, 5.4, -90.2),
+            TraitMenuOpen = true, TraitHeader = "Shadow Lord 3/5", TraitNext = new GuiRect(582, 638, 42, 42) };
+        var all = new List<MacroAction>();
+        for (long t = 0; t <= 12000; t += 250) all.AddRange(m.Step(baseS, t));
+        Assert.Single(all, a => a is ClickAction c && c.Reason.StartsWith("Trait >"));
+        Assert.Contains(all, a => a is NoteAction n && n.Reason.Contains("tidak mengganti unit"));
+    }
+
+    [Fact]
     public void Calibration_Traits_WalksToGuideSpot_ThenExitsZone()
     {
         var (m, _) = New();

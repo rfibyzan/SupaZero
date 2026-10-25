@@ -74,6 +74,8 @@ public static class AnimeZeroPaths
     /// (Part 4×0.2×4 di (-87.7,0.4,-97)), di dalam Systems.Zones.Enchants (Part 14.5×20.8×15.8, CanTouch). Titik teleport kartu
     /// Traits: Systems.AreasTeleportLocation.Traits (-85.8,5.4,-90.2), di luar zona.</summary>
     public const string TraitSpotPath = "Systems.GuideSpots.Enchants";
+    /// <summary>RIE Trait_Reroll 08:54:32→08:54:41: klik ImageButton ini (teks "&gt;", rect 582,638 42x42 di 1920x1009) mengganti header "Shadow Lord 3/5" → "Mochi Commander 4/5". Relatif TraitRoot (…Left.Content).</summary>
+    public const string TraitNextButton = "CharacterSwitch.Next.Next";
     public const string TraitExitPath = "Systems.AreasTeleportLocation.Traits";
     public const string StartCircleText = "Start Here";
     /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026): Workspace.Systems.QuqueRooms.&lt;n&gt;.JoinHitbox (Part 18×25×25, CanCollide false).</summary>

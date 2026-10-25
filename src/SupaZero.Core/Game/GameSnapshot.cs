@@ -178,6 +178,9 @@ public sealed record GameSnapshot
     public IReadOnlyList<LobbyEntry> HubMenuButtons { get; init; } = [];
     /// <summary>Layar Trait Reroll / daftar slot karakter (menu Spin) sedang tampil.</summary>
     public bool TraitMenuOpen { get; init; }
+    /// <summary>v0.3.6 (RIE Trait_Reroll 25 Okt 08:54): header CharacterSwitch.CharacterName.Txt ("Shadow Lord 3/5") dan tombol ">" (CharacterSwitch.Next.Next).</summary>
+    public string? TraitHeader { get; init; }
+    public GuiRect? TraitNext { get; init; }
     public bool SpinMenuOpen { get; init; }
     /// <summary>Lingkaran Create Room terdeteksi: part yang memuat teks "Start Here" di Workspace.</summary>
     public IReadOnlyList<Settings.Vec3> StartCircles { get; init; } = [];

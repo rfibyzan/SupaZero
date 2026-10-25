@@ -49,13 +49,25 @@ public sealed partial class FarmMachine
         _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear(); _calDrops.Clear(); _calDropActs = []; _calDropIdx = 0;
         _calSig = null; _calStepAt = -1;
         _pcStep = 2; _pcStepAt = null; _pcOpenAt = null; // tombol Trait/Spin LobbyHUD tidak ada (Byzan 25 Okt) → PowerCheck tidak dipakai
-        _trStep = 0; _trAt = null;
+        _trStep = 0; _trAt = null; _trHeader = null; _trClickAt = null; _trSeen.Clear();
     }
 
     // ---- Trait (Byzan 25 Okt 2026): Areas → kartu "Traits" → teleport ke depan NPC Matilda → maju (W) → panel Trait Reroll
     // (SurfaceGui "UI Animation (Working).Trait Reroll") terbuka → baca → mundur (S) sampai panel tertutup. Tidak klik apa pun di panel.
     private int _trStep;
     private long? _trAt;
+    private string? _trHeader;
+    private long _trHeaderAt;
+    private long? _trClickAt;
+    private readonly HashSet<int> _trSeen = [];
+    public const int TraitNextTimeoutMs = 3000;
+
+    /// <summary>"Shadow Lord 3/5" → (3, 5); tanpa counter → (0, 0).</summary>
+    public static (int Cur, int Total) TraitCounter(string? header)
+    {
+        var m = header is null ? null : System.Text.RegularExpressions.Regex.Match(header, @"(\d+)\s*/\s*(\d+)\s*$");
+        return m is { Success: true } ? (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value)) : (0, 0);
+    }
     public const int TraitTeleportSettleMs = 2000, TraitWalkMs = 10_000, TraitBackMs = 6000;
     public const string CalRoomCard = "Story";
     public const double TraitSpotMaxDist = 25; // spawn kartu Traits ↔ GuideSpot ≈ 7 stud (RIE)
@@ -107,7 +119,26 @@ public sealed partial class FarmMachine
             {
                 Status = "Kalibrasi trait: panel Trait Reroll terbuka, membaca…";
                 if (!s.TraitMenuOpen) return Skip("panel Trait Reroll tertutup sebelum terbaca.");
-                if (dt < PowerMenuReadMs) return [stand];
+                // v0.3.6: baca SEMUA unit: tunggu pembacaan trait (ReadPowers tiap 2 dtk) lalu klik ">" (terbukti RIE), wajib header berganti.
+                var (cur, total) = TraitCounter(s.TraitHeader);
+                if (s.TraitHeader != _trHeader) { _trHeader = s.TraitHeader; _trHeaderAt = now; _trClickAt = null; }
+                if (cur > 0 && total > 0)
+                {
+                    if (now - _trHeaderAt < PowerMenuReadMs) return [stand];
+                    if (_trSeen.Add(cur)) _calNotes.Add($"trait unit {s.TraitHeader} terbaca");
+                    if (_trSeen.Count < total)
+                    {
+                        if (_trClickAt is long ca && now - ca > TraitNextTimeoutMs)
+                            return Skip($"klik \">\" tidak mengganti unit (tetap '{s.TraitHeader}') → {_trSeen.Count}/{total} unit terbaca.");
+                        if (_trClickAt is not null) return [stand];
+                        if (s.TraitNext is not { } nx || !InWindow(s, nx.CenterX, nx.CenterY))
+                            return Skip($"tombol \">\" panel Trait tidak terbaca → {_trSeen.Count}/{total} unit terbaca.");
+                        _trClickAt = now;
+                        Status = $"Kalibrasi trait: {s.TraitHeader} → unit berikutnya (>).";
+                        return [stand, new ClickAction(nx.CenterX, nx.CenterY, $"Trait > ({cur}/{total})")];
+                    }
+                }
+                else if (dt < PowerMenuReadMs) return [stand];
                 string eq = s.Equipped.Count == 0 ? "slot belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
                     $"slot {p.Loadout} {p.Name}{(p.Level is { } lv ? $" Lv.{lv}" : "")}{(p.Trait is { } t ? $" ({t.Name})" : "")}"));
                 Go(4);

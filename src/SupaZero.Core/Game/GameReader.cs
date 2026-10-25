@@ -173,6 +173,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             HubButtonNames = pg != 0 && reader.ResolvePath(pg, "LobbyHUD.LeftSideButtons") is var lsb and not 0
                 ? reader.GetChildren(lsb, 64).Select(c => reader.GetName(c)).Where(n => n.Length > 0).ToList() : [],
             TraitMenuOpen = traitRoot != 0 && IsShown(traitRoot, pg),
+            TraitHeader = traitRoot != 0 && IsShown(traitRoot, pg) ? Plain(reader.ResolvePath(traitRoot, TraitPowerName)) : null,
+            TraitNext = traitRoot != 0 && IsShown(traitRoot, pg) && reader.ResolvePath(traitRoot, AnimeZeroPaths.TraitNextButton) is var tn and not 0 && IsShown(tn, pg)
+                && CleanText(reader.ResolvePath(tn, "Txt(Shadow).Txt"))?.Trim() == ">" ? HubRect(tn) : null,
             SpinMenuOpen = invList != 0 && IsShown(invList, pg),
         };
     }
