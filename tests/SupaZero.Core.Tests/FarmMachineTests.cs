@@ -487,6 +487,19 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void LobbyUpgrade_TargetUnit_WaitsForNameAfterLanding()
+    {
+        // Log Byzan 08:09:40–41: klik Slot5 setelah banyak scroll, slot terpilih tapi nama belum terbaca → jangan langsung "tidak ditemukan".
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Twisted Agony" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var t = UnitTree(4, "X") with { SkillUnits = [new("Slot4", false, true, new GuiRect(424, 799, 132, 132)), new("Slot5", false, false, new GuiRect(424, 799, 132, 132))] };
+        m.Step(t, 0);                                                       // klik Slot5
+        var a = m.Step(t with { SkillUnitSlot = 5, SkillUnitName = null }, 9000); // mendarat, nama belum ada
+        Assert.DoesNotContain(a, x => x is NoteAction n && n.Reason.Contains("tidak ditemukan"));
+        var b = m.Step(t with { SkillUnitSlot = 5, SkillUnitName = "Twisted Agony" }, 10000);
+        Assert.Contains(b, x => x is ClickAction { Reason: "Node ATK #2" });
+    }
+
+    [Fact]
     public void LobbyUpgrade_TargetUnitNotFound_ClosesWithoutBuying()
     {
         var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Kings Gambit" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });

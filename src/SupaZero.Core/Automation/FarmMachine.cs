@@ -1184,7 +1184,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             : [click];
     }
 
-    internal const long UnitPickTimeoutMs = 60000, UnitSlotTimeoutMs = 12000, UnitsOpenTimeoutMs = 8000, SkillTreeCloseTimeoutMs = 6000, BuyConfirmMs = 3000;
+    internal const long UnitPickTimeoutMs = 60000, UnitSlotTimeoutMs = 12000, UnitNameWaitMs = 4000, UnitsOpenTimeoutMs = 8000, SkillTreeCloseTimeoutMs = 6000, BuyConfirmMs = 3000;
     private long? _upOpenAt, _upCloseAt;
     private bool _upClosing;
     private string? _upSlotKey;
@@ -1195,8 +1195,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     private readonly HashSet<int> _unitTried = new();
     private int? _unitPickSlot;
     private long _unitPickAt;
+    private long? _unitLandedAt;
     private long? _unitPickStart;
-    private void UpgradeFinish() { _unitTried.Clear(); _unitPickSlot = null; _unitPickStart = null; _upgradeDoneThisStage = true; _upClosing = false; _upOpenAt = _upCloseAt = null; _upSlotKey = null; _upSlotTries = _upBuyFails = 0; _pendingBuyConfirm = false; }
+    private void UpgradeFinish() { _unitTried.Clear(); _unitPickSlot = null; _unitPickStart = null; _unitLandedAt = null; _upgradeDoneThisStage = true; _upClosing = false; _upOpenAt = _upCloseAt = null; _upSlotKey = null; _upSlotTries = _upBuyFails = 0; _pendingBuyConfirm = false; }
 
     /// <summary>
     /// v0.2.92: upgrade SkillTree di lobby sebelum ke room, untuk unit yang SEDANG terpilih (bar unit tidak disentuh).
@@ -1272,7 +1273,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                 if (_unitPickSlot is int p)
                 {
                     bool landed = s.SkillUnitSlot == p;
-                    if (landed && (s.SkillUnitName is not null || now - _unitPickAt > 1500)) { _unitTried.Add(p); _unitPickSlot = null; }
+                    // v0.2.98: nama (judul Roll) menyusul setelah slot terpilih → tunggu sejak MENDARAT, bukan sejak klik/scroll pertama.
+                    if (landed) _unitLandedAt ??= now; else _unitLandedAt = null;
+                    if (landed && (s.SkillUnitName is not null || now - _unitLandedAt!.Value > UnitNameWaitMs)) { _unitTried.Add(p); _unitPickSlot = null; _unitLandedAt = null; }
                     else if (!landed && now - _unitPickAt > UnitSlotTimeoutMs) { _unitTried.Add(p); _unitPickSlot = null; }
                     else if (!landed && s.SkillUnits.FirstOrDefault(u => u.Name == $"Slot{p}") is { } pe)
                     {
@@ -1288,7 +1291,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                     .Where(x => x.known is null || x.known.Equals(only, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(x => x.known is null ? 1 : 0).ThenBy(x => x.n).FirstOrDefault();
                 if (next.e is null) return Close($"unit \"{only}\" tidak ditemukan di daftar unit → tidak membeli");
-                _unitPickSlot = next.n; _unitPickAt = now;
+                _unitPickSlot = next.n; _unitPickAt = now; _unitLandedAt = null;
                 Status = $"Upgrade: pilih unit Slot{next.n} (cari \"{only}\")";
                 return [stand, .. Note("up-pick" + next.n, now, 0, $"Upgrade: unit terpilih {s.SkillUnitName ?? "?"} ≠ \"{only}\" → coba Slot{next.n}{(next.known is null ? "" : $" ({next.known})")}."),
                         .. ClickEntry(s, next.e, s.SkillUnitView, $"up-unit{next.n}", $"Unit Slot{next.n}", now) ?? []];
