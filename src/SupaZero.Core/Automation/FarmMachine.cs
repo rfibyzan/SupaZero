@@ -57,6 +57,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         _retries = _boughtThisStage = 0;
         _upgradeDoneThisStage = _pendingBuyConfirm = false;
         _tokensBeforeBuy = null;
+        _upClosing = false; _upOpenAt = _upCloseAt = null; _upSlotKey = null; _upSlotTries = _upBuyFails = 0;
         _lastScreen = GameScreen.Unknown;
         _stuckRef = null;
         StagesCleared = 0;
@@ -186,6 +187,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         var f = S.Farm;
         string want = cardName ?? f.Mode;
         if (!force && !f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
+        if (!force && S.Upgrade.Enabled && !_upgradeDoneThisStage && LobbyUpgrade(s, S.Upgrade, now) is { } lu) return lu;
         if (!force && f.CheckPowersInLobby && PowerCheck(s, now) is { } pc) return pc;
         Phase = MacroPhase.WalkingToLobby;
 
@@ -1153,9 +1155,6 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
 
     private List<MacroAction> Victory(GameSnapshot s, AppSettings S, long now)
     {
-        var up = S.Upgrade;
-        if (up.Enabled && !_upgradeDoneThisStage && Upgrade(s, up, now) is { } upgrade) return upgrade;
-
         var after = S.Farm.AfterWin == AfterWin.Auto
             ? (Matches(S.Farm.Mode, nameof(FarmMode.Story)) || Matches(S.Farm.Mode, nameof(FarmMode.Trials)) ? AfterWin.Next : AfterWin.Retry)
             : S.Farm.AfterWin;
@@ -1185,35 +1184,99 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             : [click];
     }
 
-    /// <summary>null = upgrade selesai/tidak bisa, lanjut.</summary>
-    private List<MacroAction>? Upgrade(GameSnapshot s, UpgradeSettings up, long now)
+    internal const long UnitsOpenTimeoutMs = 8000, SkillTreeCloseTimeoutMs = 6000, BuyConfirmMs = 3000;
+    private long? _upOpenAt, _upCloseAt;
+    private bool _upClosing;
+    private string? _upSlotKey;
+    private int _upSlotTries, _upBuyFails;
+
+    private void UpgradeFinish() { _upgradeDoneThisStage = true; _upClosing = false; _upOpenAt = _upCloseAt = null; _upSlotKey = null; _upSlotTries = _upBuyFails = 0; _pendingBuyConfirm = false; }
+
+    /// <summary>
+    /// v0.2.92: upgrade SkillTree di lobby sebelum ke room, untuk unit yang SEDANG terpilih (bar unit tidak disentuh).
+    /// LobbyHUD Units → SkillTree terbuka → klik node "!" sesuai prioritas → node terpilih (Bolder) + BuyFrame tampil → BuyButton →
+    /// berhasil bila token turun → ulang sampai batas / tidak ada node → tombol X. Hanya node, BuyButton, X, dan Units yang diklik.
+    /// null = selesai / dilewati, lanjut jalan ke room.
+    /// </summary>
+    private List<MacroAction>? LobbyUpgrade(GameSnapshot s, UpgradeSettings up, long now)
     {
         Phase = MacroPhase.Upgrading;
+        var stand = new MoveAction([], "Upgrade");
         if (!s.SkillTreeOpen)
         {
-            _upgradeDoneThisStage = true;
-            return [new NoteAction("SkillTree tidak terbuka (tombol pembukanya belum diriset) → upgrade stage ini dilewati.")];
+            if (_upClosing) { UpgradeFinish(); return null; }
+            _upOpenAt ??= now;
+            if (now - _upOpenAt.Value > UnitsOpenTimeoutMs)
+            {
+                UpgradeFinish();
+                return [stand, .. Note("up-noopen", now, 1000, $"SkillTree tidak terbuka dalam {UnitsOpenTimeoutMs / 1000} dtk → upgrade dilewati.")];
+            }
+            if (s.UnitsButton is not { } u)
+            {
+                if (now - _upOpenAt.Value < 1500) return [stand];
+                UpgradeFinish();
+                return [stand, .. Note("up-nounits", now, 1000, "Tombol Units (LobbyHUD) tidak terbaca → upgrade dilewati.")];
+            }
+            if (!InWindow(s, u.CenterX, u.CenterY)) { UpgradeFinish(); return [stand, .. Note("up-unitsout", now, 1000, "Tombol Units di luar jendela Roblox → upgrade dilewati.")]; }
+            Status = "Upgrade: buka Units.";
+            return Ready("up-units", now, 3000) ? [stand, new ClickAction(u.CenterX, u.CenterY, "Tombol Units (LobbyHUD)")] : [stand];
         }
+
+        if (_upClosing)
+        {
+            _upCloseAt ??= now;
+            if (now - _upCloseAt.Value > SkillTreeCloseTimeoutMs)
+            {
+                UpgradeFinish();
+                return Stop($"SkillTree tidak tertutup dalam {SkillTreeCloseTimeoutMs / 1000} dtk → macro berhenti (tutup manual).");
+            }
+            Status = "Upgrade: tutup SkillTree.";
+            if (s.SkillTreeExit is { } x && InWindow(s, x.CenterX, x.CenterY))
+                return Ready("up-exit", now, 1500) ? [stand, new ClickAction(x.CenterX, x.CenterY, "Tutup SkillTree (X)")] : [stand];
+            return [stand, .. Note("up-noexit", now, 5000, "Tombol X SkillTree tidak terbaca.")];
+        }
+
+        List<MacroAction> Close(string why)
+        {
+            _upClosing = true; _upCloseAt = null;
+            return [stand, .. Note("up-done", now, 1000, $"Upgrade: {why} (beli {_boughtThisStage}, token {s.Tokens?.ToString() ?? "?"}).")];
+        }
+
         if (_pendingBuyConfirm)
         {
-            if (s.Tokens is int t && _tokensBeforeBuy is int b && t < b) { _boughtThisStage++; _pendingBuyConfirm = false; }
-            else if (!Ready("buy-timeout", now, 3000)) return [];
-            else _pendingBuyConfirm = false;
+            if (s.Tokens is int t && _tokensBeforeBuy is int b && t < b)
+            {
+                _boughtThisStage++; _pendingBuyConfirm = false; _upSlotKey = null; _upSlotTries = 0; _upBuyFails = 0;
+                _pending.AddRange(Note("up-bought", now, 0, $"Upgrade terbeli: token {b} → {t}."));
+            }
+            else if (now - _buyAt < BuyConfirmMs) return [stand];
+            else { _pendingBuyConfirm = false; if (++_upBuyFails >= 2) return Close("Buy diklik tapi token tidak turun 2×, berhenti"); }
         }
-        if (_boughtThisStage >= up.MaxBuysPerStage || s.Tokens is 0) { _upgradeDoneThisStage = true; return null; }
-        if (s.BuyButton is { } buy && Ready("buy", now, 800))
+        if (s.Tokens is not int tok) return Close("token tidak terbaca, tidak membeli");
+        if (_boughtThisStage >= up.MaxBuysPerStage) return Close("batas beli tercapai");
+        var slot = UpgradePlanner.Next(s.Slots, up.EffectivePriority, up.Mode, _boughtThisStage, tok);
+        if (slot is null) return Close("tidak ada node yang bisa dibeli");
+        string key = $"{slot.Column}#{slot.Index}";
+        if (key != _upSlotKey) { _upSlotKey = key; _upSlotTries = 0; }
+
+        // Node rencana sudah terpilih dan tombol Buy tampil → beli.
+        if (slot.Selected && s.BuyButton is { } buy)
         {
-            _pendingBuyConfirm = true;
-            _tokensBeforeBuy = s.Tokens;
-            _cooldowns["buy-timeout"] = now;
-            Status = $"Upgrade: beli (token {s.Tokens?.ToString() ?? "?"})";
-            return [new ClickAction(buy.CenterX, buy.CenterY, "BuyButton")];
+            if (!InWindow(s, buy.CenterX, buy.CenterY)) return Close("tombol Buy di luar jendela");
+            if (!Ready("up-buy", now, 800)) return [stand];
+            _pendingBuyConfirm = true; _tokensBeforeBuy = tok; _buyAt = now;
+            Status = $"Upgrade: beli {slot.Column} #{slot.Index + 1} ({slot.Price} token, sisa {tok})";
+            return [stand, new ClickAction(buy.CenterX, buy.CenterY, $"Buy {slot.Column} #{slot.Index + 1}")];
         }
-        var slot = UpgradePlanner.Next(s.Slots, up.EffectivePriority, up.Mode, _boughtThisStage);
-        if (slot is null) { _upgradeDoneThisStage = true; return null; }
-        Status = $"Upgrade: pilih {slot.Column} #{slot.Index + 1}";
-        return Ready("slot", now, 800) ? [new ClickAction(slot.Rect!.Value.CenterX, slot.Rect.Value.CenterY, $"Slot {slot.Column} #{slot.Index + 1}")] : [];
+        if (_upSlotTries >= 3) return Close($"node {slot.Column} #{slot.Index + 1} tidak terpilih setelah 3× klik");
+        var r = slot.Rect!.Value;
+        if (!InWindow(s, r.CenterX, r.CenterY)) return Close("node di luar jendela");
+        Status = $"Upgrade: pilih {slot.Column} #{slot.Index + 1} ({slot.Price} token)";
+        if (!Ready("up-slot", now, 1000)) return [stand];
+        _upSlotTries++;
+        return [stand, new ClickAction(r.CenterX, r.CenterY, $"Node {slot.Column} #{slot.Index + 1}")];
     }
+    private long _buyAt;
 
     private List<MacroAction> Defeat(GameSnapshot s, AppSettings S, long now)
     {

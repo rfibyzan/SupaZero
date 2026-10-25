@@ -8,18 +8,18 @@
       <StackPanel Spacing="6">
         <TextBlock Classes="h2" Text="Auto upgrade" />
         <Border Classes="sep" Margin="0,2,0,4" />
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Upgrade setelah menang" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Enabled}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Upgrade di lobby (unit terpilih)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Enabled}" /></Grid>
         <Grid ColumnDefinitions="*,220" MinHeight="34">
           <TextBlock Classes="label" Text="Mode" />
           <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Modes}" SelectedIndex="{Binding ModeIndex}" />
         </Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Maks beli per stage" />
+          <TextBlock Classes="label" Text="Maks beli per kunjungan lobby" />
           <NumericUpDown Grid.Column="1" Value="{Binding MaxBuysPerStage}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
         </Grid>
         <Border Classes="sep" Margin="0,4" />
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Prioritas: habiskan kolom teratas dulu. Bergiliran: satu slot per kolom bergantian. SkillTree harus sudah terbuka di EndScreen (tombol pembukanya belum diriset). Beli = klik slot (CanBuy) lalu BuyButton; berhasil bila token turun." />
+                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom teratas dulu. Bergiliran: satu node per kolom bergantian. Unit tidak diganti." />
       </StackPanel>
     </Border>
 

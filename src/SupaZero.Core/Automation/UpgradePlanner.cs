@@ -3,12 +3,16 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.Core.Automation;
 
-/// <summary>Pilih slot SkillTree berikutnya untuk dibeli sesuai prioritas kolom.</summary>
+/// <summary>Pilih node SkillTree berikutnya untuk dibeli sesuai prioritas kolom.</summary>
 public static class UpgradePlanner
 {
-    public static SkillSlot? Next(IReadOnlyList<SkillSlot> slots, IReadOnlyList<string> priority, UpgradeMode mode, int boughtThisStage)
+    /// <summary>
+    /// Node layak beli = CanBuy tampil ("!"), terlihat (Rect), tidak terkunci, harga terbaca dan ≤ token (v0.2.92: tanpa tebakan,
+    /// harga/token tak terbaca = tidak dibeli). Per kolom diambil node teratas (Index terkecil).
+    /// </summary>
+    public static SkillSlot? Next(IReadOnlyList<SkillSlot> slots, IReadOnlyList<string> priority, UpgradeMode mode, int boughtThisStage, int? tokens = null)
     {
-        var buyable = slots.Where(s => s.CanBuy && s.Rect is not null).ToList();
+        var buyable = slots.Where(s => s.CanBuy && s.Rect is not null && !s.Locked && s.Price is int p && tokens is int t && p <= t).ToList();
         if (buyable.Count == 0) return null;
         var order = priority.Where(c => UpgradeSettings.Columns.Contains(c)).Distinct().ToList();
         if (order.Count == 0) order = [.. UpgradeSettings.Columns];

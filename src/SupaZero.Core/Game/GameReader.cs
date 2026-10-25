@@ -148,7 +148,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             SkillTreeOpen = treeShown,
             Tokens = treeShown ? ParseInt(Text(reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeTokens))) : null,
             Slots = treeShown ? ReadSlots(tree, pg) : [],
-            BuyButton = treeShown ? VisibleRect(Find(Find(tree, AnimeZeroPaths.BuyFrame), AnimeZeroPaths.BuyButton), pg) : null,
+            BuyButton = treeShown && reader.FindChild(tree, AnimeZeroPaths.BuyFrame) is var bf and not 0 && IsShown(bf, pg)
+                && reader.FindChild(bf, AnimeZeroPaths.BuyButton) is var bb and not 0 && IsShown(bb, pg) ? HubRect(bb) : null,
+            SkillTreeExit = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeExit) is var ex and not 0 && IsShown(ex, pg) ? HubRect(ex) : null,
+            UnitsButton = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.UnitsButtonPath) is var ub and not 0 && IsShown(ub, pg) ? HubRect(ub) : null,
         };
         snap = ReadModes(snap, pg, ws, lobby, lobbyShown, end, endShown);
         if (snap.Screen != GameScreen.Lobby) return snap;
@@ -508,25 +511,44 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     /// <summary>
-    /// Slot SkillTree: tiap kolom (ATK/CRIT/DEF/SPD) dicari per nama; anak GuiObject-nya diurutkan per posisi Y (bawah →
-    /// atas = urutan beli) [V]. Slot bisa dibeli bila anak CanBuy terlihat.
+    /// v0.2.92 [V] snapshot RIE 25 Okt 2026: Content.Row ×4 → judul kolom dari teks Hitbox.Title (bukan nama node), node =
+    /// Hitbox.Clipping.ScrollingFrame.Slot ×5 diurutkan Y naik (atas → bawah = urutan beli). Node di luar kotak Clipping tidak diberi Rect.
     /// </summary>
     private List<SkillSlot> ReadSlots(long tree, long pg)
     {
         var list = new List<SkillSlot>();
-        foreach (string col in Settings.UpgradeSettings.Columns)
+        long content = reader.FindChild(tree, AnimeZeroPaths.SkillTreeContent);
+        if (content == 0) return list;
+        foreach (long row in reader.GetChildren(content, 16))
         {
-            long colNode = Find(tree, col);
-            if (colNode == 0) continue;
-            var slots = reader.GetChildren(colNode, 64)
-                .Where(c => PropertyReader.IsGuiObject(reader.GetClassName(c)) && reader.FindChild(c, AnimeZeroPaths.SlotCanBuy) != 0)
-                .Select(c => (Node: c, Rect: Rect(c)))
-                .OrderByDescending(x => x.Rect?.Y ?? 0)
-                .ToList();
+            if (!reader.GetName(row).StartsWith("Row", StringComparison.Ordinal) || !IsShown(row, pg)) continue;
+            string? col = CleanText(reader.ResolvePath(row, AnimeZeroPaths.SkillRowTitle))?.ToUpperInvariant();
+            if (col is null || !Settings.UpgradeSettings.Columns.Contains(col)) continue;
+            long sf = reader.ResolvePath(row, AnimeZeroPaths.SkillRowSlots);
+            if (sf == 0) continue;
+            var clip = HubRect(reader.ResolvePath(row, AnimeZeroPaths.SkillRowClipping));
+            var slots = new List<(long Btn, GuiRect? R)>();
+            foreach (long fr in reader.GetChildren(sf, 32))
+            {
+                if (reader.GetName(fr) != "Slot") continue;
+                long btn = reader.FindChild(fr, "Slot");
+                if (btn == 0) continue;
+                slots.Add((btn, HubRect(btn)));
+            }
+            if (slots.Any(x => x.R is null)) continue; // urutan tidak pasti tanpa posisi
+            slots.Sort((a, b) => a.R!.Value.Y.CompareTo(b.R!.Value.Y));
             for (int i = 0; i < slots.Count; i++)
             {
-                long canBuy = reader.FindChild(slots[i].Node, AnimeZeroPaths.SlotCanBuy);
-                list.Add(new SkillSlot(col, i, canBuy != 0 && IsShown(canBuy, pg), slots[i].Rect));
+                long b = slots[i].Btn;
+                long cb = reader.FindChild(b, AnimeZeroPaths.SlotCanBuy);
+                long ps = reader.FindChild(b, AnimeZeroPaths.SlotPrice);
+                int? price = ps != 0 && IsShown(ps, pg) ? ParseInt(CleanText(reader.FindChild(ps, "Price")) ?? CleanText(ps)) : null;
+                long lk = reader.FindChild(b, AnimeZeroPaths.SlotLocked);
+                long sel = reader.FindChild(b, AnimeZeroPaths.SlotSelected);
+                var r = slots[i].R;
+                bool inView = r is { } rr && clip is { } c && rr.CenterY >= c.Y && rr.CenterY <= c.Y + c.H && IsShown(b, pg);
+                list.Add(new SkillSlot(col, i, cb != 0 && IsShown(cb, pg), inView ? r : null, price,
+                    sel != 0 && IsShown(sel, pg), lk != 0 && IsShown(lk, pg)));
             }
         }
         return list;

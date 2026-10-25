@@ -23,5 +23,5 @@ Status: v0.2.0 (23 Okt 2026), AutoFarm. Belum diuji live.
 ## Belum dikerjakan
 1. Belok/putar kamera saat jalur tidak lurus (sekarang lurus ke tujuan + lompat).
 2. Hadapkan karakter ke musuh terdekat / rubble.
-3. Tombol pembuka SkillTree.
+3. Tombol pembuka SkillTree: LobbyHUD Units (v0.2.92, terverifikasi RIE).
 4. Trials: tombol Next Floor; Raid: deteksi cooldown attempt.

@@ -426,29 +426,37 @@ public class FarmMachineTests
     }
 
     [Fact]
-    public void Victory_Upgrade_SelectSlotThenBuyThenNext()
+    public void LobbyUpgrade_Units_Node_Buy_Exit()
     {
-        var (m, _) = New(s => s.Upgrade = s.Upgrade with { Enabled = true, MaxBuysPerStage = 1 });
-        var slot = new SkillSlot("ATK", 0, true, new GuiRect(10, 10, 20, 20));
-        var baseSnap = new GameSnapshot { Attached = true, EndScreenVisible = true, NextButton = Btn, SkillTreeOpen = true, Tokens = 3, Slots = [slot] };
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, MaxBuysPerStage = 1 }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var units = new GuiRect(10, 300, 89, 106);
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), UnitsButton = units, ClientW = 1920, ClientH = 1080 };
+        Assert.Equal("Tombol Units (LobbyHUD)", Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(lobby, 0)))).Reason);
 
-        var a1 = m.Step(baseSnap, 0);
-        Assert.Equal("Slot ATK #1", Assert.IsType<ClickAction>(Assert.Single(Real(a1))).Reason);
+        // Snapshot 25 Okt: DEF node 3 (index 2) harga 5, CanBuy; token 67.
+        var node = new SkillSlot("DEF", 2, true, new GuiRect(1316, 519, 106, 106), 5);
+        var tree = lobby with { UnitsButton = null, SkillTreeOpen = true, Tokens = 67, Slots = [node], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        Assert.Equal("Node DEF #3", Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(tree, 1000)))).Reason);
 
-        var a2 = m.Step(baseSnap with { BuyButton = new GuiRect(300, 300, 50, 20) }, 1000);
-        Assert.Equal("BuyButton", Assert.IsType<ClickAction>(Assert.Single(Real(a2))).Reason);
+        var sel = tree with { Slots = [node with { Selected = true }], BuyButton = new GuiRect(1271, 767, 196, 38) };
+        Assert.Equal("Buy DEF #3", Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(sel, 2200)))).Reason);
 
-        var a3 = m.Step(baseSnap with { Tokens = 2, Slots = [] }, 2000);
-        Assert.Equal("Next stage", Assert.IsType<ClickAction>(Assert.Single(Real(a3))).Reason);
+        var after = tree with { Tokens = 62, Slots = [] };
+        Assert.Contains(m.Step(after, 2600), a => a is NoteAction n && n.Reason.Contains("67 → 62"));
+        Assert.Contains(m.Step(after, 2700), a => a is ClickAction { Reason: "Tutup SkillTree (X)" });
+        // Tertutup → lanjut jalan (tidak klik Units lagi).
+        Assert.DoesNotContain(m.Step(lobby with { UnitsButton = units }, 5000), a => a is ClickAction { Reason: "Tombol Units (LobbyHUD)" });
     }
 
     [Fact]
-    public void Victory_UpgradeEnabled_TreeClosed_SkipsOnceThenNext()
+    public void LobbyUpgrade_PriceAboveTokens_ClosesWithoutBuying()
     {
-        var (m, _) = New(s => s.Upgrade = s.Upgrade with { Enabled = true });
-        var snap = new GameSnapshot { Attached = true, EndScreenVisible = true, NextButton = Btn };
-        Assert.IsType<NoteAction>(Assert.Single(Real(m.Step(snap, 0))));
-        Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(snap, 100))));
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 4,
+            Slots = [new SkillSlot("ATK", 2, true, new GuiRect(10, 10, 100, 100), 5)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        var a = m.Step(tree, 0);
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
+        Assert.Contains(m.Step(tree, 100), x => x is ClickAction { Reason: "Tutup SkillTree (X)" });
     }
 
     [Fact]

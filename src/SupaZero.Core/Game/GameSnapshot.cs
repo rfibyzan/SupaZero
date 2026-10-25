@@ -67,7 +67,8 @@ public sealed record SkillCooldown(string Key, double? Remaining, bool Locked)
     public bool Cooling => Locked || Remaining is > 0;
 }
 
-public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect);
+/// <summary>Node SkillTree. Index 0 = paling atas (urutan beli atas → bawah). Price null = sudah dibeli / tidak terbaca.</summary>
+public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect, int? Price = null, bool Selected = false, bool Locked = false);
 
 /// <summary>Satu entri daftar (map/act/mode) di Create Lobby.</summary>
 public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect? Rect, string? Mode = null);
@@ -253,6 +254,10 @@ public sealed record GameSnapshot
     public int? Tokens { get; init; }
     public IReadOnlyList<SkillSlot> Slots { get; init; } = [];
     public GuiRect? BuyButton { get; init; }
+    /// <summary>Tombol X SkillTree (Header.ExitButton).</summary>
+    public GuiRect? SkillTreeExit { get; init; }
+    /// <summary>Tombol Units di LobbyHUD (pembuka SkillTree).</summary>
+    public GuiRect? UnitsButton { get; init; }
 
     // Power di loadout (lobby; di stage memakai hasil lobby terakhir)
     public IReadOnlyList<EquippedPower> Equipped { get; init; } = [];

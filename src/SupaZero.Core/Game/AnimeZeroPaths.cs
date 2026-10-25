@@ -132,10 +132,25 @@ public static class AnimeZeroPaths
     public const double StartRefX = 1364, StartRefY = 934;
     public static readonly (double X, double Y)[] DifficultyCenters = [(1033, 589), (1147, 589), (1261, 589), (1374, 589)];
 
-    // SkillTree per unit
-    public const string SkillTreeRoot = "UI Animation (Working).SkillTree";
+    // SkillTree per unit. [V] snapshot RIE PlayerGui Byzan 25 Okt 2026 07:36–07:37 (Shadow Lord / Divine Emperor):
+    // dibuka dari LobbyHUD.LeftSideButtons.UnitsButton (LobbyHUD Enabled=false selama SkillTree terbuka).
+    // ScreenGui SkillTree AbsolutePosition 0,58 tetapi AbsolutePosition anak = koordinat klien (cocok screenshot) → HubRect (tanpa inset).
+    public const string UnitsButtonPath = "LobbyHUD.LeftSideButtons.UnitsButton";
+    public const string SkillTreeRoot = "UI Animation (Working).SkillTree.MainFrame";
+    /// <summary>"67 Tokens Left".</summary>
     public const string SkillTreeTokens = "Header.Holder.Txt";
+    public const string SkillTreeExit = "Header.ExitButton";
+    /// <summary>Content.Row (×4, nama sama) → Hitbox.Title."Txt(Shadow)".Txt = "ATK"/"CRIT"/"DEF"/"SPD"; Hitbox.Clipping.ScrollingFrame.Slot (Frame ×5) → Slot (ImageButton).</summary>
+    public const string SkillTreeContent = "Content";
+    public const string SkillRowTitle = "Hitbox.Title.Txt(Shadow).Txt";
+    public const string SkillRowClipping = "Hitbox.Clipping";
+    public const string SkillRowSlots = "Hitbox.Clipping.ScrollingFrame";
+    /// <summary>Di ImageButton Slot: CanBuy (Frame, tampil = bisa dibeli, tanda "!"), PriceShadow.Price (harga; tersembunyi/hilang = sudah dibeli),
+    /// LockedIcon (tampil = terkunci), Bolder (tampil = node terpilih, BuyFrame muncul di bawahnya).</summary>
     public const string SlotCanBuy = "CanBuy";
+    public const string SlotPrice = "PriceShadow";
+    public const string SlotLocked = "LockedIcon";
+    public const string SlotSelected = "Bolder";
     public const string BuyFrame = "BuyFrame";
     public const string BuyButton = "BuyButton";
 
