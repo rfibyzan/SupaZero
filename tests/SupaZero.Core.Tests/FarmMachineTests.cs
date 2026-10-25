@@ -477,71 +477,40 @@ public class FarmMachineTests
     };
 
     [Fact]
-    public void LobbyUpgrade_TargetUnit_ClicksOtherSlotsUntilNameMatches()
+    public void LobbyUpgrade_TargetSlot_ClicksSlotThenNode()
     {
-        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Shadow Lord" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        var a = m.Step(UnitTree(2, "Cursed King"), 0);
-        Assert.Contains(a, x => x is ClickAction { Reason: "Unit Slot1" });
+        // v0.3.3: Unit target = Slot 3 (urutan Trait/Power Spin), tanpa nama.
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, TargetSlot = 3 }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var a = m.Step(UnitTree(1, null), 0);
+        Assert.Contains(a, x => x is ClickAction { Reason: "Unit Slot3" });
         Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
-        var b = m.Step(UnitTree(1, "Divine Emperor"), 1000);   // Slot1 bukan target → klik Slot3 (Slot2 sudah diketahui Cursed King)
-        Assert.Contains(b, x => x is ClickAction { Reason: "Unit Slot3" });
-        var c = m.Step(UnitTree(3, "Shadow Lord"), 4000);
-        Assert.Contains(c, x => x is ClickAction { Reason: "Node ATK #2" });
+        Assert.Contains(m.Step(UnitTree(3, null), 1000), x => x is ClickAction { Reason: "Node ATK #2" });
     }
 
     [Fact]
-    public void LobbyUpgrade_TargetUnitOutOfView_ScrollsList()
+    public void LobbyUpgrade_TargetSlotOutOfView_ScrollsList()
     {
-        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Twisted Agony" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        m.Step(UnitTree(1, "Divine Emperor"), 0);              // klik Slot2
-        m.Step(UnitTree(2, "Cursed King"), 1000);              // klik Slot3
-        var a = m.Step(UnitTree(3, "Shadow Lord"), 2000);      // Slot4 di luar area tampak → scroll, tidak klik
+        // Snapshot Shadow_Lord_Skill_Tree: Slot5 (x=718) di luar daftar tampak (171..617) → scroll dulu, bukan klik.
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, TargetSlot = 5 }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var a = m.Step(UnitTree(1, null), 0);
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: "Unit Slot5" });
         Assert.Contains(a, x => x is ScrollAction);
-        Assert.DoesNotContain(a, x => x is ClickAction { Reason: "Unit Slot4" });
     }
 
     [Fact]
-    public void LobbyUpgrade_TargetUnit_WaitsForNameAfterLanding()
+    public void LobbyUpgrade_TargetSlotEmpty_ClosesWithoutBuying()
     {
-        // Log Byzan 08:09:40–41: klik Slot5 setelah banyak scroll, slot terpilih tapi nama belum terbaca → jangan langsung "tidak ditemukan".
-        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Twisted Agony" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        var t = UnitTree(4, "X") with { SkillUnits = [new("Slot4", false, true, new GuiRect(424, 799, 132, 132)), new("Slot5", false, false, new GuiRect(424, 799, 132, 132))] };
-        m.Step(t, 0);                                                       // klik Slot5
-        var a = m.Step(t with { SkillUnitSlot = 5, SkillUnitName = null }, 9000); // mendarat, nama belum ada
-        Assert.DoesNotContain(a, x => x is NoteAction n && n.Reason.Contains("tidak ditemukan"));
-        var b = m.Step(t with { SkillUnitSlot = 5, SkillUnitName = "Twisted Agony" }, 10000);
-        Assert.Contains(b, x => x is ClickAction { Reason: "Node ATK #2" });
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, TargetSlot = 6 }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var a = m.Step(UnitTree(1, null), 0);
+        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("Slot 6 kosong"));
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && (r.StartsWith("Node") || r.StartsWith("Unit")));
     }
 
     [Fact]
-    public void LobbyUpgrade_UnknownStartSlot_RetriedAfterOthers()
+    public void LobbyUpgrade_TargetSlotAlreadySelected_ClicksNode()
     {
-        // v0.3.0: nama unit awal unknown (daftar Roll kosong, snapshot 08:19) → slot awal dicoba lagi setelah pindah ke slot lain, agar target yang ternyata unit awal tetap ketemu.
-        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Twisted Agony" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        var t = UnitTree(5, null!) with { SkillUnitName = null, SkillUnits = [new("Slot4", false, false, new GuiRect(278, 799, 132, 132)), new("Slot5", false, true, new GuiRect(424, 799, 132, 132))] };
-        Assert.Contains(m.Step(t, 0), x => x is ClickAction { Reason: var r } && r.Contains("Slot4"));
-        var a = m.Step(t with { SkillUnitSlot = 4, SkillUnitName = "Shadow Lord" }, 1000);
-        Assert.Contains(a, x => x is ClickAction { Reason: var r } && r.Contains("Slot5"));
-    }
-
-    [Fact]
-    public void LobbyUpgrade_TargetUnitNotFound_ClosesWithoutBuying()
-    {
-        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Kings Gambit" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        var t = UnitTree(1, "Divine Emperor") with { SkillUnits = [new("Slot1", false, true, new GuiRect(131, 799, 132, 132)), new("Slot2", false, false, new GuiRect(278, 799, 132, 132))] };
-        m.Step(t, 0);
-        var a = m.Step(t with { SkillUnitSlot = 2, SkillUnitName = "Cursed King" }, 1000);
-        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("tidak ditemukan"));
-        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
-    }
-
-    [Fact]
-    public void LobbyUpgrade_OnlyUnitMatch_CaseInsensitive_ClicksNode()
-    {
-        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "shadow lord" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
-        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 67,
-            SkillUnitSlot = 3, SkillUnitName = "Shadow Lord", Slots = [new SkillSlot("ATK", 1, true, new GuiRect(10, 10, 100, 100), 1)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
-        Assert.Contains(m.Step(tree, 0), x => x is ClickAction { Reason: "Node ATK #2" });
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, TargetSlot = 2 }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        Assert.Contains(m.Step(UnitTree(2, null), 0), x => x is ClickAction { Reason: "Node ATK #2" });
     }
 
     [Fact]

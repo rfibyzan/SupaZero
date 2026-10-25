@@ -18,13 +18,13 @@
           <NumericUpDown Grid.Column="1" Value="{Binding MaxBuysPerStage}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,220" MinHeight="34">
-          <TextBlock Classes="label" Text="Unit target (kosong = unit terpilih)" />
-          <TextBox Grid.Column="1" Text="{Binding OnlyUnit}" Watermark="mis. Shadow Lord" />
+          <TextBlock Classes="label" Text="Unit target (slot)" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding TargetSlots}" SelectedIndex="{Binding TargetSlotIndex}" />
         </Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Mode uji (tanpa klik Buy)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding DryRun}" /></Grid>
         <Border Classes="sep" Margin="0,4" />
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom ON teratas dulu. Bergiliran: satu node per kolom ON bergantian.  Bila Unit target diisi dan unit terpilih beda: klik unit di daftar bawah (scroll bila perlu) satu per satu sampai namanya cocok; tidak ketemu = tidak membeli. Mode uji: buka Units, pilih node, pastikan tombol Buy terbaca, tulis rencana di log, tutup X, lalu macro berhenti tanpa membeli." />
+                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom ON teratas dulu. Bergiliran: satu node per kolom ON bergantian.  Unit target Slot N: klik SlotN di daftar unit bawah SkillTree (scroll bila perlu; urutan sama dengan Trait/Power Spin). Slot kosong/tidak terpilih = tidak membeli. Mode uji: buka Units, pilih node, pastikan tombol Buy terbaca, tulis rencana di log, tutup X, lalu macro berhenti tanpa membeli." />
       </StackPanel>
     </Border>
 

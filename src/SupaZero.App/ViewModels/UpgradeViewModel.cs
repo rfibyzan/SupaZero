@@ -30,7 +30,8 @@ public sealed class UpgradeViewModel : ObservableObject
     public bool Enabled { get => S.Upgrade.Enabled; set => Up(u => u with { Enabled = value }); }
     public int ModeIndex { get => (int)S.Upgrade.Mode; set => Up(u => u with { Mode = (UpgradeMode)Math.Clamp(value, 0, 1) }); }
     public bool DryRun { get => S.Upgrade.DryRun; set => Up(u => u with { DryRun = value }); }
-    public string OnlyUnit { get => S.Upgrade.OnlyUnit ?? ""; set => Up(u => u with { OnlyUnit = value }); }
+    public IReadOnlyList<string> TargetSlots { get; } = ["Unit terpilih", .. Enumerable.Range(1, 15).Select(i => $"Slot {i}")];
+    public int TargetSlotIndex { get => Math.Clamp(S.Upgrade.TargetSlot, 0, 15); set { if (value >= 0) Up(u => u with { TargetSlot = Math.Clamp(value, 0, 15) }); } }
     private bool Col(string c) => S.Upgrade.EnabledColumns is null || S.Upgrade.EnabledColumns.Contains(c);
     private void SetCol(string c, bool on) => Up(u =>
     {

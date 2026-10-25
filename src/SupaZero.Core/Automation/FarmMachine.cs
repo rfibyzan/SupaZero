@@ -1213,20 +1213,14 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             : [click];
     }
 
-    internal const long UnitPickTimeoutMs = 60000, UnitSlotTimeoutMs = 12000, UnitNameWaitMs = 4000, UnitsOpenTimeoutMs = 8000, SkillTreeCloseTimeoutMs = 6000, BuyConfirmMs = 3000;
+    internal const long UnitSlotTimeoutMs = 15000, UnitsOpenTimeoutMs = 8000, SkillTreeCloseTimeoutMs = 6000, BuyConfirmMs = 3000;
     private long? _upOpenAt, _upCloseAt;
     private bool _upClosing;
     private string? _upSlotKey;
     private int _upSlotTries, _upBuyFails;
 
-    // v0.2.97: pilih unit target di daftar bawah SkillTree. Nama per slot hanya dari pengamatan (slot terpilih + judul Roll).
-    private readonly Dictionary<int, string> _unitNames = new();
-    private readonly HashSet<int> _unitTried = new();
-    private int? _unitPickSlot;
-    private long _unitPickAt;
-    private long? _unitLandedAt;
     private long? _unitPickStart;
-    private void UpgradeFinish() { _unitTried.Clear(); _unitPickSlot = null; _unitPickStart = null; _unitLandedAt = null; _upgradeDoneThisStage = true; _upClosing = false; _upOpenAt = _upCloseAt = null; _upSlotKey = null; _upSlotTries = _upBuyFails = 0; _pendingBuyConfirm = false; }
+    private void UpgradeFinish() { _unitPickStart = null; _upgradeDoneThisStage = true; _upClosing = false; _upOpenAt = _upCloseAt = null; _upSlotKey = null; _upSlotTries = _upBuyFails = 0; _pendingBuyConfirm = false; }
 
     /// <summary>
     /// v0.2.92: upgrade SkillTree di lobby sebelum ke room, untuk unit yang SEDANG terpilih (bar unit tidak disentuh).
@@ -1292,43 +1286,19 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             else if (now - _buyAt < BuyConfirmMs) return [stand];
             else { _pendingBuyConfirm = false; if (++_upBuyFails >= 2) return Close("Buy diklik tapi token tidak turun 2×, berhenti"); }
         }
-        if (up.EffectiveOnlyUnit is { } only && !_pendingBuyConfirm)
+        // v0.3.3 (Byzan 25 Okt 08:38): unit target = nomor slot di daftar unit SkillTree (urutan sama dengan Trait/Power Spin), bukan nama.
+        if (up.TargetSlot > 0 && !_pendingBuyConfirm && s.SkillUnitSlot != up.TargetSlot)
         {
-            if (s.SkillUnitSlot is int cs && s.SkillUnitName is { } cn) _unitNames[cs] = cn;
-            if (s.SkillUnitName is not { } curName || !curName.Equals(only, StringComparison.OrdinalIgnoreCase))
-            {
-                _unitPickStart ??= now;
-                if (now - _unitPickStart.Value > UnitPickTimeoutMs) return Close($"unit \"{only}\" tidak berhasil dipilih dalam {UnitPickTimeoutMs / 1000} dtk → tidak membeli");
-                if (_unitPickSlot is int p)
-                {
-                    bool landed = s.SkillUnitSlot == p;
-                    // v0.2.98: nama (judul Roll) menyusul setelah slot terpilih → tunggu sejak MENDARAT, bukan sejak klik/scroll pertama.
-                    if (landed) _unitLandedAt ??= now; else _unitLandedAt = null;
-                    if (landed && s.SkillUnitName is null && now - _unitLandedAt!.Value > UnitNameWaitMs)
-                        _pending.AddRange(Note("up-noname" + p, now, 0, $"Upgrade: Slot{p} terpilih tapi nama tidak terbaca ({s.SkillUnitDebug ?? "diagnosa kosong"})."));
-                    if (landed && (s.SkillUnitName is not null || now - _unitLandedAt!.Value > UnitNameWaitMs)) { _unitTried.Add(p); _unitPickSlot = null; _unitLandedAt = null; }
-                    else if (!landed && now - _unitPickAt > UnitSlotTimeoutMs) { _unitTried.Add(p); _unitPickSlot = null; }
-                    else if (!landed && s.SkillUnits.FirstOrDefault(u => u.Name == $"Slot{p}") is { } pe)
-                    {
-                        Status = $"Upgrade: pilih unit Slot{p} (cari \"{only}\")";
-                        return [stand, .. ClickEntry(s, pe, s.SkillUnitView, $"up-unit{p}", $"Unit Slot{p}", now) ?? []];
-                    }
-                    else if (!landed) { _unitTried.Add(p); _unitPickSlot = null; }
-                    else return [stand];
-                }
-                int SlotNo(LobbyEntry e) => int.TryParse(e.Name.AsSpan(4), out int n) ? n : -1;
-                var next = s.SkillUnits.Where(e => !e.Locked && e.Rect is not null && SlotNo(e) > 0 && SlotNo(e) != s.SkillUnitSlot && !_unitTried.Contains(SlotNo(e)))
-                    .Select(e => (e, n: SlotNo(e), known: _unitNames.GetValueOrDefault(SlotNo(e))))
-                    .Where(x => x.known is null || x.known.Equals(only, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(x => x.known is null ? 1 : 0).ThenBy(x => x.n).FirstOrDefault();
-                if (next.e is null) return Close($"unit \"{only}\" tidak ditemukan di daftar unit → tidak membeli");
-                _unitPickSlot = next.n; _unitPickAt = now; _unitLandedAt = null;
-                Status = $"Upgrade: pilih unit Slot{next.n} (cari \"{only}\")";
-                return [stand, .. Note("up-pick" + next.n, now, 0, $"Upgrade: unit terpilih {s.SkillUnitName ?? "?"} ≠ \"{only}\" → coba Slot{next.n}{(next.known is null ? "" : $" ({next.known})")}."),
-                        .. ClickEntry(s, next.e, s.SkillUnitView, $"up-unit{next.n}", $"Unit Slot{next.n}", now) ?? []];
-            }
-            _unitPickSlot = null;
+            int ts = up.TargetSlot;
+            _unitPickStart ??= now;
+            if (now - _unitPickStart.Value > UnitSlotTimeoutMs) return Close($"Slot {ts} tidak berhasil dipilih dalam {UnitSlotTimeoutMs / 1000} dtk → tidak membeli");
+            if (s.SkillUnits.FirstOrDefault(u => u.Name == $"Slot{ts}") is not { } te)
+                return s.SkillUnits.Count == 0 && now - _unitPickStart.Value < 2000 ? [stand] : Close($"Slot {ts} tidak ada di daftar unit SkillTree → tidak membeli");
+            if (te.Locked) return Close($"Slot {ts} kosong (tidak ada unit) → tidak membeli");
+            Status = $"Upgrade: pilih unit Slot {ts} (sekarang slot {s.SkillUnitSlot?.ToString() ?? "?"}).";
+            return [stand, .. ClickEntry(s, te, s.SkillUnitView, $"up-unit{ts}", $"Unit Slot{ts}", now) ?? []];
         }
+        _unitPickStart = null;
         if (s.Tokens is not int tok) return Close("token tidak terbaca, tidak membeli");
         if (_boughtThisStage >= up.MaxBuysPerStage) return Close("batas beli tercapai");
         var cols = up.ActiveColumns;
