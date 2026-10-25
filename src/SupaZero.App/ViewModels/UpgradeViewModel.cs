@@ -31,6 +31,17 @@ public sealed class UpgradeViewModel : ObservableObject
     public int ModeIndex { get => (int)S.Upgrade.Mode; set => Up(u => u with { Mode = (UpgradeMode)Math.Clamp(value, 0, 1) }); }
     public bool DryRun { get => S.Upgrade.DryRun; set => Up(u => u with { DryRun = value }); }
     public string OnlyUnit { get => S.Upgrade.OnlyUnit ?? ""; set => Up(u => u with { OnlyUnit = value }); }
+    private bool Col(string c) => S.Upgrade.EnabledColumns is null || S.Upgrade.EnabledColumns.Contains(c);
+    private void SetCol(string c, bool on) => Up(u =>
+    {
+        var set = (u.EnabledColumns ?? [.. UpgradeSettings.Columns]).ToHashSet();
+        if (on) set.Add(c); else set.Remove(c);
+        return u with { EnabledColumns = UpgradeSettings.Columns.Where(set.Contains).ToList() };
+    });
+    public bool Atk { get => Col("ATK"); set => SetCol("ATK", value); }
+    public bool Crit { get => Col("CRIT"); set => SetCol("CRIT", value); }
+    public bool Spd { get => Col("SPD"); set => SetCol("SPD", value); }
+    public bool Def { get => Col("DEF"); set => SetCol("DEF", value); }
     public decimal MaxBuysPerStage { get => S.Upgrade.MaxBuysPerStage; set => Up(u => u with { MaxBuysPerStage = (int)value }); }
 
     public void Move(PriorityItemViewModel item, int delta)

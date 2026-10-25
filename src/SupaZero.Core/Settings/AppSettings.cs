@@ -149,8 +149,12 @@ public sealed record UpgradeSettings(
     List<string>? Priority = null,
     int MaxBuysPerStage = 5,
     string? OnlyUnit = null,
-    bool DryRun = false)
+    bool DryRun = false,
+    List<string>? EnabledColumns = null)
 {
+    /// <summary>v0.2.96: kolom yang boleh di-upgrade (toggle per kolom). null = semua (perilaku lama).</summary>
+    public IReadOnlyList<string> ActiveColumns =>
+        new[] { "ATK", "CRIT", "SPD", "DEF" }.Where(c => EnabledColumns is null || EnabledColumns.Contains(c)).ToList();
     /// <summary>v0.2.94: nama unit yang boleh di-upgrade (kosong = unit terpilih apa pun).</summary>
     public string? EffectiveOnlyUnit => string.IsNullOrWhiteSpace(OnlyUnit) ? null : OnlyUnit.Trim();
     public static IReadOnlyList<string> Columns { get; } = ["ATK", "CRIT", "DEF", "SPD"];

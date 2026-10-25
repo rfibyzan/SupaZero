@@ -487,6 +487,26 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void LobbyUpgrade_OnlyAtkOn_SkipsCritEvenIfCheaper()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, EnabledColumns = ["ATK"], Priority = ["CRIT", "ATK", "SPD", "DEF"] }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 10,
+            Slots = [new SkillSlot("CRIT", 1, true, new GuiRect(300, 10, 100, 100), 1), new SkillSlot("ATK", 2, true, new GuiRect(10, 210, 100, 100), 5)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        Assert.Contains(m.Step(tree, 0), x => x is ClickAction { Reason: "Node ATK #3" });
+    }
+
+    [Fact]
+    public void LobbyUpgrade_AllColumnsOff_BuysNothing()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, EnabledColumns = [] }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 10,
+            Slots = [new SkillSlot("ATK", 1, true, new GuiRect(10, 10, 100, 100), 1)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        var a = m.Step(tree, 0);
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
+        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("tidak ada kolom"));
+    }
+
+    [Fact]
     public void LobbyUpgrade_PriceAboveTokens_ClosesWithoutBuying()
     {
         var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });

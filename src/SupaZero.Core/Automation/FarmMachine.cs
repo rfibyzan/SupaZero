@@ -1263,7 +1263,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         }
         if (s.Tokens is not int tok) return Close("token tidak terbaca, tidak membeli");
         if (_boughtThisStage >= up.MaxBuysPerStage) return Close("batas beli tercapai");
-        var slot = UpgradePlanner.Next(s.Slots, up.EffectivePriority, up.Mode, _boughtThisStage, tok);
+        var cols = up.ActiveColumns;
+        if (cols.Count == 0) return Close("tidak ada kolom yang di-ON-kan");
+        var slot = UpgradePlanner.Next(s.Slots, cols, up.Mode, _boughtThisStage, tok);
         if (slot is null) return Close("tidak ada node yang bisa dibeli");
         string key = $"{slot.Column}#{slot.Index}";
         if (key != _upSlotKey) { _upSlotKey = key; _upSlotTries = 0; }

@@ -24,27 +24,19 @@
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Mode uji (tanpa klik Buy)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding DryRun}" /></Grid>
         <Border Classes="sep" Margin="0,4" />
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom teratas dulu. Bergiliran: satu node per kolom bergantian. Unit tidak diganti. Bila Hanya unit diisi dan unit terpilih beda atau namanya tak terbaca, tidak membeli apa pun. Mode uji: buka Units, pilih node, pastikan tombol Buy terbaca, tulis rencana di log, tutup X, lalu macro berhenti tanpa membeli." />
+                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom ON teratas dulu. Bergiliran: satu node per kolom ON bergantian. Unit tidak diganti. Bila Hanya unit diisi dan unit terpilih beda atau namanya tak terbaca, tidak membeli apa pun. Mode uji: buka Units, pilih node, pastikan tombol Buy terbaca, tulis rencana di log, tutup X, lalu macro berhenti tanpa membeli." />
       </StackPanel>
     </Border>
 
     <Border Grid.Column="1" Classes="card" Margin="8,0,0,0" VerticalAlignment="Top">
       <StackPanel Spacing="6">
-        <TextBlock Classes="h2" Text="Prioritas kolom" />
+        <TextBlock Classes="h2" Text="Kolom yang di-upgrade" />
         <Border Classes="sep" Margin="0,2,0,4" />
-        <ItemsControl ItemsSource="{Binding Priority}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:PriorityItemViewModel">
-              <Border Classes="row" Margin="0,0,0,6">
-                <Grid ColumnDefinitions="*,Auto,Auto">
-                  <TextBlock Classes="label" Text="{Binding Name}" />
-                  <Button Grid.Column="1" Content="Naik" Command="{Binding UpCommand}" Padding="10,3" Margin="0,0,6,0" />
-                  <Button Grid.Column="2" Content="Turun" Command="{Binding DownCommand}" Padding="10,3" />
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="ATK" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Atk}" /></Grid></Border>
+        <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="CRIT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Crit}" /></Grid></Border>
+        <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="SPD" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Spd}" /></Grid></Border>
+        <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="DEF" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Def}" /></Grid></Border>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="Hanya kolom ON yang dibeli. Semua OFF = tidak membeli apa pun. Bila lebih dari satu ON, urutan ATK → CRIT → SPD → DEF mengikuti Mode." />
       </StackPanel>
     </Border>
   </Grid>
