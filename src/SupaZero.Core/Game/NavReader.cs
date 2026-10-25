@@ -35,7 +35,13 @@ public sealed partial class GameReader
             long blk = reader.FindChild(b, "Blocker");
             var bp = blk != 0 ? props.Read(blk) : null;
             bool solid = bp is not null && bp.TryGetValue("CanCollide", out var bc) && bc == "true";
+            // v0.3.9: Border*.Rubble (ClimbStop + mesh rubble, CanCollide) dihapus game TERPISAH dari Blocker CanCollide→false
+            // (snapshot 00:57:52 vs 01:02:03). Tanpa ini cache bisa dibangun saat Blocker sudah terbuka tapi Rubble masih ada →
+            // ±23 part rubble tetap jadi dinding di jalan timur → "Jalur ke area 5 tidak tersambung" (log Byzan 25 Okt 10:46).
+            long rubNode = reader.FindChild(b, "Rubble");
+            int rubKids = rubNode != 0 ? reader.GetChildren(rubNode, 256).Count : -1;
             blockSig = blockSig * 31 + b + (blk == 0 ? 0 : solid ? 2 : 1);
+            blockSig = blockSig * 31 + rubNode + rubKids;
             string where = bp is not null && ParseVec(bp.GetValueOrDefault("Position")) is { } bpos
                 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $" ({bpos.X:0},{bpos.Z:0})") : "";
             bool rub = blk != 0 && reader.FindChild(blk, AnimeZeroPaths.RubbleBar) != 0;

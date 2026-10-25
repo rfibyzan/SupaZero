@@ -90,6 +90,15 @@ public sealed class PathPlanner
         if (_w > 0) Paint((x - r, z - r, x + r, z + r), (px, pz) => Navigator.Distance2D(px, pz, x, z) <= r, false);
     }
 
+    /// <summary>v0.3.9: hapus tanda tersangkut (bisa menutup satu-satunya celah) lalu bangun ulang grid saat dipakai lagi.</summary>
+    public bool ClearBlocks()
+    {
+        if (_blocks.Count == 0) return false;
+        _blocks.Clear();
+        _map = null;
+        return true;
+    }
+
     private bool NeedBuild(NavMap map, Vec3 a, Vec3 b) =>
         !ReferenceEquals(map, _map) || !Inside(a) || !Inside(b) || Math.Abs(FootY(map, a) - _builtY) > 3;
 

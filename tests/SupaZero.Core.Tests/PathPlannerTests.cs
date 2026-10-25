@@ -66,10 +66,12 @@ public class PathPlannerTests
     }
 
     // ---------- v0.2.47: peta asli Hxh (snapshot S1 Byzan, titik nyangkut Area 4 → 5) ----------
-    private static NavMap HxhS1()
+    private static NavMap HxhS1(bool staleBorder4Rubble = false)
     {
         var w = new List<NavRect>(); var o = new List<NavRect>(); var so = new List<NavRect>();
-        foreach (var line in File.ReadLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "hxh_s1_navmap.txt")))
+        var files = new List<string> { "hxh_s1_navmap.txt" };
+        if (staleBorder4Rubble) files.Add("hxh_border4_rubble.txt");
+        foreach (var line in files.SelectMany(f => File.ReadLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", f))))
         {
             if (line.StartsWith('#') || line.Length < 3) continue;
             var f = line.Split(' ');
@@ -113,5 +115,24 @@ public class PathPlannerTests
         Assert.False(pl.Partial, pl.LastFailure);
         Assert.Equal(entry, path![^1]);
         Assert.DoesNotContain(path!, p => p.X is > 298 and < 312 && p.Z is > -135 and < -96);
+    }
+
+    [Theory]
+    [InlineData(291, -148)]
+    [InlineData(289, -148)]
+    public void Hxh_Area4To5_Log1046_StaleRubbleBlocksEastRoad(double x, double z)
+    {
+        // Log Byzan 25 Okt 10:46: "dari (291,-148) ke (295,-53), tidak ketemu; peta 5 area, 730 rintangan", Border4 terbuka.
+        // 730 = 707 (peta S1) + 23 part CanCollide Map.Border4.Rubble (snapshot 00:57:52) yang sudah dihapus game → cache basi.
+        var entry = new Vec3(295, 2, -53.3);
+        var stale = HxhS1(staleBorder4Rubble: true);
+        Assert.Equal(730, stale.Solids!.Count);
+        var pl = new PathPlanner();
+        var bad = pl.Find(stale, new Vec3(x, 4.5, z), entry);
+        Assert.True(bad is null || pl.Partial); // rubble basi menutup jalan timur = gejala live
+        var good = new PathPlanner().Find(HxhS1(), new Vec3(x, 4.5, z), entry);
+        Assert.NotNull(good);
+        Assert.Contains(good!, p => p.X > 560);
+        Assert.Equal(entry, good![^1]);
     }
 }

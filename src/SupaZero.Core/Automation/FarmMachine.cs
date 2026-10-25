@@ -1046,6 +1046,8 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             _pathAt = now;
             bool clear = _planner.Clear(nav, p, target);
             _path = clear ? [target] : _planner.Find(nav, p, target);
+            // v0.3.9: jalur gagal/parsial → buang tanda tersangkut lama lalu cari sekali lagi.
+            if (!clear && (_path is null || _planner.Partial) && _planner.ClearBlocks()) _path = _planner.Find(nav, p, target);
             // Diagnosa (maks 1x / 10 dtk): posisi, tujuan, jenis jalur, jumlah rintangan peta → bisa dicocokkan dengan snapshot.
             _pending.AddRange(Note("path-diag", now, 10000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
                 $"Jalur ke {label}: dari ({p.X:0},{p.Z:0}) ke ({target.X:0},{target.Z:0}), {(clear ? "lurus" : _path is null ? "tidak ketemu" : $"{_path.Count} titik{(_planner.UsedOutside ? ", lewat luar Areas" : "")}{(_planner.Partial ? ", parsial" : "")}")}; peta {nav.Walkable.Count} area, {nav.Solids?.Count ?? 0} rintangan.")));
@@ -1053,7 +1055,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                 _pending.AddRange(Note("border-diag", now, 15000, $"Border/Blocker: {nav.BorderDiag ?? "?"}. HUD: \"{s.HudRaw ?? "-"}\"."));
             if (_path is null)
             {
-                return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu: {_planner.LastFailure ?? "?"}. Jalan lurus.")];
+                // v0.3.9 (Byzan 25 Okt 10:46): dulu "Jalan lurus" = menabrak gedung yang sudah terbaca sebagai rintangan. Kini diam & cari ulang.
+                Status = $"Jalur ke {label} tidak ketemu, cari ulang…";
+                return [new MoveAction([], "Tunggu jalur"), .. Note("path-none", now, 8000, $"Jalur ke {label} tidak ketemu: {_planner.LastFailure ?? "?"}. Tidak jalan lurus menembus rintangan; cari ulang.")];
             }
             if (_planner.Partial) _pathNote = $"Jalur ke {label}: {_planner.LastFailure}.";
             else if (_planner.UsedOutside && _path.Count > 1) _pathNote = $"Jalur ke {label} memutar lewat jalan di luar kotak Areas ({_path.Count} titik belok).";
@@ -1064,7 +1068,8 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         bool last = _path.Count == 1;
         var walk = WalkTo(s, wp, last ? radius : 1.5, now, last ? label : $"{label} (belok {_path.Count - 1})", attackWhenStuck);
         // Jalur parsial sudah sampai ujung: sisanya jalan lurus (mis. hancurkan rubble/Blocker dengan serang saat tersangkut).
-        if (walk.Count == 0 && last && _planner.Partial) return WalkTo(s, target, radius, now, label, attackWhenStuck);
+        // v0.3.9: ujung jalur parsial → tidak jalan lurus ke gedung/Blocker (rubble punya pendekatan sendiri); cari ulang.
+        if (walk.Count == 0 && last && _planner.Partial) { _path = null; Status = $"Ujung jalur parsial ke {label}, cari ulang…"; return [new MoveAction([], "Tunggu jalur")]; }
         if (_pathNote is { } pn) { _pathNote = null; walk = [.. walk, .. Note("path-partial", now, 8000, pn)]; }
         if (walk.Count == 0 && !last) { _path.RemoveAt(0); return WalkPath(s, target, radius, now, label, attackWhenStuck); }
         if (walk.Count == 0) _path = null;

@@ -1,0 +1,24 @@
+# Map.Border4.Rubble CanCollide (snapshot Map 00:57:52, 25 Okt 2026). Kolom sama dengan hxh_s1_navmap.txt
+S 585.112 100 -195.072 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop
+S 585.191 4.65 -223.46 4.22 9.299 11.534 -0 -0 -1  # Map.Border4.Rubble.Model.HV_PROP_5
+S 582.833 100 -147.888 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#2
+S 586.061 100 -254.052 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#3
+S 582.081 100 -183.276 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#4
+S 583.074 100 -136.092 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#5
+S 583.436 100 -265.848 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#6
+S 614.182 9.616 -208.298 25.157 23.315 81.185 -0 -0 1  # Map.Border4.Rubble.Border1.fixfixfix_rubble2.Plane.084
+S 608.267 26.246 -202.286 47.63 57.774 95.795 -0 -0 1  # Map.Border4.Rubble.Border1.fixfixfix_rubble2.Cylinder
+S 598.639 13.036 -203.127 17.293 16.026 55.805 -0.146 -0.175 -0.974  # Map.Border4.Rubble.Border1.fixfixfix_rubble2.Plane.084#2
+S 603.4 6.037 -252.708 25.157 23.315 81.185 -0.262 -0 -0.965  # Map.Border4.Rubble.Border1.fixfixfix_rubble2#2.Plane.084
+S 617.048 9.457 -261.765 17.293 16.026 55.805 0.396 -0.175 0.901  # Map.Border4.Rubble.Border1.fixfixfix_rubble2#2.Plane.084#2
+S 607.536 22.667 -260.058 47.63 57.774 95.795 -0.262 -0 -0.965  # Map.Border4.Rubble.Border1.fixfixfix_rubble2#2.Cylinder
+S 615.627 10.6 -152.387 17.293 16.026 55.805 -0.025 -0.175 0.984  # Map.Border4.Rubble.Border1.fixfixfix_rubble2#3.Plane.084
+S 606.291 23.81 -154.888 47.63 57.774 95.795 0.174 0 -0.985  # Map.Border4.Rubble.Border1.fixfixfix_rubble2#3.Cylinder
+S 599.422 7.18 -149.994 25.157 23.315 81.185 0.174 0 -0.985  # Map.Border4.Rubble.Border1.fixfixfix_rubble2#3.Plane.084#2
+S 582.081 100 -218.664 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#7
+S 582.081 100 -171.48 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#8
+S 585.191 4.65 -173.21 4.22 9.299 11.534 -0 -0 -1  # Map.Border4.Rubble.Model#2.HV_PROP_5
+S 582.081 100 -230.46 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#9
+S 584.77 100 -206.868 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#10
+S 584.182 100 -159.684 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#11
+S 589.165 100 -242.256 11.996 200 2 -1 -0 0  # Map.Border4.Rubble.ClimbStop#12
