@@ -834,6 +834,47 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Calibration_ReadsTargetableDropsPerAct_AtNightmare()
+    {
+        // v0.3.4 (Byzan 25 Okt 08:38): drop berbeda per act (Hxh Act 1 = A,B; Act 2 = C,D) → kalibrasi klik Nightmare + tiap act, baca TargetPill.
+        var (m, _) = New();
+        CalibrationScan? scan = null;
+        m.CalibrationFinished = x => scan = x;
+        m.StartCalibration();
+        string diff = "Easy"; int act = 1;
+        var diffs = new[] { "Easy", "Medium", "Hard", "Nightmare" }.Select((d, i) => new LobbyEntry(d, false, false, new GuiRect(100 + i * 120, 600, 100, 100))).ToList();
+        GameSnapshot Snap() => new()
+        {
+            Attached = true, LobbyMenuOpen = true, ClientW = 1920, ClientH = 1080, LobbyMapTag = "Hxh", LobbyStart = Btn, LobbyLeave = new GuiRect(1600, 900, 80, 60),
+            LobbyModes = [new LobbyEntry("Story", false, true, new GuiRect(100, 100, 100, 40))],
+            LobbyMaps = [new LobbyEntry("Hxh", false, true, new GuiRect(300, 300, 200, 60), "Story")],
+            LobbyActs = [new LobbyEntry("Act 1", false, act == 1, new GuiRect(600, 150, 100, 40)), new LobbyEntry("Act 2", false, act == 2, new GuiRect(600, 200, 100, 40))],
+            LobbyActTag = $"Hxh [Act {act}]", LobbyDifficultyTag = $"[{diff}]", LobbyDifficulties = diffs,
+            LobbyRewards = act == 1
+                ? [new RewardCard("Gems", false, false, null, null), new RewardCard("Material A", diff is "Hard" or "Nightmare", false, new GuiRect(700, 800, 80, 80), "14%"), new RewardCard("Material B", diff is "Hard" or "Nightmare", false, new GuiRect(800, 800, 80, 80), "19%")]
+                : [new RewardCard("Material C", true, false, new GuiRect(700, 800, 80, 80), "14%"), new RewardCard("Material D", true, false, new GuiRect(800, 800, 80, 80), "28%")],
+        };
+        var all = new List<MacroAction>();
+        for (long t = 0; t <= 30000 && scan is null; t += 300)
+        {
+            var acts = m.Step(Snap(), t);
+            all.AddRange(acts);
+            foreach (var c in acts.OfType<ClickAction>())
+            {
+                if (c.Reason.StartsWith("Difficulty Nightmare")) diff = "Nightmare";
+                if (c.Reason.StartsWith("Act 2")) act = 2;
+                if (c.Reason.StartsWith("Act 1")) act = 1;
+            }
+            if (all.Any(a => a is ClickAction c && c.Reason.StartsWith("Leave")))
+                m.Step(new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 }, t + 100);
+        }
+        Assert.DoesNotContain(all, a => a is ClickAction c && c.Reason.StartsWith("Start"));
+        Assert.NotNull(scan);
+        Assert.Equal(["Material A", "Material B"], scan!.Drops[FarmMachine.DropKey("Hxh", 1)]);
+        Assert.Equal(["Material C", "Material D"], scan.Drops[FarmMachine.DropKey("Hxh", 2)]);
+    }
+
+    [Fact]
     public void Calibration_SkipsTrialsEntry_AndSavesOnTrialsPanel()
     {
         var (m, _) = New();

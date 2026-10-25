@@ -31,10 +31,9 @@
         <Border Classes="sep" Margin="0,2,0,4" />
         <Grid ColumnDefinitions="*,180" MinHeight="34">
           <TextBlock Classes="label" Text="Drop Target" />
-          <AutoCompleteBox Grid.Column="1" Text="{Binding DropTarget}" ItemsSource="{Binding KnownMaterials}" FilterMode="ContainsOrdinal" Watermark="kosong = mati" />
+          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding DropChoices}" SelectedItem="{Binding SelectedDrop}" />
         </Grid>
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Material diklik sebelum Start. Hanya berlaku di Hard (x2) dan Nightmare (x3)." />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
         <TextBlock Classes="label" Text="Urutan kartu Mirror Blessing" Margin="0,6,0,0" />
         <TextBox Text="{Binding BlessingPriority}" TextWrapping="Wrap" />
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"

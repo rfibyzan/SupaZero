@@ -86,7 +86,7 @@ public sealed class FarmViewModel : ObservableObject
             if (value < 0) return;
             var nums = ActNumbers();
             int act = value == 0 ? 0 : nums[Math.Clamp(value - 1, 0, nums.Count - 1)];
-            if (act != S.Farm.Act) Farm(f => f with { Act = act });
+            if (act != S.Farm.Act) { Farm(f => f with { Act = act }); RebuildDrops(); }
         }
     }
 
@@ -104,6 +104,7 @@ public sealed class FarmViewModel : ObservableObject
         }
         Raise(nameof(ActIndex));
         Avalonia.Threading.Dispatcher.UIThread.Post(() => Raise(nameof(ActIndex)), Avalonia.Threading.DispatcherPriority.Background);
+        RebuildDrops();
     }
     public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
         ? "Tuntas: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
@@ -146,8 +147,61 @@ public sealed class FarmViewModel : ObservableObject
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
     public bool InfiniteUnlimitedRetry { get => S.Farm.InfiniteUnlimitedRetry; set => Farm(f => f with { InfiniteUnlimitedRetry = value }); }
     public decimal MaxRetries { get => S.Farm.MaxRetriesPerStage; set => Farm(f => f with { MaxRetriesPerStage = (int)value }); }
-    public string DropTarget { get => S.Farm.DropTarget; set => Farm(f => f with { DropTarget = value ?? "" }); }
-    public string[] KnownMaterials { get; } = [.. SupaZero.Core.Game.AnimeZeroPaths.MaterialIcons.Values.Order()];
+    // v0.3.4: Drop Target dipilih dari material yang terbukti bisa ditarget di map/act terpilih (kalibrasi), bukan diketik.
+    private const string DropOffLabel = "(mati)";
+    public ObservableCollection<string> DropChoices { get; } = [];
+
+    /// <summary>Material per act map terpilih. Act "Semua" → gabungan semua act map itu.</summary>
+    private List<string> DropsForSelection()
+    {
+        var kd = S.Farm.KnownDrops;
+        if (kd is null || S.Farm.Map.Length == 0) return [];
+        IEnumerable<int> acts = S.Farm.Act > 0 ? [S.Farm.Act] : ActNumbers();
+        return acts.SelectMany(a => kd.GetValueOrDefault(SupaZero.Core.Automation.FarmMachine.DropKey(S.Farm.Map, a)) ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private bool DropsKnown() => S.Farm.KnownDrops is { } kd && S.Farm.Map.Length > 0 &&
+        (S.Farm.Act > 0 ? [S.Farm.Act] : ActNumbers()).Any(a => kd.ContainsKey(SupaZero.Core.Automation.FarmMachine.DropKey(S.Farm.Map, a)));
+
+    private void RebuildDrops()
+    {
+        var want = new List<string> { DropOffLabel };
+        want.AddRange(DropsForSelection());
+        if (!DropChoices.SequenceEqual(want))
+        {
+            DropChoices.Clear();
+            foreach (var x in want) DropChoices.Add(x);
+        }
+        Raise(nameof(SelectedDrop));
+        Raise(nameof(DropHint));
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => Raise(nameof(SelectedDrop)), Avalonia.Threading.DispatcherPriority.Background);
+    }
+
+    public string? SelectedDrop
+    {
+        get => S.Farm.DropTarget.Length == 0 ? DropOffLabel
+            : DropChoices.FirstOrDefault(d => d.Equals(S.Farm.DropTarget, StringComparison.OrdinalIgnoreCase)) ?? DropOffLabel;
+        set
+        {
+            if (value is null) return;
+            string v = value == DropOffLabel ? "" : value;
+            if (v != S.Farm.DropTarget) { Farm(f => f with { DropTarget = v }); Raise(nameof(DropHint)); }
+        }
+    }
+
+    public string DropHint
+    {
+        get
+        {
+            if (S.Farm.Map.Length == 0) return "Pilih map (dan act) dulu di tab General; daftar drop mengikuti map/act.";
+            if (!DropsKnown()) return $"Drop {S.Farm.Map} {(S.Farm.Act > 0 ? "Act " + S.Farm.Act : "")} belum terbaca → jalankan Kalibrasi aksi (atau buka Create Room di Hard/Nightmare untuk act ini).";
+            string act = S.Farm.Act > 0 ? $"Act {S.Farm.Act}" : "semua act (gabungan)";
+            string stale = S.Farm.DropTarget.Length > 0 && !DropsForSelection().Contains(S.Farm.DropTarget, StringComparer.OrdinalIgnoreCase)
+                ? $" Target lama \"{S.Farm.DropTarget}\" tidak ada di sini → tidak dipakai, pilih ulang." : "";
+            return $"Material yang bisa ditarget di {S.Farm.Map} {act}. Hanya berlaku di Hard (x2) / Nightmare (x3).{stale}";
+        }
+    }
     public string BlessingPriority { get => S.Farm.BlessingPriority; set => Farm(f => f with { BlessingPriority = value ?? "" }); }
     public decimal TrialsFloor { get => S.Farm.TrialsFloor; set => Farm(f => f with { TrialsFloor = (int)value }); }
     public string CircleText => S.Farm.LobbyCircle is { } c ? "Cadangan: " + c : "Cadangan manual: belum direkam";
@@ -216,6 +270,28 @@ public sealed class FarmViewModel : ObservableObject
                 RebuildActs();
             }
         }
+        // v0.3.4: drop terbaca langsung saat menu Create Room terbuka di Hard/Nightmare (stabil ≥ 1 dtk).
+        string? dtag = snap.LobbyDifficultyTag?.Trim('[', ']', ' ');
+        int curAct = SupaZero.Core.Automation.FarmMachine.ActNumber(snap.LobbyActTag);
+        if (snap.LobbyMapTag is { Length: > 0 } mtag && curAct > 0 && snap.LobbyRewards.Count > 0 &&
+            (dtag?.Equals("Hard", StringComparison.OrdinalIgnoreCase) == true || dtag?.Equals("Nightmare", StringComparison.OrdinalIgnoreCase) == true))
+        {
+            string dsig = $"{mtag}|{snap.LobbyActTag}|{dtag}|{string.Join(",", snap.LobbyRewards.Select(r => $"{r.Name}:{r.Targetable}"))}";
+            if (dsig != _dropSig) { _dropSig = dsig; _dropSigAt = DateTime.UtcNow; }
+            else if (DateTime.UtcNow - _dropSigAt >= TimeSpan.FromSeconds(1))
+            {
+                string map = snap.LobbyMaps.FirstOrDefault(m => mtag.Contains(m.Name, StringComparison.OrdinalIgnoreCase))?.Name ?? mtag.Trim();
+                string key = SupaZero.Core.Automation.FarmMachine.DropKey(map, curAct);
+                var names = snap.LobbyRewards.Where(r => r.Targetable).Select(r => r.Name.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var kd = new Dictionary<string, List<string>>(S.Farm.KnownDrops ?? new(), StringComparer.OrdinalIgnoreCase);
+                if (!(kd.GetValueOrDefault(key) is { } oldD && oldD.SequenceEqual(names)))
+                {
+                    kd[key] = names;
+                    Farm(f => f with { KnownDrops = kd });
+                    RebuildDrops();
+                }
+            }
+        }
         var maps = snap.LobbyMaps;
         if (maps.Count == 0) return;
         // v0.2.82: gabung, jangan timpa — daftar map hanya berisi map mode terpilih; map mode lain tetap disimpan.
@@ -230,6 +306,8 @@ public sealed class FarmViewModel : ObservableObject
     }
 
     private string? _actSig;
+    private string? _dropSig;
+    private DateTime _dropSigAt;
     private DateTime _actSigAt;
 
     /// <summary>v0.2.82: hasil kalibrasi aksi menggantikan daftar map dan act yang tersimpan (act map yang terbaca).</summary>
@@ -242,8 +320,15 @@ public sealed class FarmViewModel : ObservableObject
             foreach (var kv in scan.Acts) ka[kv.Key] = kv.Value;
             Farm(f => f with { KnownActs = ka });
         }
+        if (scan.Drops.Count > 0)
+        {
+            var kd = new Dictionary<string, List<string>>(S.Farm.KnownDrops ?? new(), StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in scan.Drops) kd[kv.Key] = kv.Value;
+            Farm(f => f with { KnownDrops = kd });
+        }
         RebuildMaps();
-        _root.AddLog($"Kalibrasi aksi disimpan: {scan.Maps.Count} map, act untuk {scan.Acts.Count} map." +
+        RebuildDrops();
+        _root.AddLog($"Kalibrasi aksi disimpan: {scan.Maps.Count} map, act untuk {scan.Acts.Count} map, drop untuk {scan.Drops.Count} act." +
             (scan.Notes.Count > 0 ? " Catatan: " + string.Join(" ", scan.Notes) : ""));
     }
 

@@ -87,7 +87,9 @@ public sealed record FarmSettings(
     /// <summary>Floor Trials yang dipilih di panel (0 = biarkan pilihan game / floor berikutnya).</summary>
     int TrialsFloor = 0,
     /// <summary>Sekali tiap Start, di lobby sebelum Create Room: buka menu Trait lalu Spin (tombol LobbyHUD) untuk membaca power + trait terpasang.</summary>
-    bool CheckPowersInLobby = true);
+    bool CheckPowersInLobby = true,
+    /// <summary>v0.3.4: material yang bisa ditarget per "Map|Act N" (dari Kalibrasi aksi / menu Create Room di Hard/Nightmare).</summary>
+    Dictionary<string, List<string>>? KnownDrops = null);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 /// <summary>Discord webhook: notifikasi menang/kalah (dengan drop) dan macro berhenti.</summary>

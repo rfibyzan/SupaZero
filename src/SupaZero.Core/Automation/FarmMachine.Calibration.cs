@@ -4,7 +4,11 @@ using SupaZero.Core.Settings;
 namespace SupaZero.Core.Automation;
 
 /// <summary>Hasil kalibrasi aksi: map per mode (terkunci/terbuka) dan daftar act per map, semua dari GUI yang terbaca.</summary>
-public sealed record CalibrationScan(IReadOnlyList<KnownMap> Maps, IReadOnlyDictionary<string, List<int>> Acts, IReadOnlyList<string> Notes);
+public sealed record CalibrationScan(IReadOnlyList<KnownMap> Maps, IReadOnlyDictionary<string, List<int>> Acts, IReadOnlyList<string> Notes)
+{
+    /// <summary>v0.3.4: material yang bisa ditarget (TargetPill tampil di Hard/Nightmare) per "Map|Act N".</summary>
+    public IReadOnlyDictionary<string, List<string>> Drops { get; init; } = new Dictionary<string, List<string>>();
+}
 
 /// <summary>
 /// v0.2.82 Kalibrasi aksi (permintaan Byzan 25 Okt 2026): karakter melakukan aksi untuk MENDAPATKAN data, bukan menebak.
@@ -28,6 +32,13 @@ public sealed partial class FarmMachine
     private readonly Dictionary<string, List<int>> _calActs = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _calNotes = [];
     private string? _calSig;
+    // v0.3.4 drop per act: 7 pilih Hard/Nightmare · 8 tiap act terbuka: klik act, baca Rewards (TargetPill).
+    private readonly Dictionary<string, List<string>> _calDrops = new(StringComparer.OrdinalIgnoreCase);
+    private List<int> _calDropActs = [];
+    private int _calDropIdx;
+    private Difficulty _calDiffTry = Difficulty.Nightmare;
+    public const long CalDiffTimeoutMs = 4000, CalActTimeoutMs = 6000;
+    public static string DropKey(string map, int act) => $"{map.Trim()}|Act {act}";
     private long _calSigSince, _calStepAt = -1;
 
     public void StartCalibration()
@@ -35,7 +46,7 @@ public sealed partial class FarmMachine
         Calibrating = true;
         _calStage = 0; _calModeIdx = _calMapIdx = 0;
         _calModes = []; _calMaps = [];
-        _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear();
+        _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear(); _calDrops.Clear(); _calDropActs = []; _calDropIdx = 0;
         _calSig = null; _calStepAt = -1;
         _pcStep = 2; _pcStepAt = null; _pcOpenAt = null; // tombol Trait/Spin LobbyHUD tidak ada (Byzan 25 Okt) → PowerCheck tidak dipakai
         _trStep = 0; _trAt = null;
@@ -247,9 +258,64 @@ public sealed partial class FarmMachine
             _calActs[map] = nums;
             int locked = s.LobbyActs.Count(a => a.Locked);
             var note = new NoteAction($"Kalibrasi: {map} → Act {string.Join(", ", nums)}{(locked > 0 ? $" ({locked} terkunci)" : "")}.");
-            _calMapIdx++;
-            CalGo(4, now);
+            // v0.3.4: lanjut baca drop tiap act terbuka (butuh Hard/Nightmare agar TargetPill tampil).
+            _calDropActs = s.LobbyActs.Where(a => !a.Locked).Select(a => ActNumber(a.Name)).Where(n => n > 0).Distinct().Order().ToList();
+            _calDropIdx = 0;
+            _calDiffTry = Difficulty.Nightmare;
+            if (_calDropActs.Count == 0 || s.LobbyDifficulties.Count == 0)
+            {
+                if (_calDropActs.Count > 0) _calNotes.Add($"tombol difficulty tidak terbaca → drop {map} tidak dikalibrasi.");
+                _calMapIdx++;
+                CalGo(4, now);
+            }
+            else CalGo(7, now);
             return [stand, note];
+        }
+
+        if (_calStage == 7)
+        {
+            string map = _calMaps[_calMapIdx];
+            string? tag = s.LobbyDifficultyTag?.Trim('[', ']', ' ');
+            if (tag is not null && (tag.Equals("Hard", StringComparison.OrdinalIgnoreCase) || tag.Equals("Nightmare", StringComparison.OrdinalIgnoreCase))) { CalGo(8, now); }
+            else if (now - _calStepAt > CalDiffTimeoutMs)
+            {
+                if (_calDiffTry == Difficulty.Nightmare) { _calDiffTry = Difficulty.Hard; CalGo(7, now); return [stand]; }
+                _calMapIdx++;
+                return CalSkip($"Hard/Nightmare tidak bisa dipilih di {map} (terpilih: {tag ?? "?"}) → drop tidak dikalibrasi.", 4, now);
+            }
+            else
+            {
+                Status = $"Kalibrasi drop: pilih {_calDiffTry} ({map}).";
+                if (DifficultyPoint(s, _calDiffTry) is not var (dx, dy) || !InWindow(s, dx, dy)) return [stand];
+                return Ready("cal-diff", now, 1500) ? [stand, new ClickAction(dx, dy, $"Difficulty {_calDiffTry} (kalibrasi drop)")] : [stand];
+            }
+        }
+
+        if (_calStage == 8)
+        {
+            string map = _calMaps[_calMapIdx];
+            if (_calDropIdx >= _calDropActs.Count) { _calMapIdx++; CalGo(4, now); return [stand]; }
+            int act = _calDropActs[_calDropIdx];
+            if (ActNumber(s.LobbyActTag) != act)
+            {
+                var e = s.LobbyActs.FirstOrDefault(a => ActNumber(a.Name) == act && !a.Locked);
+                if (e is null || now - _calStepAt > CalActTimeoutMs) { _calDropIdx++; return CalSkip($"{map} Act {act} tidak bisa dipilih → drop tidak terbaca.", 8, now); }
+                Status = $"Kalibrasi drop: pilih {map} Act {act}.";
+                return [stand, .. ClickEntry(s, e, s.LobbyActsView, "cal-act", $"Act {act} (kalibrasi drop)", now) ?? []];
+            }
+            Status = $"Kalibrasi drop: baca Rewards {map} Act {act}.";
+            string sig = $"{s.LobbyActTag}|{s.LobbyDifficultyTag}|{string.Join(",", s.LobbyRewards.Select(r => $"{r.Name}:{r.Targetable}"))}";
+            if (s.LobbyRewards.Count == 0 || !CalStable(sig, now))
+            {
+                if (now - _calStepAt <= CalActTimeoutMs) return [stand];
+                _calDropIdx++;
+                return CalSkip($"Rewards {map} Act {act} tidak terbaca.", 8, now);
+            }
+            var names = s.LobbyRewards.Where(r => r.Targetable).Select(r => r.Name.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            _calDrops[DropKey(map, act)] = names;
+            _calDropIdx++;
+            CalGo(8, now);
+            return [stand, new NoteAction($"Kalibrasi drop: {map} Act {act} ({s.LobbyDifficultyTag?.Trim('[', ']', ' ')}) → {(names.Count > 0 ? string.Join(", ", names) : "tidak ada material yang bisa ditarget")}.")];
         }
 
         // 6) Batalkan room: klik Leave, tidak pernah Start.
@@ -267,9 +333,10 @@ public sealed partial class FarmMachine
     private List<MacroAction> CalFinish(string how)
     {
         Calibrating = false;
-        var scan = new CalibrationScan(_calKnown.ToList(), new Dictionary<string, List<int>>(_calActs, StringComparer.OrdinalIgnoreCase), _calNotes.ToList());
+        var scan = new CalibrationScan(_calKnown.ToList(), new Dictionary<string, List<int>>(_calActs, StringComparer.OrdinalIgnoreCase), _calNotes.ToList())
+        { Drops = new Dictionary<string, List<string>>(_calDrops, StringComparer.OrdinalIgnoreCase) };
         CalibrationFinished?.Invoke(scan);
         string acts = scan.Acts.Count == 0 ? "act tidak terbaca" : string.Join("; ", scan.Acts.Select(kv => $"{kv.Key} Act {string.Join(",", kv.Value)}"));
-        return Stop($"Kalibrasi selesai ({how}): {scan.Maps.Count} map ({scan.Maps.Count(m => !m.Locked)} terbuka) · {acts}.");
+        return Stop($"Kalibrasi selesai ({how}): {scan.Maps.Count} map ({scan.Maps.Count(m => !m.Locked)} terbuka) · {acts} · drop {scan.Drops.Count} act.");
     }
 }
