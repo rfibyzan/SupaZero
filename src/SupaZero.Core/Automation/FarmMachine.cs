@@ -1275,6 +1275,8 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                     bool landed = s.SkillUnitSlot == p;
                     // v0.2.98: nama (judul Roll) menyusul setelah slot terpilih → tunggu sejak MENDARAT, bukan sejak klik/scroll pertama.
                     if (landed) _unitLandedAt ??= now; else _unitLandedAt = null;
+                    if (landed && s.SkillUnitName is null && now - _unitLandedAt!.Value > UnitNameWaitMs)
+                        _pending.AddRange(Note("up-noname" + p, now, 0, $"Upgrade: Slot{p} terpilih tapi nama tidak terbaca ({s.SkillUnitDebug ?? "diagnosa kosong"})."));
                     if (landed && (s.SkillUnitName is not null || now - _unitLandedAt!.Value > UnitNameWaitMs)) { _unitTried.Add(p); _unitPickSlot = null; _unitLandedAt = null; }
                     else if (!landed && now - _unitPickAt > UnitSlotTimeoutMs) { _unitTried.Add(p); _unitPickSlot = null; }
                     else if (!landed && s.SkillUnits.FirstOrDefault(u => u.Name == $"Slot{p}") is { } pe)

@@ -152,6 +152,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 && reader.FindChild(bf, AnimeZeroPaths.BuyButton) is var bb and not 0 && IsShown(bb, pg) ? HubRect(bb) : null,
             SkillUnitSlot = treeShown ? SelectedSlot(tree, AnimeZeroPaths.SkillUnitList, AnimeZeroPaths.SkillUnitSelected) : null,
             SkillUnitName = treeShown ? SkillUnitName(tree, pg) : null,
+            SkillUnitDebug = treeShown ? SkillUnitDebug : null,
             SkillUnits = treeShown ? ReadSkillUnits(tree) : [],
             SkillUnitView = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillUnitList) is var ul and not 0 ? HubRect(ul) : null,
             SkillTreeExit = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeExit) is var ex and not 0 && IsShown(ex, pg) ? HubRect(ex) : null,
@@ -552,13 +553,18 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return res;
     }
 
+    /// <summary>v0.2.99: diagnosa nama unit (slot SkillTree vs slot Roll + judul) untuk log bila nama tidak terbaca.</summary>
+    public string? SkillUnitDebug { get; private set; }
+
     private string? SkillUnitName(long tree, long pg)
     {
         int? st = SelectedSlot(tree, AnimeZeroPaths.SkillUnitList, AnimeZeroPaths.SkillUnitSelected);
         long roll = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.RollRoot) : 0;
         int? rs = SelectedSlot(roll, AnimeZeroPaths.RollUnitList, AnimeZeroPaths.RollUnitSelected);
+        string? title = roll != 0 ? CleanText(reader.ResolvePath(roll, AnimeZeroPaths.RollUnitTitle)) : null;
+        SkillUnitDebug = $"SkillTree slot {st?.ToString() ?? "?"}, Roll {(roll == 0 ? "tidak ada" : $"slot {rs?.ToString() ?? "?"}")}, judul Roll \"{title ?? "-"}\"";
         if (st is null || rs != st) return null;
-        return CleanText(reader.ResolvePath(roll, AnimeZeroPaths.RollUnitTitle));
+        return title;
     }
 
     private List<SkillSlot> ReadSlots(long tree, long pg)
