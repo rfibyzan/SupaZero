@@ -875,8 +875,9 @@ public class FarmMachineTests
     }
 
     [Fact]
-    public void Calibration_SkipsTrialsEntry_AndSavesOnTrialsPanel()
+    public void Calibration_TrialsLast_ReadsFloorRewards_ThenLeavesTrials()
     {
+        // v0.3.7 (Byzan 25 Okt 09:03): kartu Trials → panel Trials (Floor Rewards) → drop → Leave Trials menutup menu room.
         var (m, _) = New();
         CalibrationScan? scan = null;
         m.CalibrationFinished = x => scan = x;
@@ -888,10 +889,45 @@ public class FarmMachineTests
             LobbyActs = [new LobbyEntry("Act 1", false, true, new GuiRect(600, 150, 100, 40))],
         };
         var all = new List<MacroAction>();
-        for (long t = 0; t <= 6000; t += 300) all.AddRange(m.Step(menu, t));
-        Assert.DoesNotContain(all, a => a is ClickAction c && c.Reason.Contains("Trials"));
-        Assert.Contains(all, a => a is ClickAction c && c.Reason.StartsWith("Leave"));
-        Assert.True(FarmMachine.OpensOtherPanel("Trials"));
+        long t = 0;
+        for (; t <= 8000 && !all.Any(a => a is ClickAction c && c.Reason.StartsWith("Map Trials")); t += 300) all.AddRange(m.Step(menu, t));
+        Assert.Contains(all, a => a is ClickAction c && c.Reason.StartsWith("Map Trials"));
+        Assert.DoesNotContain(all, a => a is ClickAction c && c.Reason.StartsWith("Leave"));
+        var trials = new TrialsInfo(new GuiRect(40, 190, 600, 55), true, 2, 1, null, null, new GuiRect(1343, 911, 260, 60),
+            [new RewardCard("Gems", false, false, null, null), new RewardCard("Meat", true, false, new GuiRect(1610, 770, 90, 90), "36%")], new GuiRect(1150, 740, 720, 140))
+        { Leave = new GuiRect(1617, 911, 260, 60) };
+        var tri = new GameSnapshot { Attached = true, ClientW = 1920, ClientH = 1080, Trials = trials };
+        for (long e = t + 2000; t <= e; t += 200) all.AddRange(m.Step(tri, t));
+        Assert.Contains(all, a => a is ClickAction c && c.Reason.StartsWith("Leave Trials"));
+        Assert.DoesNotContain(all, a => a is ClickAction c && c.Reason.Contains("Start"));
+        var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
+        Assert.Contains(m.Step(lobby, t + 300), a => a is StopAction);
+        Assert.Equal(["Meat"], scan!.Drops[FarmMachine.DropKey("Trials", 2)]);
+    }
+
+    [Fact]
+    public void Calibration_MapsInListOrder_SinglePassAcrossModes()
+    {
+        var (m, _) = New();
+        m.StartCalibration();
+        string tag = "Hxh";
+        GameSnapshot Snap() => new()
+        {
+            Attached = true, LobbyMenuOpen = true, ClientW = 1920, ClientH = 1080, LobbyMapTag = tag, LobbyLeave = new GuiRect(1600, 900, 80, 60),
+            LobbyModes = [new LobbyEntry("Story", false, true, new GuiRect(100, 100, 100, 40)), new LobbyEntry("Raid", false, false, new GuiRect(100, 150, 100, 40))],
+            // urutan baca berbeda dengan urutan tampil (Y)
+            LobbyMaps = [new LobbyEntry("Spirit's Bathtub", false, false, new GuiRect(300, 500, 200, 60), "Raid"), new LobbyEntry("Hxh", false, tag == "Hxh", new GuiRect(300, 100, 200, 60), "Story"),
+                new LobbyEntry("Evil Reflection", false, false, new GuiRect(300, 300, 200, 60), "Raid")],
+            LobbyActs = [new LobbyEntry("Act 1", false, true, new GuiRect(600, 150, 100, 40))],
+        };
+        var order = new List<string>(); var all = new List<MacroAction>();
+        for (long t = 0; t <= 20000 && !all.Any(x => x is ClickAction c && c.Reason.StartsWith("Leave")); t += 200)
+        {
+            var a = m.Step(Snap(), t); all.AddRange(a);
+            foreach (var c in a.OfType<ClickAction>().Where(c => c.Reason.StartsWith("Map "))) { tag = c.Reason[4..]; order.Add(tag); }
+        }
+        Assert.Equal(["Evil Reflection", "Spirit's Bathtub"], order);
+        Assert.DoesNotContain(all, a => a is ClickAction c && c.Reason.StartsWith("Mode Raid"));
     }
 
     [Fact]

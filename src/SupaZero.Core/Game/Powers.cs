@@ -120,7 +120,7 @@ public sealed partial class GameReader
     /// <summary>Loadout + trait, dibaca paling sering tiap 2 detik (tanpa input apa pun).</summary>
     public IReadOnlyList<EquippedPower> ReadPowers(DataModelRoots roots)
     {
-        if (DateTime.UtcNow - _powersAt < TimeSpan.FromSeconds(2)) return _equipped;
+        if (DateTime.UtcNow - _powersAt < TimeSpan.FromSeconds(1)) return _equipped; // v0.3.7: 2→1 dtk (kalibrasi trait lebih cepat)
         _powersAt = DateTime.UtcNow;
         try
         {

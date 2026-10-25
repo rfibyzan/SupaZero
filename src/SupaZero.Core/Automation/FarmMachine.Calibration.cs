@@ -20,7 +20,7 @@ public sealed partial class FarmMachine
 {
     public bool Calibrating { get; private set; }
     public Action<CalibrationScan>? CalibrationFinished { get; set; }
-    public const int CalStableMs = 800, CalStepTimeoutMs = 10_000;
+    public const int CalStableMs = 400, CalStepTimeoutMs = 10_000; // v0.3.7: 800→400 ms (percepat)
 
     // 1 baca daftar mode · 2 pilih mode · 3 baca map · 4 pilih map · 5 baca act · 6 Leave
     private int _calStage;
@@ -40,6 +40,13 @@ public sealed partial class FarmMachine
     public const long CalDiffTimeoutMs = 4000, CalActTimeoutMs = 6000;
     public static string DropKey(string map, int act) => $"{map.Trim()}|Act {act}";
     private long _calSigSince, _calStepAt = -1;
+    // v0.3.7 (Byzan 25 Okt 09:03): daftar map memuat semua mode → satu kali lewat, urut posisi daftar (atas→bawah).
+    private bool _calAllListed;
+    // Trials terakhir: klik kartu → panel Trials (Floor Rewards) → baca drop → Leave Trials (sekaligus keluar menu room).
+    private string? _calTrials;
+    private long? _calTrialsClickAt;
+    private bool _calTrialsRead;
+    public const int CalTrialsOpenMs = 4000;
 
     public void StartCalibration()
     {
@@ -48,6 +55,7 @@ public sealed partial class FarmMachine
         _calModes = []; _calMaps = [];
         _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear(); _calDrops.Clear(); _calDropActs = []; _calDropIdx = 0;
         _calSig = null; _calStepAt = -1;
+        _calAllListed = false; _calTrials = null; _calTrialsClickAt = null; _calTrialsRead = false;
         _pcStep = 2; _pcStepAt = null; _pcOpenAt = null; // tombol Trait/Spin LobbyHUD tidak ada (Byzan 25 Okt) → PowerCheck tidak dipakai
         _trStep = 0; _trAt = null; _trHeader = null; _trClickAt = null; _trSeen.Clear();
     }
@@ -60,7 +68,7 @@ public sealed partial class FarmMachine
     private long _trHeaderAt;
     private long? _trClickAt;
     private readonly HashSet<int> _trSeen = [];
-    public const int TraitNextTimeoutMs = 3000;
+    public const int TraitNextTimeoutMs = 3000, TraitReadMs = 1500; // v0.3.7: 3000→1500 (Powers dibaca tiap 1 dtk)
 
     /// <summary>"Shadow Lord 3/5" → (3, 5); tanpa counter → (0, 0).</summary>
     public static (int Cur, int Total) TraitCounter(string? header)
@@ -68,7 +76,7 @@ public sealed partial class FarmMachine
         var m = header is null ? null : System.Text.RegularExpressions.Regex.Match(header, @"(\d+)\s*/\s*(\d+)\s*$");
         return m is { Success: true } ? (int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value)) : (0, 0);
     }
-    public const int TraitTeleportSettleMs = 2000, TraitWalkMs = 10_000, TraitBackMs = 6000;
+    public const int TraitTeleportSettleMs = 1200, TraitWalkMs = 10_000, TraitBackMs = 6000;
     public const string CalRoomCard = "Story";
     public const double TraitSpotMaxDist = 25; // spawn kartu Traits ↔ GuideSpot ≈ 7 stud (RIE)
 
@@ -124,7 +132,7 @@ public sealed partial class FarmMachine
                 if (s.TraitHeader != _trHeader) { _trHeader = s.TraitHeader; _trHeaderAt = now; _trClickAt = null; }
                 if (cur > 0 && total > 0)
                 {
-                    if (now - _trHeaderAt < PowerMenuReadMs) return [stand];
+                    if (now - _trHeaderAt < TraitReadMs) return [stand];
                     if (_trSeen.Add(cur)) _calNotes.Add($"trait unit {s.TraitHeader} terbaca");
                     if (_trSeen.Count < total)
                     {
@@ -185,7 +193,9 @@ public sealed partial class FarmMachine
             case GameScreen.Unknown:
                 return Wait("Kalibrasi: menunggu Roblox / DataModel.");
             case GameScreen.Lobby:
-                if (_calStage >= 6) return CalFinish("menu room ditutup lewat Leave");
+                if (_calStage == 9 && !_calTrialsRead && _calTrialsClickAt is long tc && now - tc < CalTrialsOpenMs)
+                    return [new MoveAction([], "Kalibrasi: menunggu panel Trials")];
+                if (_calStage >= 6) return CalFinish(_calStage == 9 ? "panel Trials ditutup lewat Leave" : "menu room ditutup lewat Leave");
                 if (CalTraits(s, now) is { } tr) return tr;
                 if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
                 // v0.2.89: lingkaran Create Room ada di area Story (Byzan 25 Okt) → kalibrasi selalu pakai kartu "Story", bukan mode farm.
@@ -195,9 +205,7 @@ public sealed partial class FarmMachine
             case GameScreen.LobbyMenu:
                 return CalMenu(s, now);
             case GameScreen.TrialsMenu when _calStage > 0:
-                // Map yang membuka panel lain (bukti log 25 Okt 00:14: "Trials") → simpan hasil, jangan klik apa pun di panel itu.
-                _calNotes.Add("panel Trials terbuka dari daftar map → tutup panel Trials sendiri.");
-                return CalFinish("panel Trials terbuka");
+                return CalTrialsPanel(s, now);
             default:
                 Calibrating = false;
                 return Stop($"Kalibrasi hanya bisa dimulai dari lobby (layar sekarang: {s.Screen}).");
@@ -224,7 +232,7 @@ public sealed partial class FarmMachine
 
         if (_calStage == 2)
         {
-            if (_calModeIdx >= _calModes.Count) { CalGo(6, now); }
+            if (_calModeIdx >= _calModes.Count) { CalGo(_calTrials is not null ? 9 : 6, now); }
             else
             {
                 string m = CalMode;
@@ -254,15 +262,19 @@ public sealed partial class FarmMachine
                 _calKnown.RemoveAll(k => k.Name.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
                 _calKnown.Add(new KnownMap(x.Name, x.Locked, x.Mode ?? (CalMode.Length > 0 ? CalMode : null)));
             }
-            // "Trials" di daftar map membuka panel Trials (bukan act) → tidak diklik saat kalibrasi.
-            _calMaps = s.LobbyMaps.Where(x => !x.Locked && !_calActs.ContainsKey(x.Name) && !OpensOtherPanel(x.Name)).Select(x => x.Name).ToList();
+            // "Trials" membuka panel Trials (bukan act) → dikalibrasi TERAKHIR karena Leave-nya menutup menu room.
+            if (s.LobbyMaps.FirstOrDefault(x => !x.Locked && OpensOtherPanel(x.Name)) is { } tri) _calTrials = tri.Name;
+            // v0.3.7: urut posisi di daftar (atas→bawah) agar scroll searah; daftar berisi map lintas mode → mode lain tidak perlu diklik.
+            _calAllListed = s.LobbyMaps.Select(x => x.Mode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Count() >= 2;
+            _calMaps = s.LobbyMaps.Where(x => !x.Locked && !_calActs.ContainsKey(x.Name) && !OpensOtherPanel(x.Name))
+                .OrderBy(x => x.Rect is null ? 1 : 0).ThenBy(x => x.Rect?.Y ?? 0).Select(x => x.Name).ToList();
             _calMapIdx = 0;
             CalGo(4, now);
         }
 
         if (_calStage == 4)
         {
-            if (_calMapIdx >= _calMaps.Count) { _calModeIdx++; CalGo(2, now); return [stand]; }
+            if (_calMapIdx >= _calMaps.Count) { _calModeIdx = _calAllListed ? _calModes.Count : _calModeIdx + 1; CalGo(2, now); return [stand]; }
             string map = _calMaps[_calMapIdx];
             if (Matches(s.LobbyMapTag, map)) CalGo(5, now);
             else
@@ -349,6 +361,18 @@ public sealed partial class FarmMachine
             return [stand, new NoteAction($"Kalibrasi drop: {map} Act {act} ({s.LobbyDifficultyTag?.Trim('[', ']', ' ')}) → {(names.Count > 0 ? string.Join(", ", names) : "tidak ada material yang bisa ditarget")}.")];
         }
 
+        if (_calStage == 9)
+        {
+            // Trials terakhir: klik kartu Trials (scroll bila perlu) → layar TrialsMenu ditangani CalTrialsPanel.
+            var e = s.LobbyMaps.FirstOrDefault(x => x.Name == _calTrials && !x.Locked);
+            if (e is null || (CalTimedOut(now) && _calTrialsClickAt is null)) { _calTrials = null; return CalSkip("kartu Trials tidak bisa diklik → drop Trials tidak dikalibrasi.", 6, now); }
+            if (_calTrialsClickAt is long tc && now - tc > CalTrialsOpenMs) { _calTrials = null; return CalSkip("panel Trials tidak terbuka setelah klik → drop Trials tidak dikalibrasi.", 6, now); }
+            Status = "Kalibrasi: buka Trials (terakhir).";
+            var click = ClickEntry(s, e, s.LobbyMapsView, "cal-map", "Map Trials (kalibrasi)", now) ?? [];
+            if (click.Any(a => a is ClickAction)) _calTrialsClickAt = now;
+            return [stand, .. click];
+        }
+
         // 6) Batalkan room: klik Leave, tidak pernah Start.
         Status = "Kalibrasi selesai membaca → Leave (batalkan room).";
         if (s.LobbyLeave is not { } lv)
@@ -356,6 +380,44 @@ public sealed partial class FarmMachine
         if (CalTimedOut(now)) return CalFinish("menu room tidak tertutup setelah klik Leave");
         if (!InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("tombol Leave di luar jendela Roblox → tutup menu room sendiri");
         return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave (batalkan room kalibrasi)")] : [stand];
+    }
+
+    /// <summary>
+    /// v0.3.7 panel Trials (snapshot s0819 / foto Byzan 25 Okt 09:03): tab Floor Rewards → Rewards stabil → simpan material ber-TargetPill
+    /// sebagai "Trials|Act &lt;floor&gt;" → klik Leave Trials (Buttons.LeaveButton.LeaveButton, teks "Leave") yang sekaligus menutup menu room.
+    /// Tidak pernah klik Start, +/-, atau material.
+    /// </summary>
+    private List<MacroAction> CalTrialsPanel(GameSnapshot s, long now)
+    {
+        Phase = MacroPhase.Lobby;
+        var stand = new MoveAction([], "Kalibrasi");
+        var t = s.Trials!;
+        if (_calStage != 9) { _calStage = 9; _calSig = null; _calStepAt = now; }
+        _calTrialsClickAt = null;
+        if (!_calTrialsRead)
+        {
+            if (CalTimedOut(now)) { _calTrialsRead = true; _calNotes.Add("drop Trials tidak terbaca (batas waktu)."); _calStepAt = now; }
+            else if (!t.FloorTabOpen)
+            {
+                Status = "Kalibrasi Trials: buka tab Floor Rewards.";
+                if (t.FloorTab is not { } tab || !InWindow(s, tab.CenterX, tab.CenterY)) return [stand];
+                return Ready("cal-tr-tab", now, 1200) ? [stand, new ClickAction(tab.CenterX, tab.CenterY, "Tab Floor Rewards (kalibrasi)")] : [stand];
+            }
+            else
+            {
+                Status = "Kalibrasi Trials: baca Floor Rewards.";
+                string sig = $"{t.SelectedFloor}|{string.Join(",", t.Rewards.Select(r => $"{r.Name}:{r.Targetable}"))}";
+                if (t.SelectedFloor is not int floor || t.Rewards.Count == 0 || !CalStable(sig, now)) return [stand];
+                var names = t.Rewards.Where(r => r.Targetable).Select(r => r.Name.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                _calDrops[DropKey("Trials", floor)] = names;
+                _calTrialsRead = true; _calStepAt = now;
+                return [stand, new NoteAction($"Kalibrasi drop: Trials Floor {floor} → {(names.Count > 0 ? string.Join(", ", names) : "tidak ada material yang bisa ditarget")}.")];
+            }
+        }
+        Status = "Kalibrasi Trials selesai → Leave.";
+        if (t.Leave is not { } lv || !InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("tombol Leave Trials tidak terbaca → tutup panel Trials sendiri");
+        if (CalTimedOut(now)) return CalFinish("panel Trials tidak tertutup setelah klik Leave");
+        return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave Trials (kalibrasi)")] : [stand];
     }
 
     /// <summary>Entri daftar map yang terbukti membuka panel lain (log Byzan 25 Okt 2026 00:14: klik "Trials" → TrialsMenu).</summary>

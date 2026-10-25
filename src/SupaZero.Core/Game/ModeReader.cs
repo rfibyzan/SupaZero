@@ -112,7 +112,11 @@ public sealed partial class GameReader
             roomShown ? ClientRect(reader.ResolvePath(room, "LeftButtons.Increase")) : null,
             ClientRect(reader.ResolvePath(root, "Buttons.StaerButton.StaerButton")),
             ReadRewards(rewards, false, pg),
-            rewards != 0 ? ClientRect(rewards) : null);
+            rewards != 0 ? ClientRect(rewards) : null)
+        {
+            Leave = reader.ResolvePath(root, "Buttons.LeaveButton.LeaveButton") is var lv and not 0 && IsShown(lv, pg)
+                && TextAt(lv, "Txt(Shadow)")?.Trim() == "Leave" ? ClientRect(lv) : null,
+        };
     }
 
     /// <summary>Drop layar hasil: anak RewardsFrame.CutFrame.Holder yang tampil (money, gems, materialNNN, unit...) + jumlah.</summary>

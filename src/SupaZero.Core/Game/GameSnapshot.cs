@@ -85,7 +85,11 @@ public sealed record BlessingOffer(string Name, string Rarity, string? Value, Gu
 
 /// <summary>Panel Trials (UI Animation (Finished).Trials.MainFrame). FloorTabOpen = tab Floor Rewards aktif.</summary>
 public sealed record TrialsInfo(GuiRect? FloorTab, bool FloorTabOpen, int? SelectedFloor, int? HighestFloor,
-    GuiRect? Decrease, GuiRect? Increase, GuiRect? Start, IReadOnlyList<RewardCard> Rewards, GuiRect? RewardsView);
+    GuiRect? Decrease, GuiRect? Increase, GuiRect? Start, IReadOnlyList<RewardCard> Rewards, GuiRect? RewardsView)
+{
+    /// <summary>v0.3.7: Buttons.LeaveButton.LeaveButton (teks "Leave", s0819: 1617,911). Menutup panel Trials + menu room.</summary>
+    public GuiRect? Leave { get; init; }
+}
 
 /// <summary>Kotak Workspace.World.Areas.&lt;n&gt; (Part: pusat + Size).</summary>
 public sealed record AreaBox(Settings.Vec3 Center, Settings.Vec3 Size)
