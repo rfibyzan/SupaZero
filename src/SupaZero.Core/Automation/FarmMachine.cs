@@ -179,6 +179,30 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     private string? _roomTarget;
     private long? _teleportAt;
     private long? _arrivedAt;
+    /// <summary>v0.3.1 (screenshot Byzan 08:24, 25 Okt): karakter sudah di lingkaran tapi jarak terbaca tetap ~11 stud, menu tidak terbuka,
+    /// macro terus "jalan" → tidak pernah masuk hitungan JoinTimeout. Jarak tidak membaik ≥ 1 stud selama ini → anggap gagal, pindah lingkaran.</summary>
+    public const long RoomNoProgressMs = 6000;
+    private string? _progTarget;
+    private double _progBest;
+    private long _progBestAt;
+
+    /// <summary>true bila jalan ke room <paramref name="id"/> tidak membuat jarak membaik selama <see cref="RoomNoProgressMs"/>.</summary>
+    private bool RoomStalled(string id, double dist, long now)
+    {
+        if (_progTarget != id) { _progTarget = id; _progBest = dist; _progBestAt = now; return false; }
+        if (dist < _progBest - 1) { _progBest = dist; _progBestAt = now; return false; }
+        return now - _progBestAt > RoomNoProgressMs;
+    }
+
+    private List<MacroAction> BanRoom(string id, long now, string why)
+    {
+        _roomBan[id] = now + 30_000;
+        _roomTarget = null;
+        _arrivedAt = null;
+        _progTarget = null;
+        Status = "Gagal join, pindah lingkaran.";
+        return [new MoveAction([], "Pindah lingkaran"), new NoteAction($"Tidak bisa join {Label(id)} ({why}) → coba lingkaran lain.")];
+    }
 
     private static string Label(string id) => id.StartsWith("room:") ? "room " + id[5..] : id == "manual" ? "lingkaran rekaman" : "lingkaran";
 
@@ -255,7 +279,12 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         {
             _roomTarget = t.Id;
             var walk = WalkTo(s, t.Pos, LobbyArriveRadius, now, "lingkaran Create Room", attackWhenStuck: false);
-            if (walk.Count > 0) { _arrivedAt = null; return [.. pre, .. walk]; }
+            if (walk.Count > 0)
+            {
+                _arrivedAt = null;
+                if (RoomStalled(t.Id, dist, now)) return [.. pre, .. BanRoom(t.Id, now, $"jarak tertahan {dist:0.#} stud {RoomNoProgressMs / 1000} dtk, menu tidak terbuka")];
+                return [.. pre, .. walk];
+            }
 
             _arrivedAt ??= now;
             long waited = now - _arrivedAt.Value;
@@ -263,16 +292,14 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             if (waited >= 2000 && dist > 2)
             {
                 var center = WalkTo(s, t.Pos, 1.5, now, "tengah lingkaran", attackWhenStuck: false);
-                if (center.Count > 0) return [.. pre, .. center];
+                if (center.Count > 0)
+                {
+                    if (RoomStalled(t.Id, dist, now)) return [.. pre, .. BanRoom(t.Id, now, $"tidak bisa ke tengah, jarak {dist:0.#} stud, menu tidak terbuka")];
+                    return [.. pre, .. center];
+                }
             }
             if (waited >= Math.Max(1, f.JoinTimeoutSec) * 1000L)
-            {
-                _roomBan[t.Id] = now + 30_000;
-                _roomTarget = null;
-                _arrivedAt = null;
-                Status = "Gagal join, pindah lingkaran.";
-                return [new MoveAction([], "Pindah lingkaran"), new NoteAction($"Tidak bisa join {Label(t.Id)} ({waited / 1000} dtk, jarak {dist:0.#} stud) → coba lingkaran lain.")];
-            }
+                return BanRoom(t.Id, now, $"{waited / 1000} dtk, jarak {dist:0.#} stud");
             Status = $"Di {Label(t.Id)}, menunggu menu Create Room ({waited / 1000}/{f.JoinTimeoutSec} dtk).";
             return [new MoveAction([], "Sampai")];
         }

@@ -339,6 +339,20 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Lobby_WalkStalledNearRoom_SwitchesRoom()
+    {
+        // Screenshot Byzan 08:24 (25 Okt): status "Jalan ke lingkaran Create Room (11 stud)" terus, padahal karakter di lingkaran & menu tidak terbuka.
+        var (m, _) = New();
+        var rooms = new[] { new StartRoom("1", new Vec3(11, 0, 0), false), new StartRoom("2", new Vec3(-30, 0, 0), false) };
+        var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartRooms = rooms };
+        Assert.Contains(Real(m.Step(snap, 0)), a => a is MoveAction { Keys.Count: > 0 });
+        Assert.DoesNotContain(Real(m.Step(snap, 4000)), a => a is NoteAction);
+        Assert.Contains(Real(m.Step(snap, 6500)), a => a is NoteAction n && n.Reason.Contains("room 1") && n.Reason.Contains("tertahan"));
+        var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 7000))));
+        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 di-ban → ke room 2
+    }
+
+    [Fact]
     public void Lobby_ActMissingOnMap_Stops()
     {
         // v0.2.80: act yang diminta tidak ada → berhenti (tidak pindah act sendiri).
