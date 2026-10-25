@@ -1254,6 +1254,11 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             else if (now - _buyAt < BuyConfirmMs) return [stand];
             else { _pendingBuyConfirm = false; if (++_upBuyFails >= 2) return Close("Buy diklik tapi token tidak turun 2×, berhenti"); }
         }
+        if (up.EffectiveOnlyUnit is { } only && !_pendingBuyConfirm)
+        {
+            if (s.SkillUnitName is null) return Close($"nama unit tidak terbaca, filter \"{only}\" aktif → tidak membeli");
+            if (!s.SkillUnitName.Equals(only, StringComparison.OrdinalIgnoreCase)) return Close($"unit terpilih {s.SkillUnitName} ≠ \"{only}\" → tidak membeli");
+        }
         if (s.Tokens is not int tok) return Close("token tidak terbaca, tidak membeli");
         if (_boughtThisStage >= up.MaxBuysPerStage) return Close("batas beli tercapai");
         var slot = UpgradePlanner.Next(s.Slots, up.EffectivePriority, up.Mode, _boughtThisStage, tok);

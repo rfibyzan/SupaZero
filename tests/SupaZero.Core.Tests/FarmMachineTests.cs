@@ -451,6 +451,26 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void LobbyUpgrade_OnlyUnitMismatch_ClosesWithoutBuying()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "Shadow Lord" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 6,
+            SkillUnitSlot = 2, SkillUnitName = "Cursed King", Slots = [new SkillSlot("ATK", 1, true, new GuiRect(10, 10, 100, 100), 1)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        var a = m.Step(tree, 0);
+        Assert.DoesNotContain(a, x => x is ClickAction { Reason: var r } && r.StartsWith("Node"));
+        Assert.Contains(a, x => x is NoteAction n && n.Reason.Contains("Cursed King ≠"));
+    }
+
+    [Fact]
+    public void LobbyUpgrade_OnlyUnitMatch_CaseInsensitive_ClicksNode()
+    {
+        var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true, OnlyUnit = "shadow lord" }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });
+        var tree = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080, SkillTreeOpen = true, Tokens = 67,
+            SkillUnitSlot = 3, SkillUnitName = "Shadow Lord", Slots = [new SkillSlot("ATK", 1, true, new GuiRect(10, 10, 100, 100), 1)], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
+        Assert.Contains(m.Step(tree, 0), x => x is ClickAction { Reason: "Node ATK #2" });
+    }
+
+    [Fact]
     public void LobbyUpgrade_PriceAboveTokens_ClosesWithoutBuying()
     {
         var (m, _) = New(s => { s.Upgrade = s.Upgrade with { Enabled = true }; s.Farm = s.Farm with { CheckPowersInLobby = false }; });

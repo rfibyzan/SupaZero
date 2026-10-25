@@ -147,8 +147,11 @@ public sealed record UpgradeSettings(
     bool Enabled = false,
     UpgradeMode Mode = UpgradeMode.Priority,
     List<string>? Priority = null,
-    int MaxBuysPerStage = 5)
+    int MaxBuysPerStage = 5,
+    string? OnlyUnit = null)
 {
+    /// <summary>v0.2.94: nama unit yang boleh di-upgrade (kosong = unit terpilih apa pun).</summary>
+    public string? EffectiveOnlyUnit => string.IsNullOrWhiteSpace(OnlyUnit) ? null : OnlyUnit.Trim();
     public static IReadOnlyList<string> Columns { get; } = ["ATK", "CRIT", "DEF", "SPD"];
     public IReadOnlyList<string> EffectivePriority =>
         Priority is { Count: > 0 } p ? p : ["ATK", "CRIT", "SPD", "DEF"];
