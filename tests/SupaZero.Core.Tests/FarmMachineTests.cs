@@ -913,6 +913,24 @@ public class FarmMachineTests
     }
 
     [Fact]
+    public void Farm_RaidMode_TeleportsViaStoryCard()
+    {
+        // Log Byzan 08:29:47: mode Raid → "Kartu teleport 'Raid' tidak ada (terbaca: Story, Arsenal, ...)". Lingkaran Create Room ada di area Story.
+        var (m, _) = New(s => s.Farm = s.Farm with { Mode = "Raid", CheckPowersInLobby = false });
+        var far = new GameSnapshot
+        {
+            Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
+            StartRooms = [new StartRoom("6", new Vec3(131, 0, 0), false, null, null)],
+            TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(100, 300, 200, 100)), new LobbyEntry("Arsenal", false, false, new GuiRect(400, 300, 200, 100))],
+            AreasView = new GuiRect(50, 50, 900, 600),
+        };
+        var acts = new List<MacroAction>();
+        for (long t = 0; t <= 3000; t += 500) acts.AddRange(m.Step(far, t));
+        Assert.Contains(acts, a => a is ClickAction c && c.Reason == "Teleport Story");
+        Assert.DoesNotContain(acts, a => a is NoteAction n && n.Reason.Contains("tidak ada"));
+    }
+
+    [Fact]
     public void Calibration_Traits_WalksToGuideSpot_ThenExitsZone()
     {
         var (m, _) = New();

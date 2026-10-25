@@ -209,7 +209,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     private List<MacroAction> WalkToLobby(GameSnapshot s, AppSettings S, long now, bool force = false, string? cardName = null)
     {
         var f = S.Farm;
-        string want = cardName ?? f.Mode;
+        // v0.3.2 (Byzan 25 Okt 08:30): semua lingkaran Create Room ada di area Story → teleport selalu lewat kartu "Story"
+        // (MATCHES_Row1.Story.Story), apa pun mode farm (Raid/Infinite/...). Mode dipilih nanti di menu Create Room.
+        string want = cardName ?? CalRoomCard;
         if (!force && !f.AutoCreateLobby) return Wait("Di lobby (Auto create room mati).");
         if (!force && S.Upgrade.Enabled && !_upgradeDoneThisStage && LobbyUpgrade(s, S.Upgrade, now) is { } lu) return lu;
         if (!force && f.CheckPowersInLobby && PowerCheck(s, now) is { } pc) return pc;
@@ -325,7 +327,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         }
 
         // Teleport lewat Areas → kartu bernama mode itu. v0.2.80: tanpa cadangan kartu Story.
-        var card = s.TeleportCards.FirstOrDefault(c => Matches(c.Name, want));
+        var card = s.TeleportCards.FirstOrDefault(c => c.Name.Trim().Equals(want, StringComparison.OrdinalIgnoreCase));
         if (card is null && s.TeleportCards.Count > 0)
             return [.. pre, new MoveAction([], "Tunggu"), .. Note("tp-nocard", now, 8000, $"Kartu teleport '{want}' tidak ada (terbaca: {string.Join(", ", s.TeleportCards.Select(c => c.Name))}) → tidak diklik.")];
         if (card?.Rect is { } cr)
