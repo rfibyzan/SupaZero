@@ -435,8 +435,10 @@ public class FarmMachineTests
 
         // Snapshot 25 Okt: DEF node 3 (index 2) harga 5, CanBuy; token 67.
         var node = new SkillSlot("DEF", 2, true, new GuiRect(1316, 519, 106, 106), 5);
-        var tree = lobby with { UnitsButton = null, SkillTreeOpen = true, Tokens = 67, Slots = [node], SkillTreeExit = new GuiRect(1696, 115, 48, 48) };
-        Assert.Equal("Node DEF #3", Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(tree, 1000)))).Reason);
+        var tree = lobby with { UnitsButton = null, SkillTreeOpen = true, Tokens = 67, Slots = [node], SkillTreeExit = new GuiRect(1696, 115, 48, 48), SkillUnitSlot = 3, SkillUnitName = "Shadow Lord" };
+        var first = m.Step(tree, 1000);
+        Assert.Contains(first, a => a is NoteAction n && n.Reason.Contains("Shadow Lord (slot 3)"));
+        Assert.Equal("Node DEF #3", Assert.IsType<ClickAction>(Assert.Single(Real(first), a => a is ClickAction)).Reason);
 
         var sel = tree with { Slots = [node with { Selected = true }], BuyButton = new GuiRect(1271, 767, 196, 38) };
         Assert.Equal("Buy DEF #3", Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(sel, 2200)))).Reason);

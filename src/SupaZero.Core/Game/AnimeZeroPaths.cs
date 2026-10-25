@@ -147,6 +147,16 @@ public static class AnimeZeroPaths
     public const string SkillRowSlots = "Hitbox.Clipping.ScrollingFrame";
     /// <summary>Di ImageButton Slot: CanBuy (Frame, tampil = bisa dibeli, tanda "!"), PriceShadow.Price (harga; tersembunyi/hilang = sudah dibeli),
     /// LockedIcon (tampil = terkunci), Bolder (tampil = node terpilih, BuyFrame muncul di bawahnya).</summary>
+    /// <summary>Daftar unit SkillTree: CharacterSlots.Fade.List.SlotN.Hitbox.MainButton.MainButton.SelectedFrame tampil = unit terpilih.</summary>
+    public const string SkillUnitList = "CharacterSlots.Fade.List";
+    public const string SkillUnitSelected = "Hitbox.MainButton.MainButton.SelectedFrame";
+    /// <summary>v0.2.93 [V] 3 snapshot + diff 07:49 (25 Okt): pilihan unit di SkillTree ikut memindah Roll.CharacterSlots…SlotN.SelectedFrame,
+    /// dan Roll.CharacterInfo.TitleShadow.Title = nama unit (Shadow Lord / Divine Emperor / Twisted Agony / Cursed King). Nama dipakai hanya bila
+    /// nomor slot kedua daftar sama.</summary>
+    public const string RollRoot = "UI Animation (Finished).Roll.MainFrame";
+    public const string RollUnitList = "CharacterSlots.Fade.List";
+    public const string RollUnitSelected = "MainButton.MainButton.SelectedFrame";
+    public const string RollUnitTitle = "CharacterInfo.TitleShadow.Title";
     public const string SlotCanBuy = "CanBuy";
     public const string SlotPrice = "PriceShadow";
     public const string SlotLocked = "LockedIcon";

@@ -1239,9 +1239,11 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         List<MacroAction> Close(string why)
         {
             _upClosing = true; _upCloseAt = null;
-            return [stand, .. Note("up-done", now, 1000, $"Upgrade: {why} (beli {_boughtThisStage}, token {s.Tokens?.ToString() ?? "?"}).")];
+            return [stand, .. Note("up-done", now, 1000, $"Upgrade {s.SkillUnitName ?? (s.SkillUnitSlot is int n ? $"slot {n}" : "unit ?")}: {why} (beli {_boughtThisStage}, token {s.Tokens?.ToString() ?? "?"}).")];
         }
 
+        string unit = s.SkillUnitName is { } un ? $"{un}{(s.SkillUnitSlot is int us ? $" (slot {us})" : "")}" : s.SkillUnitSlot is int us2 ? $"slot {us2}" : "unit ?";
+        _pending.AddRange(Note("up-unit:" + unit, now, 600000, $"Upgrade SkillTree: {unit}, token {s.Tokens?.ToString() ?? "?"}."));
         if (_pendingBuyConfirm)
         {
             if (s.Tokens is int t && _tokensBeforeBuy is int b && t < b)
@@ -1265,7 +1267,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             if (!InWindow(s, buy.CenterX, buy.CenterY)) return Close("tombol Buy di luar jendela");
             if (!Ready("up-buy", now, 800)) return [stand];
             _pendingBuyConfirm = true; _tokensBeforeBuy = tok; _buyAt = now;
-            Status = $"Upgrade: beli {slot.Column} #{slot.Index + 1} ({slot.Price} token, sisa {tok})";
+            Status = $"Upgrade {s.SkillUnitName ?? "unit"}: beli {slot.Column} #{slot.Index + 1} ({slot.Price} token, sisa {tok})";
             return [stand, new ClickAction(buy.CenterX, buy.CenterY, $"Buy {slot.Column} #{slot.Index + 1}")];
         }
         if (_upSlotTries >= 3) return Close($"node {slot.Column} #{slot.Index + 1} tidak terpilih setelah 3× klik");

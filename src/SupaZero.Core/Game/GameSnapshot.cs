@@ -254,6 +254,10 @@ public sealed record GameSnapshot
     public int? Tokens { get; init; }
     public IReadOnlyList<SkillSlot> Slots { get; init; } = [];
     public GuiRect? BuyButton { get; init; }
+    /// <summary>Nomor slot unit terpilih di SkillTree (Slot5 → 5), null = tidak terbaca.</summary>
+    public int? SkillUnitSlot { get; init; }
+    /// <summary>Nama unit SkillTree (dari Roll.CharacterInfo bila slot terpilih Roll = slot SkillTree), null = tidak pasti.</summary>
+    public string? SkillUnitName { get; init; }
     /// <summary>Tombol X SkillTree (Header.ExitButton).</summary>
     public GuiRect? SkillTreeExit { get; init; }
     /// <summary>Tombol Units di LobbyHUD (pembuka SkillTree).</summary>

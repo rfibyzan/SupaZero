@@ -150,6 +150,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Slots = treeShown ? ReadSlots(tree, pg) : [],
             BuyButton = treeShown && reader.FindChild(tree, AnimeZeroPaths.BuyFrame) is var bf and not 0 && IsShown(bf, pg)
                 && reader.FindChild(bf, AnimeZeroPaths.BuyButton) is var bb and not 0 && IsShown(bb, pg) ? HubRect(bb) : null,
+            SkillUnitSlot = treeShown ? SelectedSlot(tree, AnimeZeroPaths.SkillUnitList, AnimeZeroPaths.SkillUnitSelected) : null,
+            SkillUnitName = treeShown ? SkillUnitName(tree, pg) : null,
             SkillTreeExit = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeExit) is var ex and not 0 && IsShown(ex, pg) ? HubRect(ex) : null,
             UnitsButton = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.UnitsButtonPath) is var ub and not 0 && IsShown(ub, pg) ? HubRect(ub) : null,
         };
@@ -514,6 +516,32 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// v0.2.92 [V] snapshot RIE 25 Okt 2026: Content.Row ×4 → judul kolom dari teks Hitbox.Title (bukan nama node), node =
     /// Hitbox.Clipping.ScrollingFrame.Slot ×5 diurutkan Y naik (atas → bawah = urutan beli). Node di luar kotak Clipping tidak diberi Rect.
     /// </summary>
+    /// <summary>Nomor dari nama "SlotN" yang SelectedFrame-nya Visible (cek properti sendiri, bukan leluhur: daftar Roll tersembunyi).</summary>
+    private int? SelectedSlot(long root, string list, string selPath)
+    {
+        long l = root != 0 ? reader.ResolvePath(root, list) : 0;
+        if (l == 0) return null;
+        int? hit = null;
+        foreach (long c in reader.GetChildren(l, 64))
+        {
+            string name = reader.GetName(c);
+            if (!name.StartsWith("Slot", StringComparison.Ordinal) || !int.TryParse(name[4..], out int n)) continue;
+            long sel = reader.ResolvePath(c, selPath);
+            if (sel == 0 || !reader.Offsets.TryResolve("GuiObject.Visible", out long vo) || !M.TryReadByte(sel + vo, out byte v)) continue;
+            if (v != 0) { if (hit is not null) return null; hit = n; }
+        }
+        return hit;
+    }
+
+    private string? SkillUnitName(long tree, long pg)
+    {
+        int? st = SelectedSlot(tree, AnimeZeroPaths.SkillUnitList, AnimeZeroPaths.SkillUnitSelected);
+        long roll = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.RollRoot) : 0;
+        int? rs = SelectedSlot(roll, AnimeZeroPaths.RollUnitList, AnimeZeroPaths.RollUnitSelected);
+        if (st is null || rs != st) return null;
+        return CleanText(reader.ResolvePath(roll, AnimeZeroPaths.RollUnitTitle));
+    }
+
     private List<SkillSlot> ReadSlots(long tree, long pg)
     {
         var list = new List<SkillSlot>();
