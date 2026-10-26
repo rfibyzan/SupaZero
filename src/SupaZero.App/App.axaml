@@ -54,6 +54,7 @@
     <DataTemplate DataType="vm:GeneralViewModel"><views:GeneralView /></DataTemplate>
     <DataTemplate DataType="vm:CombatPageViewModel"><views:CombatView /></DataTemplate>
     <DataTemplate DataType="vm:LobbyPageViewModel"><views:LobbyView /></DataTemplate>
+    <DataTemplate DataType="vm:ModesPageViewModel"><views:ModesView /></DataTemplate>
     <DataTemplate DataType="vm:OffsetsViewModel"><views:OffsetsView /></DataTemplate>
     <DataTemplate DataType="vm:UpgradeViewModel"><views:UpgradeView /></DataTemplate>
     <DataTemplate DataType="vm:SettingsPageViewModel"><views:SettingsView /></DataTemplate>
