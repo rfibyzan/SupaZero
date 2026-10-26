@@ -93,8 +93,16 @@ public sealed partial class GameReader
     public PowerKnowledge Powers { get; set; } = new();
 
     // Terverifikasi RIE 23 Okt 2026, relatif PlayerGui.
-    private const string InventoryList = "UI Animation (Finished).Roll.SurfaceGui.MainFrame.CharacterSlots.Fade.List";
-    private const string SelectedTitle = "UI Animation (Finished).Roll.SurfaceGui.MainFrame.CharacterInfo.TitleShadow.Title";
+    private const string InventoryList = "CharacterSlots.Fade.List";
+    private const string SelectedTitle = "CharacterInfo.TitleShadow.Title";
+    /// <summary>v0.3.12: MainFrame Roll (ScreenGui langsung, atau SurfaceGui lama); 0 bila tidak ada.</summary>
+    internal long RollFrame(long pg)
+    {
+        if (pg == 0) return 0;
+        foreach (var path in AnimeZeroPaths.RollMainFrames) if (reader.ResolvePath(pg, path) is var f and not 0) return f;
+        return 0;
+    }
+    private long RollPath(long pg, string rel) => RollFrame(pg) is var f and not 0 ? reader.ResolvePath(f, rel) : 0;
     private const string TraitRoot = "UI Animation (Working).Trait Reroll.SurfaceGui.MainFrame.Left.Content";
     private const string TraitPowerName = "CharacterSwitch.CharacterName.Txt";
     private const string TraitCard = "RerollPage.CutRoll.OpenningCutFrame.RollFrameCut.RollFrame.TraitCard1.Hitbox";
@@ -129,7 +137,7 @@ public sealed partial class GameReader
             if (pg == 0) return _equipped = Powers.SavedLoadout();
             LearnFromTraitScreen(pg);
             WatchSpins(pg);
-            var list = reader.ResolvePath(pg, InventoryList);
+            var list = RollPath(pg, InventoryList);
             if (list == 0) { PowerDebug = "Power: daftar slot tidak ada (buka menu karakter sekali)"; return _equipped = Powers.SavedLoadout(); }
             EnsureIdleMap(roots.ReplicatedStorage);
 
@@ -144,7 +152,7 @@ public sealed partial class GameReader
                 string? id = CharacterId(slot);
 
                 // Nama: belajar dari judul saat slot ini sedang dipilih.
-                if (id is not null && main != 0 && IsVisibleFlag(Find(main, "SelectedFrame", 2)) && Text(reader.ResolvePath(pg, SelectedTitle)) is { Length: > 0 } title)
+                if (id is not null && main != 0 && IsVisibleFlag(Find(main, "SelectedFrame", 2)) && Text(RollPath(pg, SelectedTitle)) is { Length: > 0 } title)
                     Powers.LearnName(id, title.Trim());
 
                 long equipped = reader.ResolvePath(slot, "Options.EquipButton.EquipButton.Equipped");

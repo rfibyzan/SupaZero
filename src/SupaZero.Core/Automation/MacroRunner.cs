@@ -80,7 +80,9 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 LastSnapshot = snap;
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
                 bool fg = input.IsTargetForeground();
-                if (fg && settings().Combat.AutoShiftLock) await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct);
+                // v0.3.12 (Byzan 26 Okt): musuh terdeteksi di stage mana pun → shift lock WAJIB nyala (tidak tergantung toggle).
+                bool mustLock = MustShiftLock(snap);
+                if (fg && (mustLock || settings().Combat.AutoShiftLock)) await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct, mustLock);
                 if (!fg && actions.Any(a => a is not NoteAction and not StopAction))
                 {
                     if (!pausedLogged) Log?.Invoke("Roblox tidak di depan → input ditahan.");
@@ -115,22 +117,38 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     private bool? _slWant;
     private GameScreen _slScreen = GameScreen.Unknown;
 
-    private async Task EnsureShiftLock(GameScreen screen, IReadOnlyList<MacroAction> actions, long now, CancellationToken ct)
+    /// <summary>v0.3.12: musuh hidup terbaca dan bukan layar lobby/menu lobby (Shift dilarang di lobby).</summary>
+    public static bool MustShiftLock(GameSnapshot s) => MustShiftLock(s.Screen, s.EnemyCount);
+    public static bool MustShiftLock(GameScreen screen, int enemyCount) =>
+        enemyCount > 0 && screen is not (GameScreen.Lobby or GameScreen.LobbyMenu or GameScreen.QueueWaiting or GameScreen.TrialsMenu);
+
+    private long _slGiveUpLogAt = -60_000;
+
+    private async Task EnsureShiftLock(GameScreen screen, IReadOnlyList<MacroAction> actions, long now, CancellationToken ct, bool mustLock = false)
     {
         if (screen != _slScreen) { _slScreen = screen; _slFails = 0; _slWant = null; }
-        if (screen == GameScreen.Unknown || _camFree || _shiftLockMem is not { } cur) return;
-        bool want = screen == GameScreen.InRound && !actions.Any(a => a is ClickAction or ScrollAction);
+        // Status shift lock hanya dari kamera (tanpa tebakan): tidak terbaca / kamera animasi → tidak menekan Shift.
+        if ((screen == GameScreen.Unknown && !mustLock) || _camFree || _shiftLockMem is not { } cur) return;
+        // Klik GUI di tick ini: penanganan klik mematikan & menyalakan lagi shift lock sendiri.
+        bool clicking = actions.Any(a => a is ClickAction or ScrollAction);
+        bool want = (mustLock || screen == GameScreen.InRound) && !clicking;
         if (cur == want) { if (_slWant == want) _slFails = 0; _slWant = null; return; }
-        if (now - _slLastPress < 2500 || _slFails >= 3) return;
-        if (_slWant == want && ++_slFails >= 3)
+        if (now - _slLastPress < 2500) return;
+        if (_slFails >= 3)
         {
-            Log?.Invoke($"Shift lock tidak berubah ke {(want ? "nyala" : "mati")} setelah 3× Shift (cek Settings Roblox: Shift Lock Switch) → berhenti mencoba di layar ini.");
-            return;
+            // Musuh ada → tidak pernah menyerah; coba lagi tiap 6 dtk. Tanpa musuh → berhenti di layar ini (perilaku lama).
+            if (!(mustLock && want) || now - _slLastPress < 6000) return;
+            if (now - _slGiveUpLogAt > 60_000) { _slGiveUpLogAt = now; Log?.Invoke("Shift lock belum nyala padahal ada musuh → terus dicoba tiap 6 dtk (cek Settings Roblox: Shift Lock Switch = On)."); }
+        }
+        else if (_slWant == want && ++_slFails >= 3)
+        {
+            Log?.Invoke($"Shift lock tidak berubah ke {(want ? "nyala" : "mati")} setelah 3× Shift (cek Settings Roblox: Shift Lock Switch){(mustLock && want ? " → musuh ada, tetap dicoba tiap 6 dtk." : " → berhenti mencoba di layar ini.")}");
+            if (!(mustLock && want)) return;
         }
         _slWant = want;
         _slLastPress = now;
         input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
-        Log?.Invoke(want ? "Ronde berjalan → Shift ditekan (menyalakan shift lock, diverifikasi dari kamera)." : $"Di luar ronde ({screen}) → Shift ditekan (mematikan shift lock untuk klik GUI).");
+        Log?.Invoke(want ? (mustLock ? "Musuh terdeteksi → Shift ditekan (shift lock wajib nyala, diverifikasi dari kamera)." : "Ronde berjalan → Shift ditekan (menyalakan shift lock, diverifikasi dari kamera).") : $"Di luar ronde ({screen}) → Shift ditekan (mematikan shift lock untuk klik GUI).");
         await Task.Delay(120, ct);
     }
 

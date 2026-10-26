@@ -49,6 +49,12 @@ public static class AnimeZeroPaths
     public const string LobbyHud = "LobbyHUD";
     public const string MenuTrait = "Trait";
     public const string MenuSpin = "Spin";
+    /// <summary>v0.3.12 (snapshot s0819 + screenshot Byzan 26 Okt): tombol "Spinning" (EXTRA LUCK, hotkey R) = ImageButton SummonButton;
+    /// teks "Spinning" ada di Juice.Body.Art.Spinning (kedalaman 6, di luar pindaian teks). Membuka "UI Animation (Finished).Roll".</summary>
+    public const string SpinButtonPath = "LobbyHUD.LeftSideButtons.SummonButton";
+    /// <summary>Roll terbuka: MainFrame langsung di ScreenGui Roll (s0819); versi lama di Roll.SurfaceGui.MainFrame. Tombol keluar = ExitButton.HitPad.</summary>
+    public static readonly string[] RollMainFrames = ["UI Animation (Finished).Roll.MainFrame", "UI Animation (Finished).Roll.SurfaceGui.MainFrame"];
+    public const string RollExit = "ExitButton.HitPad";
     public const double StartVoteYesX = 960, StartVoteYesY = 232;
 
     // Layar akhir

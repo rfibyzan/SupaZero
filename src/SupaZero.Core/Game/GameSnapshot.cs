@@ -167,6 +167,10 @@ public sealed record GameSnapshot
     public Settings.Vec3? RubblePos { get; init; }
     /// <summary>v0.2.91: titik berdiri untuk memukul rubble = titik terdekat di Border*.Rubble.ClimbStop (null = tidak terbaca).</summary>
     public Settings.Vec3? RubbleStand { get; init; }
+    /// <summary>v0.3.12: rubble Adornee RubbleBar dengan Blocker masih padat, HUD belum menyebut rubble (bisa dipukul setelah wave bersih).</summary>
+    public Settings.Vec3? RubblePending { get; init; }
+    /// <summary>Nyawa rubble 0..1 dari teks RubbleBar (null = tidak terbaca).</summary>
+    public double? RubbleHp { get; init; }
     /// <summary>Diagnosa sumber posisi rubble (log).</summary>
     public string? RubbleInfo { get; init; }
     /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
@@ -186,6 +190,10 @@ public sealed record GameSnapshot
     public string? TraitHeader { get; init; }
     public GuiRect? TraitNext { get; init; }
     public bool SpinMenuOpen { get; init; }
+    /// <summary>v0.3.12: tombol "Spinning" LobbyHUD (SummonButton) bila terlihat.</summary>
+    public GuiRect? SpinButton { get; init; }
+    /// <summary>v0.3.12: tombol keluar menu Roll (MainFrame.ExitButton.HitPad) saat terbuka.</summary>
+    public GuiRect? RollExit { get; init; }
     /// <summary>Lingkaran Create Room terdeteksi: part yang memuat teks "Start Here" di Workspace.</summary>
     public IReadOnlyList<Settings.Vec3> StartCircles { get; init; } = [];
     /// <summary>Room dari QuqueRooms.*.JoinHitbox + status terisi (dibaca ulang tiap tick).</summary>

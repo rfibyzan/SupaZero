@@ -89,7 +89,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         var hud = HudText.Parse(hudRaw);
         // v0.2.49: "Break the rubble to continue!" → rubble jadi target serang (Adornee BillboardGui PlayerGui.RubbleBar).
         var playerPosEarly = ReadPlayerPos(roots.LocalPlayer);
-        var rubble = ReadRubble(pg, ws, hudRaw, playerPosEarly, voteShown, hud?.Enter == true);
+        var rubbleAny = ReadRubble(pg, ws, hudRaw, playerPosEarly, voteShown, hud?.Enter == true);
+        var rubble = _rubbleArmed ? rubbleAny : null;
+        var rubblePending = _rubbleArmed ? null : rubbleAny;
         var enemyList = ReadEnemies(enemies);
         if (rubble is { } rb && !enemyList.Any(e => e.Alive))
         {
@@ -106,7 +108,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Camera = ReadCamera(ws),
             Enemies = enemyList,
             RubblePos = rubble,
-            RubbleStand = rubble is not null ? _rubbleStand : null,
+            RubbleStand = rubbleAny is not null ? _rubbleStand : null,
+            RubblePending = rubblePending,
+            RubbleHp = rubbleAny is not null ? _rubbleHp : null,
             RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; nyawa {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
             Arises = ReadArises(ws),
@@ -162,7 +166,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         if (snap.Screen != GameScreen.Lobby) return snap;
         var (areas, cards) = ScanHub(pg);
         var startRooms = ReadRooms(ws);
-        long traitRoot = reader.ResolvePath(pg, TraitRoot), invList = reader.ResolvePath(pg, InventoryList);
+        long traitRoot = reader.ResolvePath(pg, TraitRoot), invList = RollPath(pg, InventoryList), rollFrame = RollFrame(pg);
         return snap with
         {
             AreasButton = areas, TeleportCards = cards, StartRooms = startRooms, StartCircles = ScanCircles(ws),
@@ -176,7 +180,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             TraitHeader = traitRoot != 0 && IsShown(traitRoot, pg) ? Plain(reader.ResolvePath(traitRoot, TraitPowerName)) : null,
             TraitNext = traitRoot != 0 && IsShown(traitRoot, pg) && reader.ResolvePath(traitRoot, AnimeZeroPaths.TraitNextButton) is var tn and not 0 && IsShown(tn, pg)
                 && CleanText(reader.ResolvePath(tn, "Txt(Shadow).Txt"))?.Trim() == ">" ? HubRect(tn) : null,
-            SpinMenuOpen = invList != 0 && IsShown(invList, pg),
+            SpinMenuOpen = (invList != 0 && IsShown(invList, pg)) || (rollFrame != 0 && IsShown(rollFrame, pg)),
+            SpinButton = reader.ResolvePath(pg, AnimeZeroPaths.SpinButtonPath) is var sb and not 0 && IsShown(sb, pg) && HubRect(sb) is { W: > 4, H: > 4 } sbr ? sbr : null,
+            RollExit = rollFrame != 0 && IsShown(rollFrame, pg) && reader.ResolvePath(rollFrame, AnimeZeroPaths.RollExit) is var rx and not 0 && IsShown(rx, pg) ? HubRect(rx) : null,
         };
     }
 
@@ -686,7 +692,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     /// </summary>
     private Settings.Vec3? ReadRubble(long pg, long ws, string? hudRaw, Settings.Vec3? me, bool voteShown = false, bool enterHint = false)
     {
-        _rubbleInfo = null; _rubbleHp = null; _rubbleStand = null;
+        _rubbleInfo = null; _rubbleHp = null; _rubbleStand = null; _rubbleArmed = false;
         if (pg == 0) return null;
         bool hint = hudRaw?.Contains("rubble", StringComparison.OrdinalIgnoreCase) == true;
         long bossBar = reader.FindChild(pg, AnimeZeroPaths.RubbleBossBar);
@@ -696,7 +702,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         bool sure = hint || (bossBar != 0 && IsShown(bossBar, pg));
         // v0.2.73 (aturan Byzan 24 Okt 22:54): rubble HANYA diserang saat teks HUD atas "Break the rubble to continue!"
         // (atau RubbleBossBar tampil). Cadangan v0.2.63 (Blocker padat + RubbleBar) salah aktif sebelum wave mulai.
-        if (!sure) return null;
+        // v0.3.12 (Byzan 26 Okt): rubble sudah ada sejak awal dan bisa dipukul setelah wave area bersih → tanpa teks HUD posisi
+        // tetap dibaca sebagai "rubble menunggu" (RubblePending) bila Blocker Adornee RubbleBar masih padat; FarmMachine yang
+        // memutuskan (hanya setelah wave area ini terlihat dan habis).
+        _rubbleArmed = sure;
         string info = "RubbleBar tidak ada";
         long holder = 0;
         if (bar != 0)
@@ -717,6 +726,12 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 // Attachment tidak punya Position sendiri → pakai Part induknya (Blocker).
                 holder = cls == "Attachment" ? reader.GetParent(ad) : ad;
             }
+        }
+        if (!sure)
+        {
+            // Rubble hancur → Blocker CanCollide false (v0.2.91). Tanpa Blocker padat tidak ada rubble menunggu.
+            if (holder == 0 || !string.Equals(Prop(holder, "CanCollide"), "true", StringComparison.OrdinalIgnoreCase)) { _rubbleInfo = null; return null; }
+            info += "; menunggu (Blocker padat, HUD belum menyebut rubble)";
         }
         // v0.2.80 (jangan menebak): posisi rubble HANYA dari Adornee RubbleBar. Cadangan "Border*.Blocker pertama yang punya
         // RubbleBar" dihapus: semua Blocker punya RubbleBar sejak awal stage, jadi pilihannya tebakan.
@@ -741,6 +756,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     private Settings.Vec3? _rubbleStand;
+    private bool _rubbleArmed;
 
     /// <summary>
     /// Titik terdekat di kotak dinding ke pemain (ikut rotasi LookVector), Y = Y pemain.

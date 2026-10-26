@@ -26,34 +26,6 @@
   </UserControl.Styles>
 
   <StackPanel Spacing="8">
-    <TextBlock Classes="caps" Text="OVERLAY" Margin="2,0,0,0" />
-    <Border Classes="card">
-      <StackPanel Spacing="10">
-        <TextBlock Classes="h2" Text="Running Overlay" />
-        <StackPanel HorizontalAlignment="Center">
-          <!-- Layar = jendela Roblox dalam skala kecil; kotak = posisi overlay, bisa di-drag. -->
-          <Border Width="220" Height="124" BorderBrush="{DynamicResource OfMuted}" BorderThickness="2" CornerRadius="6" Background="{DynamicResource OfInset}">
-            <Canvas x:Name="PreviewArea" Width="216" Height="120" ClipToBounds="True" Background="Transparent">
-              <Border x:Name="PreviewBox" Width="{Binding PreviewBoxWidth}" Height="{Binding PreviewBoxHeight}" CornerRadius="3"
-                      Background="#C0101418" BorderBrush="{DynamicResource OfAccent}" BorderThickness="1"
-                      Canvas.Left="{Binding PreviewLeft}" Canvas.Top="{Binding PreviewTop}" Cursor="SizeAll"
-                      ToolTip.Tip="Overlay. Drag untuk memindahkan di jendela Roblox.">
-                <StackPanel Spacing="3" VerticalAlignment="Top" Margin="4,5,4,0">
-                  <Border Height="2" Background="#C0FFFFFF" Width="12" HorizontalAlignment="Left" />
-                  <Border Height="2" Background="#80FFFFFF" Width="16" HorizontalAlignment="Left" />
-                  <Border Height="2" Background="#80FFFFFF" Width="14" HorizontalAlignment="Left" />
-                </StackPanel>
-              </Border>
-            </Canvas>
-          </Border>
-          <Border Width="12" Height="8" Background="{DynamicResource OfMuted}" HorizontalAlignment="Center" />
-          <Border Width="60" Height="3" Background="{DynamicResource OfMuted}" CornerRadius="1" HorizontalAlignment="Center" />
-        </StackPanel>
-        <TextBlock Classes="muted" FontSize="11" HorizontalAlignment="Center" Text="Drag kotak untuk menempatkan overlay di jendela Roblox." />
-        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Tampilkan overlay saat macro berjalan" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowOverlay}" /></Grid>
-      </StackPanel>
-    </Border>
-
     <TextBlock Classes="caps" Text="DISCORD WEBHOOK" Margin="2,0,0,0" />
     <Border Classes="card">
       <StackPanel Spacing="6">

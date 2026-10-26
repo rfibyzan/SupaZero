@@ -55,14 +55,30 @@
     </StackPanel>
 
     <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">
-      <Border Classes="card">
+      <Border Classes="card" DataContext="{Binding Root.SettingsPage}" x:DataType="vm:SettingsPageViewModel">
         <StackPanel Spacing="10">
-          <TextBlock Classes="h2" Text="Macro" />
-          <Border Classes="sep" />
-          <TextBlock Classes="accent" FontWeight="SemiBold" Text="{Binding HotkeyHint}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding PhaseText}" TextWrapping="Wrap" Classes="muted" />
-          <TextBlock Classes="caps" TextWrapping="Wrap"
-                     Text="Input hanya dikirim saat jendela Roblox di depan. Memori hanya dibaca." />
+          <TextBlock Classes="h2" Text="Running Overlay" />
+          <StackPanel HorizontalAlignment="Center">
+            <!-- Layar = jendela Roblox dalam skala kecil; kotak = posisi overlay, bisa di-drag. -->
+            <Border Width="220" Height="124" BorderBrush="{DynamicResource OfMuted}" BorderThickness="2" CornerRadius="6" Background="{DynamicResource OfInset}">
+              <Canvas x:Name="PreviewArea" Width="216" Height="120" ClipToBounds="True" Background="Transparent">
+                <Border x:Name="PreviewBox" Width="{Binding PreviewBoxWidth}" Height="{Binding PreviewBoxHeight}" CornerRadius="3"
+                        Background="#C0101418" BorderBrush="{DynamicResource OfAccent}" BorderThickness="1"
+                        Canvas.Left="{Binding PreviewLeft}" Canvas.Top="{Binding PreviewTop}" Cursor="SizeAll"
+                        ToolTip.Tip="Overlay. Drag untuk memindahkan di jendela Roblox.">
+                  <StackPanel Spacing="3" VerticalAlignment="Top" Margin="4,5,4,0">
+                    <Border Height="2" Background="#C0FFFFFF" Width="12" HorizontalAlignment="Left" />
+                    <Border Height="2" Background="#80FFFFFF" Width="16" HorizontalAlignment="Left" />
+                    <Border Height="2" Background="#80FFFFFF" Width="14" HorizontalAlignment="Left" />
+                  </StackPanel>
+                </Border>
+              </Canvas>
+            </Border>
+            <Border Width="12" Height="8" Background="{DynamicResource OfMuted}" HorizontalAlignment="Center" />
+            <Border Width="60" Height="3" Background="{DynamicResource OfMuted}" CornerRadius="1" HorizontalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Classes="muted" FontSize="11" HorizontalAlignment="Center" Text="Drag kotak untuk menempatkan overlay di jendela Roblox." />
+          <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Tampilkan overlay saat macro berjalan" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowOverlay}" /></Grid>
         </StackPanel>
       </Border>
 
@@ -88,9 +104,9 @@
               <TextBlock Classes="muted" FontSize="11" Text="{Binding CalibrationSummary}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <Button Content="Cek" Command="{Binding CalibrateCommand}" Padding="12,3" ToolTip.Tip="Baca memori sekali, tanpa aksi." />
+              <Button Content="Cek" Command="{Binding CalibrateCommand}" Padding="12,3" ToolTip.Tip="Baca memori sekali tanpa input: offset, GUI, posisi, power tersimpan. Untuk cek cepat apakah SupaZero membaca game dengan benar." />
               <Button Content="Kalibrasi aksi" Command="{Binding CalibrateActionCommand}" Padding="12,3"
-                      ToolTip.Tip="Dari lobby: buka Trait &amp; Spin, masuk room, baca semua mode/map/act, lalu Leave. Tidak menekan Start." />
+                      ToolTip.Tip="Dari lobby: cek Trait, buka Spinning (baca power), masuk room, baca semua mode/map/act, lalu Leave. Tidak menekan Start." />
             </StackPanel>
           </Grid>
           <Expander Header="Detail" IsVisible="{Binding HasCalibration}" Padding="4" FontSize="11" HorizontalAlignment="Stretch">

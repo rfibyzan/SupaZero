@@ -43,6 +43,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     public void Reset()
     {
         _pcStep = 0; _pcStepAt = null; _pcOpenAt = null;
+        _waveArea = -1;
         _cooldowns.Clear();
         _roomBan.Clear();
         _pickupBan.Clear();
@@ -373,8 +374,10 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         if (_pcStep >= 2) return null;
         Phase = MacroPhase.Lobby;
         string key = _pcStep == 0 ? AnimeZeroPaths.MenuTrait : AnimeZeroPaths.MenuSpin;
-        bool open = _pcStep == 0 ? s.TraitMenuOpen : s.SpinMenuOpen;
-        GuiRect? btn = s.HubMenuButtons.FirstOrDefault(b => b.Name == key)?.Rect;
+        GuiRect? btn = (_pcStep == 1 ? s.SpinButton : null) ?? s.HubMenuButtons.FirstOrDefault(b => b.Name == key)?.Rect;
+        // v0.3.12: Roll terbuka → SummonButton bergeser keluar layar (s0819: AbsolutePosition X -262) dan ExitButton tampil.
+        bool open = _pcStep == 0 ? s.TraitMenuOpen
+            : s.SpinMenuOpen && !(s.SpinButton is { } sb && InWindow(s, sb.CenterX, sb.CenterY));
         _pcStepAt ??= now;
         var stand = new MoveAction([], "Cek power");
 
@@ -386,7 +389,11 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             Status = $"Cek power: menu {key} terbuka, membaca…";
             if (now - _pcOpenAt.Value < PowerMenuReadMs) return [stand];
             var acts = new List<MacroAction> { stand };
-            if (btn is { } b && InWindow(s, b.CenterX, b.CenterY)) acts.Add(new ClickAction(b.CenterX, b.CenterY, $"Tutup menu {key}"));
+            // v0.3.12: Roll menutupi tombol LobbyHUD (SummonButton bergeser keluar layar) → tutup lewat ExitButton.
+            var close = _pcStep == 1 ? s.RollExit ?? btn : btn;
+            if (close is { } b && InWindow(s, b.CenterX, b.CenterY)) acts.Add(new ClickAction(b.CenterX, b.CenterY, $"Tutup menu {key}"));
+            if (_pcStep == 1 && Calibrating) _calNotes.Add(s.Equipped.Count == 0 ? "Spinning dibuka, power terpasang belum terbaca."
+                : "Power: " + string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p => $"slot {p.Loadout} {p.Name}")));
             if (_pcStep == 1 || s.Equipped.Count > 0)
             {
                 string eq = s.Equipped.Count == 0 ? "belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
@@ -579,6 +586,18 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             _pending.AddRange(Note("rubble-diag", now, 8000, s.RubblePos is { } rp
                 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Rubble di ({rp.X:0},{rp.Y:0},{rp.Z:0}){(s.RubbleStand is { } rs ? $", berdiri ({rs.X:0},{rs.Z:0})" : "")} [{s.RubbleInfo}], pemain {(s.PlayerPos is { } pp ? $"({pp.X:0},{pp.Z:0})" : "?")}.")
                 : $"Rubble aktif tapi posisinya tidak terbaca: {s.RubbleInfo}."));
+        // v0.3.12 (Byzan 26 Okt): rubble Hxh ada sejak awal; setelah wave area ini bersih rubble bisa dipukul walau HUD belum
+        // menyebut "Break the rubble". Rubble = Adornee RubbleBar dengan Blocker masih padat (bukti v0.2.91), dekat area ini.
+        bool waveAlive = s.Enemies.Any(e => e.Alive && e.Name != AnimeZeroPaths.RubbleName);
+        if (waveAlive && hud is { Area: > 0, Enter: false }) _waveArea = hud.Area;
+        if (left == 0 && s.RubblePending is { } rpend && hud is { Area: > 0 } && _waveArea > 0
+            && (hud.Area == _waveArea || (hud.Enter && hud.Area == _waveArea + 1)) && RubbleNear(s, rpend))
+        {
+            _pending.AddRange(Note("rubble-pending", now, 10000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"Wave area {_waveArea} bersih → serang rubble di ({rpend.X:0},{rpend.Z:0}) [{s.RubbleInfo}].")));
+            s = s with { Enemies = [new EnemyInfo(AnimeZeroPaths.RubbleName, rpend, Math.Max(0.01, s.RubbleHp ?? 1), 1)], EnemyCount = 1, RubblePos = rpend };
+            left = 1;
+        }
         if (left == 0)
         {
             Phase = MacroPhase.Navigating;
@@ -1126,6 +1145,14 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     /// Musuh yang boleh diserang. v0.2.81 (jangan menebak): saat BossBar [IMMUNE], yang dilewati hanya model bertanda pasti
     /// (<see cref="EnemyInfo.ImmuneMark"/>: 2 Highlight). Tebakan lama "dekat Markers.BossSpawn 12 stud" dihapus.
     /// </summary>
+    private int _waveArea = -1; // v0.3.12: area HUD yang wave musuhnya terlihat (rubble sesudahnya boleh dipukul)
+    public const double RubbleNearPlayer = 250, RubbleNearArea = 80;
+
+    /// <summary>Rubble menunggu dekat pemain (≤ 250 stud) atau dekat kotak area sekarang (≤ 80 stud dari tepi).</summary>
+    internal static bool RubbleNear(GameSnapshot s, Vec3 rp) =>
+        (s.PlayerPos is { } p && Navigator.Distance2D(p.X, p.Z, rp.X, rp.Z) <= RubbleNearPlayer)
+        || (s.CurrentArea is { } a && a.Contains(rp, -RubbleNearArea));
+
     public static List<EnemyInfo> Targets(GameSnapshot s)
     {
         var alive = s.Enemies.Where(e => e.Alive).ToList();

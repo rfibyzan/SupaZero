@@ -56,7 +56,7 @@ public sealed partial class FarmMachine
         _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear(); _calDrops.Clear(); _calDropActs = []; _calDropIdx = 0;
         _calSig = null; _calStepAt = -1;
         _calAllListed = false; _calTrials = null; _calTrialsClickAt = null; _calTrialsRead = false;
-        _pcStep = 2; _pcStepAt = null; _pcOpenAt = null; // tombol Trait/Spin LobbyHUD tidak ada (Byzan 25 Okt) → PowerCheck tidak dipakai
+        _pcStep = 1; _pcStepAt = null; _pcOpenAt = null; // v0.3.12: cek power lewat tombol "Spinning" (SummonButton) → Roll → ExitButton
         _trStep = 0; _trAt = null; _trHeader = null; _trClickAt = null; _trSeen.Clear();
     }
 
@@ -197,6 +197,7 @@ public sealed partial class FarmMachine
                     return [new MoveAction([], "Kalibrasi: menunggu panel Trials")];
                 if (_calStage >= 6) return CalFinish(_calStage == 9 ? "panel Trials ditutup lewat Leave" : "menu room ditutup lewat Leave");
                 if (CalTraits(s, now) is { } tr) return tr;
+                if (_calStage == 0 && PowerCheck(s, now) is { } pc) return pc;
                 if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
                 // v0.2.89: lingkaran Create Room ada di area Story (Byzan 25 Okt) → kalibrasi selalu pakai kartu "Story", bukan mode farm.
                 var walk = WalkToLobby(s, S, now, force: true, cardName: CalRoomCard);
