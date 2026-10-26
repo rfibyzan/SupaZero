@@ -10,18 +10,18 @@ public sealed record WatchEvent(DateTimeOffset Timestamp, string Path, string Pr
 {
     public override string ToString() => Kind switch
     {
-        WatchEventKind.RuleOn => $"{Timestamp:HH:mm:ss.fff}  ▶ RULE {Rule} AKTIF  ({Path}.{Property} = {NewValue ?? "(none)"})",
-        WatchEventKind.RuleOff => $"{Timestamp:HH:mm:ss.fff}  ■ RULE {Rule} SELESAI setelah {DurationMs:0} ms",
+        WatchEventKind.RuleOn => $"{Timestamp:HH:mm:ss.fff}  ▶ RULE {Rule} ON  ({Path}.{Property} = {NewValue ?? "(none)"})",
+        WatchEventKind.RuleOff => $"{Timestamp:HH:mm:ss.fff}  ■ RULE {Rule} ENDED after {DurationMs:0} ms",
         WatchEventKind.RuleHit => $"{Timestamp:HH:mm:ss.fff}  ● RULE {Rule}  {Path}.{Property}: {OldValue ?? "(none)"} -> {NewValue ?? "(none)"}",
         _ => $"{Timestamp:HH:mm:ss.fff}  {Path}  {Property}: {OldValue ?? "(none)"} -> {NewValue ?? "(none)"}",
     };
 }
 
 /// <summary>
-/// Pantau path (relatif DataModel, mis. "Players.User.PlayerGui.Main.Label") dengan polling.
-/// Per path: Exists, ClassName, ChildCount, dan properti dari <see cref="PropertyReader"/>.
-/// Alamat instance di-cache dan divalidasi (nama + class) tiap poll; bila tidak cocok, path di-resolve ulang.
-/// Rules: kondisi level menghasilkan RuleOn/RuleOff (dengan durasi); Changed menghasilkan RuleHit.
+/// Watches paths (relative to DataModel, e.g. "Players.User.PlayerGui.Main.Label") by polling.
+/// Per path: Exists, ClassName, ChildCount, and properties from <see cref="PropertyReader"/>.
+/// Instance addresses are cached and validated (name + class) every poll; on mismatch the path is re-resolved.
+/// Rules: level conditions produce RuleOn/RuleOff (with duration); Changed produces RuleHit.
 /// </summary>
 public sealed class WatchService(InstanceReader reader, PropertyReader properties)
 {
@@ -34,9 +34,9 @@ public sealed class WatchService(InstanceReader reader, PropertyReader propertie
     private readonly List<WatchEvent> _log = new();
 
     public int MaxLog { get; set; } = 20_000;
-    /// <summary>Riwayat angka untuk sparkline.</summary>
+    /// <summary>Numeric history for sparklines.</summary>
     public WatchSeries Series { get; } = new();
-    /// <summary>Hanya log event rule (perubahan biasa tetap dihitung tapi tidak dicatat).</summary>
+    /// <summary>Log rule events only (plain changes are still counted but not logged).</summary>
     public bool RulesOnly { get; set; }
     public IReadOnlyList<string> Paths { get { lock (_lock) return _paths.ToArray(); } }
     public IReadOnlyList<WatchRule> Rules { get { lock (_lock) return _rules.ToArray(); } }

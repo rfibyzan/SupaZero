@@ -4,7 +4,7 @@ namespace RIE.Core.Offsets;
 
 /// <summary>
 /// offsets.json (format dumper: {"Roblox Version":..., "Offsets":{"Class":{"Prop":123}}}).
-/// Diturunkan dari OpenFisch.Core.Offsets.OffsetsSnapshot, tanpa shared-offsets/CatchRegistry.
+/// Derived from OpenFisch.Core.Offsets.OffsetsSnapshot, without shared-offsets/CatchRegistry.
 /// </summary>
 public sealed class OffsetsSnapshot
 {
@@ -33,7 +33,7 @@ public sealed class OffsetsSnapshot
         });
         var root = doc.RootElement;
         if (!root.TryGetProperty("Offsets", out var offsets) || offsets.ValueKind != JsonValueKind.Object)
-            throw new InvalidDataException("offsets.json tidak memiliki objek \"Offsets\".");
+            throw new InvalidDataException("offsets.json has no \"Offsets\" object.");
         var groups = new Dictionary<string, Dictionary<string, long>>(StringComparer.Ordinal);
         int total = 0;
         foreach (var group in offsets.EnumerateObject())
@@ -55,7 +55,7 @@ public sealed class OffsetsSnapshot
         };
     }
 
-    /// <summary>Terima angka JSON atau string hex ("0x1A8").</summary>
+    /// <summary>Accepts a JSON number or a hex string ("0x1A8").</summary>
     private static bool TryNumber(JsonElement e, out long v)
     {
         v = 0;
@@ -75,7 +75,7 @@ public sealed class OffsetsSnapshot
 
     public bool Has(string group, string field) => Groups.TryGetValue(group, out var f) && f.ContainsKey(field);
 
-    /// <summary>Resolve "Class.Prop" atau alias pendek (lihat <see cref="OffsetAliases"/>).</summary>
+    /// <summary>Resolve "Class.Prop" or a short alias (see <see cref="OffsetAliases"/>).</summary>
     public bool TryResolve(string name, out long offset)
     {
         if (OffsetAliases.Map.TryGetValue(name, out var target)) name = target;
@@ -85,7 +85,7 @@ public sealed class OffsetsSnapshot
         return Groups.TryGetValue(name[..dot], out var fields) && fields.TryGetValue(name[(dot + 1)..], out offset);
     }
 
-    /// <summary>Coba beberapa kunci, kembalikan yang pertama ada.</summary>
+    /// <summary>Tries several keys, returns the first one present.</summary>
     public bool TryResolveAny(out long offset, params string[] names)
     {
         foreach (var n in names) if (TryResolve(n, out offset)) return true;
@@ -94,7 +94,7 @@ public sealed class OffsetsSnapshot
     }
 
     /// <summary>env RIE_OFFSETS_PATH → &lt;exe&gt;\offsets.json → %AppData%\RobloxInstanceExplorer\offsets.json.</summary>
-    /// <summary>Lokasi offsets hasil "Unduh terbaru" (diprioritaskan di atas salinan bawaan di folder exe).</summary>
+    /// <summary>Location of offsets from "Download latest" (preferred over the bundled copy in the exe folder).</summary>
     public static string UserOffsetsPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RobloxInstanceExplorer", "offsets.json");
 
@@ -111,7 +111,7 @@ public sealed class OffsetsSnapshot
     }
 }
 
-/// <summary>Alias pendek → kunci bertitik (subset generik dari tabel alias OpenFisch).</summary>
+/// <summary>Short alias → dotted key (generic subset of the OpenFisch alias table).</summary>
 public static class OffsetAliases
 {
     public static readonly IReadOnlyDictionary<string, string> Map = new Dictionary<string, string>(StringComparer.Ordinal)

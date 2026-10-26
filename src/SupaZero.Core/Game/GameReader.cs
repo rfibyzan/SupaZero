@@ -6,9 +6,9 @@ using RIE.Core.Roblox;
 namespace SupaZero.Core.Game;
 
 /// <summary>
-/// Membaca <see cref="GameSnapshot"/> dari memori Roblox (READ-ONLY, lewat reader RIE). Tidak menulis memori apa pun.
-/// Node GUI yang path persisnya belum diverifikasi dicari per nama (BFS terbatas) lalu di-cache; cache divalidasi
-/// ulang tiap baca (nama + parent masih cocok) karena GUI Roblox sering dibuat ulang.
+/// Reads a <see cref="GameSnapshot"/> from Roblox memory (READ-ONLY, via the RIE reader). Never writes any memory.
+/// GUI nodes whose exact path is not verified yet are searched by name (bounded BFS) and cached; the cache is re-validated
+/// on every read (name + parent still match) because Roblox GUIs are often recreated.
 /// </summary>
 public sealed partial class GameReader(InstanceReader reader, PropertyReader props)
 {
@@ -16,10 +16,10 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
 
     public double GuiInsetY { get; set; } = ScreenMap.DefaultGuiInsetY;
     public double GuiScale { get; set; } = 1;
-    /// <summary>Inset Y untuk GUI hub lobby (LobbyHUD / Finished UI). Terverifikasi 0: ScreenGui ini mengabaikan topbar.</summary>
+    /// <summary>Y inset for lobby hub GUIs (LobbyHUD / Finished UI). Verified 0: these ScreenGuis ignore the topbar.</summary>
     public double LobbyInsetY { get; set; } = 0;
 
-    /// <summary>Rect menu Create Room: ScreenGui tanpa inset topbar (terverifikasi snapshot, MainFrame AbsolutePosition 0,58).</summary>
+    /// <summary>Create Room menu rect: ScreenGui without topbar inset (verified by snapshot, MainFrame AbsolutePosition 0,58).</summary>
     private GuiRect? MenuRect(long node) => HubRect(node);
 
     private string? CleanText(long node)
@@ -31,9 +31,9 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
     }
 
     /// <summary>
-    /// v0.3.12b (snapshot PlayerGui 26 Okt 08:58:42/08:58:55): Roll.SurfaceGui.MainFrame memakai koordinat SurfaceGui (origin 0,0),
-    /// sedangkan ScreenGui Roll berada di AbsolutePosition 0,58 → tombol Exit (HitPad Y 864) di layar ada di Y 922. Tanpa geseran ini
-    /// klik Exit kena 58 px terlalu tinggi. Bila MainFrame langsung di ScreenGui, geser 0.
+    /// v0.3.12b (PlayerGui snapshot 26 Oct 08:58:42/08:58:55): Roll.SurfaceGui.MainFrame uses SurfaceGui coordinates (origin 0,0),
+    /// while ScreenGui Roll is at AbsolutePosition 0,58 → the Exit button (HitPad Y 864) is at Y 922 on screen. Without this offset
+    /// the Exit click lands 58 px too high. When MainFrame is directly under the ScreenGui, offset 0.
     /// </summary>
     private double SurfaceShiftY(long frame)
     {
@@ -66,17 +66,17 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         string placeText = props.Read(roots.DataModel, "DataModel").TryGetValue("PlaceId", out var pid) ? pid : "0";
         long.TryParse(placeText, out long placeId);
 
-        // HUD ronde
+        // Round HUD
         long hudText = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.EnemyCountPath) : 0;
         string? hudRaw = hudText != 0 && IsShown(hudText, pg) ? Text(hudText) : null;
         long enemies = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.Enemies) : 0;
         int enemyCount = enemies != 0 ? reader.GetChildren(enemies).Count : -1;
 
-        // Vote mulai
+        // Start vote
         long vote = Find(pg, AnimeZeroPaths.StartVote);
-        // ScreenGui StartVote bisa tetap Enabled selama ronde (frame di dalamnya disembunyikan) → wajib tombol Yes terlihat.
-        // Snapshot PlayerGui 24 Okt 2026: StartVote.Holder.Main.StartButton (ImageButton); "Yes" hanya Text di StartButton.Txt(Shadow).Txt,
-        // tidak ada node bernama "Yes" → dulu tidak pernah terdeteksi (Yes tidak diklik).
+        // ScreenGui StartVote can stay Enabled during a round (its inner frame is hidden) → the Yes button must be visible.
+        // PlayerGui snapshot 24 Oct 2026: StartVote.Holder.Main.StartButton (ImageButton); "Yes" is only Text in StartButton.Txt(Shadow).Txt,
+        // there is no node named "Yes" → previously never detected (Yes was not clicked).
         long voteYesNode = 0;
         if (vote != 0)
         {
@@ -85,11 +85,11 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             if (voteYesNode == 0) voteYesNode = Find(vote, AnimeZeroPaths.StartVoteYes);
         }
         bool voteShown = vote != 0 && IsShown(vote, pg) && voteYesNode != 0 && IsShown(voteYesNode, pg);
-        // ScreenGui StartVote memakai IgnoreGuiInset: AbsolutePosition StartButton (≈960,232) sudah koordinat klien.
-        // Dengan Inset 58 klik jatuh ~58 px di bawah tombol (screenshot Byzan 24 Okt 2026) → pakai inset lobby (0).
+        // ScreenGui StartVote uses IgnoreGuiInset: StartButton AbsolutePosition (≈960,232) is already client coordinates.
+        // With Inset 58 the click lands ~58 px below the button (Byzan screenshot 24 Oct 2026) → use the lobby inset (0).
         GuiRect? voteYes = voteShown ? HubRect(voteYesNode) : null;
 
-        // Layar akhir
+        // End screen
         long end = Find(pg, AnimeZeroPaths.EndScreen);
         bool endShown = end != 0 && IsShown(end, pg);
         long result = endShown ? Find(end, AnimeZeroPaths.ResultText) : Find(pg, AnimeZeroPaths.ResultText);
@@ -109,7 +109,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         bool treeShown = tree != 0 && IsShown(tree, pg);
 
         var hud = HudText.Parse(hudRaw);
-        // v0.2.49: "Break the rubble to continue!" → rubble jadi target serang (Adornee BillboardGui PlayerGui.RubbleBar).
+        // v0.2.49: "Break the rubble to continue!" → rubble becomes an attack target (Adornee of BillboardGui PlayerGui.RubbleBar).
         var playerPosEarly = ReadPlayerPos(roots.LocalPlayer);
         var rubbleAny = ReadRubble(pg, ws, hudRaw, playerPosEarly, voteShown, hud?.Enter == true);
         var rubble = _rubbleArmed ? rubbleAny : null;
@@ -133,7 +133,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             RubbleStand = rubbleAny is not null ? _rubbleStand : null,
             RubblePending = rubblePending,
             RubbleHp = rubbleAny is not null ? _rubbleHp : null,
-            RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; nyawa {rh:P0}" : _rubbleInfo,
+            RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; HP {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
             Arises = ReadArises(ws),
             Shadows = ParseShadows(pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.ShadowsValue) is var sv and not 0 ? Text(sv) : null),
@@ -222,7 +222,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return false;
     }
 
-    /// <summary>Cari turunan bernama <paramref name="name"/> (BFS, maks 9 level / 6000 node), dengan cache.</summary>
+    /// <summary>Find a descendant named <paramref name="name"/> (BFS, max 9 levels / 6000 nodes), cached.</summary>
     public long Find(long root, string name, int maxDepth = 9, int maxNodes = 6000)
     {
         if (root == 0) return 0;
@@ -258,7 +258,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return false;
     }
 
-    /// <summary>Terlihat = Visible pada dirinya dan semua leluhur GuiObject, serta ScreenGui-nya Enabled.</summary>
+    /// <summary>Visible = Visible on itself and all GuiObject ancestors, and its ScreenGui is Enabled.</summary>
     public bool IsShown(long node, long stopAt)
     {
         long cur = node;
@@ -288,7 +288,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return s.Length == 0 ? null : s;
     }
 
-    /// <summary>Nilai anak "Tag" (StringValue) atau Text, untuk MapLine/ActLine [V].</summary>
+    /// <summary>Value of the "Tag" child (StringValue) or Text, for MapLine/ActLine [V].</summary>
     private string? Tag(long node)
     {
         if (node == 0) return null;

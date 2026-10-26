@@ -16,7 +16,7 @@ public sealed class DiffResult
     public int Changed => Entries.Count(e => e.Kind is DiffKind.PropertyChanged or DiffKind.ClassChanged);
 }
 
-/// <summary>Bandingkan dua snapshot berdasarkan Key. Instance yang hilang hanya dilaporkan di akar subtree yang hilang.</summary>
+/// <summary>Compares two snapshots by Key. Removed instances are reported only at the root of the removed subtree.</summary>
 public static class SnapshotDiff
 {
     public static DiffResult Compare(InstanceSnapshot before, InstanceSnapshot after)
@@ -58,7 +58,7 @@ public static class SnapshotDiff
         };
     }
 
-    /// <summary>True bila parent node tidak ada di <paramref name="other"/> (cukup laporkan parent-nya).</summary>
+    /// <summary>True if the node's parent is missing from <paramref name="other"/> (reporting the parent is enough).</summary>
     private static bool ParentMissing(SnapshotNode node, Dictionary<string, SnapshotNode> other) =>
         node.ParentKey is not null && !other.ContainsKey(node.ParentKey);
 }

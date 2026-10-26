@@ -4,7 +4,7 @@ using Xunit;
 
 namespace SupaZero.Core.Tests;
 
-/// <summary>v0.3.11: tawaran nyata dari snapshot PlayerGui Byzan 26 Okt 2026 (FateBlessings.Picker.Holder.List.OfferN.Body).</summary>
+/// <summary>v0.3.11: real offers from Byzan's PlayerGui snapshot 26 Oct 2026 (FateBlessings.Picker.Holder.List.OfferN.Body).</summary>
 public class BlessingCatalogTests
 {
     private static BlessingOffer O(string n, string r, string d, string v, int x) => new(n, r, v, new GuiRect(x, 774, 352, 49), d);
@@ -60,7 +60,7 @@ public class BlessingCatalogTests
         Assert.Equal("Sharper Edge", BlessingCatalog.Choose(S0836b, Buffs(BlessingBuff.Damage, BlessingBuff.ExtraLife), cards)!.Name);
         Assert.Equal("Big Heart", BlessingCatalog.Choose(S0836b, Buffs(BlessingBuff.MaxHealth), cards)!.Name);
         Assert.Equal("Mirror Leech", BlessingCatalog.Choose(S0837, Buffs(BlessingBuff.Heal, BlessingBuff.Damage), cards)!.Name);
-        // buff tidak ada di tawaran → buff berikutnya
+        // buff not in the offers → next buff
         Assert.Equal("Glass Cannon", BlessingCatalog.Choose(S0837, Buffs(BlessingBuff.TwinDamage, BlessingBuff.Damage), cards)!.Name);
     }
 
@@ -70,7 +70,7 @@ public class BlessingCatalogTests
         var cards = BlessingCatalog.EffectiveCards([new("Glass Cannon", false)], "", BlessingCatalog.Seen);
         Assert.Equal("Swift Steps", BlessingCatalog.Choose(S0837, Buffs(BlessingBuff.Damage, BlessingBuff.MoveSpeed), cards)!.Name);
         var none = S0837.Select(o => new BlessingPref(o.Name, false)).ToList();
-        Assert.NotNull(BlessingCatalog.Choose(S0837, [], none)); // timer game: tetap pilih satu
+        Assert.NotNull(BlessingCatalog.Choose(S0837, [], none)); // game timer: still pick one
     }
 
     [Fact]

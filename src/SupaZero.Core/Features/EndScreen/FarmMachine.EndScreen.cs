@@ -20,21 +20,21 @@ public sealed partial class FarmMachine
         };
         if (S.Farm.Act == 0) (after, btn, label) = s.NextButton is { } nb ? (AfterWin.Next, (GuiRect?)nb, "Next act") : (AfterWin.Leave, s.LeaveButton, "Leave");
         if (after == AfterWin.Next && btn is null && s.RetryButton is null && s.LeaveButton is not null)
-            return Stop("Menang, tombol Next tidak ada → Story selesai.");
+            return Stop("Victory, no Next button → Story finished.");
         if (btn is not { } b)
         {
             Phase = MacroPhase.Idle;
-            Status = $"Menang, tombol {label} tidak terbaca.";
-            return Note("no-btn", now, 5000, $"Tombol {label} tidak terbaca di EndScreen.");
+            Status = $"Victory, {label} button not readable.";
+            return Note("no-btn", now, 5000, $"{label} button not readable on EndScreen.");
         }
         Phase = MacroPhase.Advancing;
-        Status = Matches(S.Farm.Mode, nameof(FarmMode.Infinite)) ? $"Infinite selesai ({s.ResultText}) → {label}" : $"Menang (ke-{StagesCleared}) → {label}";
+        Status = Matches(S.Farm.Mode, nameof(FarmMode.Infinite)) ? $"Infinite finished ({s.ResultText}) → {label}" : $"Victory (#{StagesCleared}) → {label}";
         if (!Ready("after-win", now, 2500)) return [];
         _afterWinClicks++;
         if (_actAdvancePending) { if (after == AfterWin.Next) _selectedAct++; _actAdvancePending = false; }
         var click = new ClickAction(b.CenterX, b.CenterY, label) { InRound = true };
         return _afterWinClicks % 4 == 0
-            ? [click, new NoteAction($"Masih di EndScreen setelah {_afterWinClicks}x klik {label} di ({b.CenterX:0},{b.CenterY:0}).")]
+            ? [click, new NoteAction($"Still on EndScreen after {_afterWinClicks}x clicking {label} at ({b.CenterX:0},{b.CenterY:0}).")]
             : [click];
     }
 
@@ -54,12 +54,12 @@ public sealed partial class FarmMachine
         if (f.RetryOnDefeat && (unlimited || _retries < f.MaxRetriesPerStage) && s.RetryButton is { } retry)
         {
             Phase = MacroPhase.Retrying;
-            Status = unlimited ? $"Infinite selesai → Retry (ke-{_retries + 1}, tanpa batas)" : $"DEFEAT → Retry ({_retries + 1}/{f.MaxRetriesPerStage})";
+            Status = unlimited ? $"Infinite finished → Retry (#{_retries + 1}, unlimited)" : $"DEFEAT → Retry ({_retries + 1}/{f.MaxRetriesPerStage})";
             if (!Ready("retry", now, 3000)) return [];
             _retries++;
             return [new ClickAction(retry.CenterX, retry.CenterY, "Retry") { InRound = true }];
         }
-        return Stop("DEFEAT, retry habis → macro berhenti.");
+        return Stop("DEFEAT, retries exhausted → macro stopped.");
     }
 
     // ---------- util ----------

@@ -8,7 +8,7 @@ public partial class FarmMachineTests
 {
     private static readonly GuiRect Btn = new(100, 100, 40, 20);
 
-    /// <summary>Buang MoveAction kosong (lepas tombol) yang ditambahkan tiap tick.</summary>
+    /// <summary>Drops the empty MoveAction (release keys) added every tick.</summary>
     private static List<MacroAction> Real(IReadOnlyList<MacroAction> a) => a.Where(x => x is not MoveAction { Keys.Count: 0 }).ToList();
 
     private static (FarmMachine M, AppSettings S) New(Action<AppSettings>? cfg = null)

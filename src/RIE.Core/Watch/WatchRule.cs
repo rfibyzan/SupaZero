@@ -4,7 +4,7 @@ namespace RIE.Core.Watch;
 
 public enum RuleOp { Changed, Equals, NotEquals, Contains, NotContains, Greater, Less, GreaterOrEqual, LessOrEqual, Exists, Missing }
 
-/// <summary>Kondisi pada satu properti path yang di-watch. Contoh: Text Contains "Caught", Visible Equals true, Value Greater 50.</summary>
+/// <summary>Condition on one property of a watched path. Example: Text Contains "Caught", Visible Equals true, Value Greater 50.</summary>
 public sealed class WatchRule
 {
     public string Name { get; set; } = string.Empty;
@@ -15,13 +15,13 @@ public sealed class WatchRule
 
     public string Describe() => Op switch
     {
-        RuleOp.Changed => $"{Path}.{Property} berubah",
-        RuleOp.Exists => $"{Path} ada",
-        RuleOp.Missing => $"{Path} hilang",
+        RuleOp.Changed => $"{Path}.{Property} changed",
+        RuleOp.Exists => $"{Path} exists",
+        RuleOp.Missing => $"{Path} missing",
         _ => $"{Path}.{Property} {Op} \"{Value}\"",
     };
 
-    /// <summary>Evaluasi kondisi level (bukan Changed). Changed ditangani oleh WatchService.</summary>
+    /// <summary>Evaluates level conditions (not Changed). Changed is handled by WatchService.</summary>
     public bool Evaluate(IReadOnlyDictionary<string, string?> sample)
     {
         bool exists = sample.TryGetValue("Exists", out var ex) && ex == "true";
@@ -52,7 +52,7 @@ public sealed class WatchRule
         };
     }
 
-    /// <summary>Ambil angka pertama dari string (mis. "Coins: 120" → 120, "1, 2, 3" → 1).</summary>
+    /// <summary>Takes the first number from a string (e.g. "Coins: 120" → 120, "1, 2, 3" → 1).</summary>
     internal static bool TryNum(string s, out double v)
     {
         v = 0;

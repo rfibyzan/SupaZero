@@ -3,15 +3,15 @@ namespace SupaZero.Core.Settings;
 public sealed record NavigationSettings(
     bool AutoNavigate = true,
     double ArriveRadius = 6,
-    /// <summary>Saat jalan tapi posisi tidak berubah (tersangkut rubble/boulder) → serang + lompat.</summary>
+    /// <summary>When walking but the position does not change (stuck on rubble/boulder) → attack + jump.</summary>
     bool AttackWhenStuck = true,
-    /// <summary>Saat bertarung: jalan mendekati musuh terdekat sampai jarak serang.</summary>
+    /// <summary>While fighting: walk toward the nearest enemy until within attack range.</summary>
     bool ChaseEnemies = true,
-    /// <summary>Jarak serang ke musuh (stud).</summary>
+    /// <summary>Attack range to the enemy (studs).</summary>
     double AttackRange = 6,
-    /// <summary>Kursor diarahkan ke musuh target (proyeksi kamera).</summary>
+    /// <summary>Cursor aimed at the target enemy (camera projection).</summary>
     bool AimAtEnemy = true,
-    /// <summary>Piksel gerak mouse per derajat putaran kamera (shift lock), dikoreksi tiap tick.</summary>
+    /// <summary>Mouse movement pixels per degree of camera rotation (shift lock), corrected every tick.</summary>
     double TurnPixelsPerDegree = 4,
-    /// <summary>Saat sudah dekat musuh: jalan melingkari musuh sambil lompat + basic attack.</summary>
+    /// <summary>When already close to the enemy: circle around it while jumping + basic attack.</summary>
     bool RoamWhenSkillsCooling = true);

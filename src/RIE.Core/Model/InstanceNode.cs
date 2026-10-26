@@ -1,4 +1,4 @@
 namespace RIE.Core.Model;
 
-/// <summary>Ringkasan satu instance yang sudah dibaca.</summary>
+/// <summary>Summary of one instance that has been read.</summary>
 public sealed record InstanceInfo(long Address, string Name, string ClassName, string Path);

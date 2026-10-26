@@ -6,7 +6,7 @@ namespace SupaZero.Core.Automation;
 
 public sealed partial class FarmMachine
 {
-    /// <summary>Radius cari mayat ARISE; jarak tahan E (prompt MaxActivationDistance 10); batas waktu per mayat.</summary>
+    /// <summary>ARISE corpse search radius; E-hold distance (prompt MaxActivationDistance 10); time limit per corpse.</summary>
     internal const double AriseRadius = 40, AriseHoldDist = 4;
     internal const long AriseGiveUpMs = 8000;
     private readonly Dictionary<string, long> _ariseBan = new(StringComparer.Ordinal);
@@ -17,17 +17,17 @@ public sealed partial class FarmMachine
     private int? _ariseShadowsBefore;
     private static string AriseKey(AriseInfo a) => $"{Math.Round(a.Pos.X)},{Math.Round(a.Pos.Z)}";
 
-    /// <summary>Mayat ARISE terdekat: jalan ke sana; dalam 4 stud → lepas gerak + tahan E. null = tidak ada mayat.</summary>
+    /// <summary>Nearest ARISE corpse: walk to it; within 4 studs → release movement + hold E. null = no corpse.</summary>
     private List<MacroAction>? Arise(GameSnapshot s, long now, AppSettings S)
     {
-        // v0.2.70: kapasitas Shadows penuh (mis. 3/3) → jangan buang waktu ke mayat.
+        // v0.2.70: Shadows capacity full (e.g. 3/3) → do not waste time on corpses.
         if (s.PlayerPos is not { } me || s.Arises.Count == 0 || s.Shadows is { } sh && sh.Count >= sh.Max) { _ariseKey = null; return null; }
-        // v0.2.79 (jangan menebak): jumlah Shadows wajib terbaca, agar hasil Arise bisa diverifikasi (Count naik).
-        if (s.Shadows is not { } shNow) { _ariseKey = null; _pending.AddRange(Note("arise-noshadow", now, 15000, "Mayat Arise ada, tapi jumlah Shadows tidak terbaca → Arise dilewati.")); return null; }
+        // v0.2.79 (no guessing): the Shadows count must be readable so the Arise result can be verified (Count goes up).
+        if (s.Shadows is not { } shNow) { _ariseKey = null; _pending.AddRange(Note("arise-noshadow", now, 15000, "Arise corpse present, but Shadows count unreadable → Arise skipped.")); return null; }
         if (_ariseKey is not null && _ariseShadowsBefore is int before && shNow.Count > before)
         {
             _ariseBan[_ariseKey] = now + 60_000;
-            _pending.AddRange(Note("arise-ok", now, 1000, $"Arise berhasil: Shadows {before} → {shNow.Count}/{shNow.Max}."));
+            _pending.AddRange(Note("arise-ok", now, 1000, $"Arise succeeded: Shadows {before} → {shNow.Count}/{shNow.Max}."));
             _ariseKey = null; _ariseShadowsBefore = null;
             return null;
         }
@@ -39,29 +39,29 @@ public sealed partial class FarmMachine
         if (best.a is null) { _ariseKey = null; return null; }
         string key = AriseKey(best.a);
         if (_ariseKey != key) { _ariseKey = key; _ariseSince = now; _ariseHolds = 0; _ariseShadowsBefore = shNow.Count; }
-        // Sudah 2× tahan E tapi prompt masih ada (mis. kapasitas Shadows penuh) → lewati 60 dtk.
+        // Already held E 2× but the prompt is still there (e.g. Shadows capacity full) → skip for 60 s.
         else if (now - _ariseSince > AriseGiveUpMs || (_ariseHolds >= 2 && now - _ariseLastHold >= 1500))
         {
             _ariseBan[key] = now + 60_000;
             _ariseKey = null;
-            return [new MoveAction([], "Lewati Arise"), .. Note("arise-ban", now, 4000, $"Arise {best.a.Name} tidak berhasil dalam {AriseGiveUpMs / 1000} dtk, dilewati.")];
+            return [new MoveAction([], "Skip Arise"), .. Note("arise-ban", now, 4000, $"Arise {best.a.Name} did not succeed within {AriseGiveUpMs / 1000} s, skipped.")];
         }
         Status = $"Arise {best.a.Name} ({best.d:0} stud)";
         if (best.d > AriseHoldDist)
         {
-            var walk = WalkPath(s, best.a.Pos, AriseHoldDist - 1, now, $"mayat {best.a.Name}", false);
+            var walk = WalkPath(s, best.a.Pos, AriseHoldDist - 1, now, $"corpse {best.a.Name}", false);
             if (walk.Count > 0) return walk;
         }
-        // Sudah dekat: tahan E sekali per 1,5 dtk; di sela itu lompat agar tidak diam.
+        // Already close: hold E once per 1.5 s; jump in between so we are not standing still.
         if (now - _ariseLastHold >= 1500)
         {
             _ariseLastHold = now;
             _ariseHolds++;
             int ms = (int)Math.Round(best.a.Hold * 1000) + 250;
-            return [new MoveAction([], "Diam sebentar untuk Arise"), new KeyAction(VirtualKeys.E, ms, $"Arise {best.a.Name} (tahan E {ms} ms)")];
+            return [new MoveAction([], "Stand still briefly for Arise"), new KeyAction(VirtualKeys.E, ms, $"Arise {best.a.Name} (hold E {ms} ms)")];
         }
-        return [new MoveAction([], "Tunggu Arise"), new KeyAction(VirtualKeys.Space, 80, "Lompat (menunggu Arise)")];
+        return [new MoveAction([], "Wait for Arise"), new KeyAction(VirtualKeys.Space, 80, "Jump (waiting for Arise)")];
     }
 
-    // ---------- Cari jalur (A* di peta Areas + rintangan Navigation) ----------
+    // ---------- Pathfinding (A* on the Areas map + Navigation obstacles) ----------
 }

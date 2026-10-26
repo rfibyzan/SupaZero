@@ -4,7 +4,7 @@ using RIE.Core.Memory;
 
 namespace SupaZero.Core.Tests;
 
-/// <summary>Memori palsu sparse: alokasi blok di heap simulasi.</summary>
+/// <summary>Sparse fake memory: allocates blocks on a simulated heap.</summary>
 public sealed class FakeMemory : IMemorySource
 {
     private readonly SortedDictionary<long, byte[]> _blocks = new();
@@ -44,7 +44,7 @@ public sealed class FakeMemory : IMemorySource
     public void WriteDouble(long a, double v) { var (b, o) = Locate(a, 8); BinaryPrimitives.WriteDoubleLittleEndian(b.AsSpan(o), v); }
     public void WriteByte(long a, byte v) { var (b, o) = Locate(a, 1); b[o] = v; }
 
-    /// <summary>Tulis std::string MSVC di alamat <paramref name="a"/> (32 byte: data/ptr @0, len @0x10).</summary>
+    /// <summary>Write an MSVC std::string at address <paramref name="a"/> (32 byte: data/ptr @0, len @0x10).</summary>
     public void WriteStdString(long a, string s)
     {
         byte[] raw = Encoding.UTF8.GetBytes(s);

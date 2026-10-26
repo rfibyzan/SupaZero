@@ -2,12 +2,12 @@ using System.Globalization;
 
 namespace SupaZero.Core.Settings;
 
-/// <summary>Warna RGB 24-bit (tanpa alpha).</summary>
+/// <summary>24-bit RGB colour (no alpha).</summary>
 public readonly record struct ThemeRgb(byte R, byte G, byte B)
 {
     public string Hex => $"#{R:X2}{G:X2}{B:X2}";
 
-    /// <summary>"#RRGGBB" / "RRGGBB" / "#RGB" → warna; selain itu false.</summary>
+    /// <summary>"#RRGGBB" / "RRGGBB" / "#RGB" → colour; anything else false.</summary>
     public static bool TryParse(string? text, out ThemeRgb color)
     {
         color = default;
@@ -21,9 +21,9 @@ public readonly record struct ThemeRgb(byte R, byte G, byte B)
     }
 
     public static ThemeRgb Parse(string text) =>
-        TryParse(text, out var c) ? c : throw new FormatException($"Warna tidak valid: '{text}'.");
+        TryParse(text, out var c) ? c : throw new FormatException($"Invalid colour: '{text}'.");
 
-    /// <summary>Campur linear: t = 0 → this, t = 1 → other.</summary>
+    /// <summary>Linear mix: t = 0 → this, t = 1 → other.</summary>
     public ThemeRgb Mix(ThemeRgb other, double t)
     {
         t = Math.Clamp(t, 0, 1);
@@ -31,7 +31,7 @@ public readonly record struct ThemeRgb(byte R, byte G, byte B)
         return new ThemeRgb(L(R, other.R, t), L(G, other.G, t), L(B, other.B, t));
     }
 
-    /// <summary>Luminans relatif (sRGB, WCAG).</summary>
+    /// <summary>Relative luminance (sRGB, WCAG).</summary>
     public double Luminance
     {
         get
@@ -43,12 +43,12 @@ public readonly record struct ThemeRgb(byte R, byte G, byte B)
 }
 
 /// <summary>
-/// Palet satu tema: lima warna dasar (sama dengan kolom "Custom colours" heritage: Background, Surface, Border, Accent,
-/// Text) + turunan yang dipakai UI port. Turunan dihitung, bukan dari decompile [S].
+/// Palette of one theme: five base colours (same as the heritage "Custom colours" fields: Background, Surface, Border, Accent,
+/// Text) + derived colours used by the port UI. Derived colours are computed, not taken from the decompile [S].
 /// </summary>
 public sealed record ThemePalette(string Name, ThemeRgb Background, ThemeRgb Surface, ThemeRgb Border, ThemeRgb Accent, ThemeRgb Text)
 {
-    /// <summary>Tema terang bila latar lebih terang dari teks.</summary>
+    /// <summary>Light theme when the background is brighter than the text.</summary>
     public bool IsLight => Background.Luminance > Text.Luminance;
 
     public ThemeRgb SurfaceInner => Surface.Mix(Text, IsLight ? 0.03 : 0.04);
@@ -60,9 +60,9 @@ public sealed record ThemePalette(string Name, ThemeRgb Background, ThemeRgb Sur
     public ThemeRgb AccentPressed => Accent.Mix(new ThemeRgb(0, 0, 0), 0.15);
 
     /// <summary>
-    /// Tombol utama (Button.accent / segmen aktif). Aksen gelap/berwarna (luminans &lt; 0.4) dipakai langsung; aksen terang
-    /// (mis. tema Black, abu terang) TIDAK dipakai sebagai latar tombol: tombol jadi abu gelap dengan teks terang, dan saat
-    /// hover yang berubah latarnya (lebih terang), bukan teksnya (permintaan pengguna 22 Okt 2026).
+    /// Primary button (Button.accent / active segment). Dark/coloured accents (luminance &lt; 0.4) are used directly; light accents
+    /// (e.g. Black theme, light grey) are NOT used as the button background: the button becomes dark grey with light text, and on
+    /// hover the background changes (brighter), not the text (user request 22 Oct 2026).
     /// </summary>
     public bool ButtonUsesAccent => Accent.Luminance < 0.4;
     public ThemeRgb ButtonBg => ButtonUsesAccent ? Accent : Surface.Mix(Text, IsLight ? 0.10 : 0.14);
@@ -71,7 +71,7 @@ public sealed record ThemePalette(string Name, ThemeRgb Background, ThemeRgb Sur
     public ThemeRgb ButtonDisabled => Surface.Mix(Text, IsLight ? 0.05 : 0.07);
     public ThemeRgb OnButton => ButtonUsesAccent ? OnAccent : Text;
 
-    /// <summary>Teks di atas aksen (badge, tombol aksen): gelap atau putih, mana yang kontrasnya lebih tinggi.</summary>
+    /// <summary>Text on top of the accent (badge, accent button): dark or white, whichever has higher contrast.</summary>
     public ThemeRgb OnAccent
     {
         get
@@ -87,9 +87,9 @@ public sealed record ThemePalette(string Name, ThemeRgb Background, ThemeRgb Sur
 }
 
 /// <summary>
-/// Tema SupaZero (sama dengan SupaFisch) (permintaan pengguna 22 Okt 2026): layout mengikuti heritage (strip tab atas), tetapi palet hanya
-/// Black (default, hitam netral), White (terang), dan Custom. Tidak ada aksen hijau.
-/// Nama lama dipetakan: Dark/Abyss/Midnight/Slate/Pink → Black, Light/Daylight → White.
+/// SupaZero themes (same as SupaFisch) (user request 22 Oct 2026): layout follows heritage (top tab strip), but the palettes are only
+/// Black (default, neutral black), White (light), and Custom. No green accent.
+/// Legacy names are mapped: Dark/Abyss/Midnight/Slate/Pink → Black, Light/Daylight → White.
 /// </summary>
 public static class ThemePalettes
 {
@@ -104,7 +104,7 @@ public static class ThemePalettes
     public static ThemePalette WhitePalette { get; } = new(White,
         ThemeRgb.Parse("#F5F5F5"), ThemeRgb.Parse("#FFFFFF"), ThemeRgb.Parse("#DADADA"), ThemeRgb.Parse("#171717"), ThemeRgb.Parse("#171717"));
 
-    /// <summary>Warna titik penanda tiap tombol tema.</summary>
+    /// <summary>Swatch dot colour for each theme button.</summary>
     public static string SwatchHex(string name) => Normalize(name) switch
     {
         White => "#FFFFFF",
@@ -112,7 +112,7 @@ public static class ThemePalettes
         _ => "#0A0A0A",
     };
 
-    /// <summary>Nama tema dinormalisasi (case-insensitive). Nama lama dipetakan; tak dikenal → Black.</summary>
+    /// <summary>Normalized theme name (case-insensitive). Legacy names are mapped; unknown → Black.</summary>
     public static string Normalize(string? name)
     {
         var n = name?.Trim();
@@ -123,7 +123,7 @@ public static class ThemePalettes
         return Black;
     }
 
-    /// <summary>Palet custom; nilai hex tidak valid jatuh ke default <see cref="CustomThemeSettings"/>.</summary>
+    /// <summary>Custom palette; invalid hex values fall back to the default <see cref="CustomThemeSettings"/>.</summary>
     public static ThemePalette FromCustom(CustomThemeSettings? custom)
     {
         var d = new CustomThemeSettings();

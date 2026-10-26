@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RIE.Core.Macro;
 
-/// <summary>Info jendela Roblox: origin area klien di layar dan ukurannya (piksel fisik).</summary>
+/// <summary>Roblox window info: client area origin on screen and its size (physical pixels).</summary>
 public sealed record WindowInfo(int ClientX, int ClientY, int ClientWidth, int ClientHeight, double DpiScale)
 {
     public static readonly WindowInfo None = new(0, 0, 0, 0, 1);
@@ -16,9 +16,9 @@ public sealed record ScreenRect(double X, double Y, double Width, double Height)
 }
 
 /// <summary>
-/// Ubah AbsolutePosition/AbsoluteSize GUI (relatif viewport di bawah topbar) ke koordinat layar.
-/// GuiInsetY = tinggi topbar Roblox (default 58 px; 0 untuk ScreenGui dengan IgnoreGuiInset).
-/// GuiScale = faktor piksel GUI → piksel layar (biasanya 1).
+/// Converts GUI AbsolutePosition/AbsoluteSize (relative to the viewport below the topbar) to screen coordinates.
+/// GuiInsetY = Roblox topbar height (default 58 px; 0 for a ScreenGui with IgnoreGuiInset).
+/// GuiScale = GUI pixel → screen pixel factor (usually 1).
 /// </summary>
 public static class ScreenMap
 {
@@ -34,11 +34,11 @@ public static class ScreenMap
                double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y);
     }
 
-    /// <summary>Rect relatif ke pojok kiri-atas area klien jendela Roblox.</summary>
+    /// <summary>Rect relative to the top-left corner of the Roblox window client area.</summary>
     public static ScreenRect ToClient(double absX, double absY, double w, double h, double guiInsetY = DefaultGuiInsetY, double guiScale = 1) =>
         new(absX * guiScale, (absY + guiInsetY) * guiScale, w * guiScale, h * guiScale);
 
-    /// <summary>Rect di koordinat layar absolut.</summary>
+    /// <summary>Rect in absolute screen coordinates.</summary>
     public static ScreenRect ToScreen(ScreenRect client, WindowInfo win) =>
         new(win.ClientX + client.X, win.ClientY + client.Y, client.Width, client.Height);
 

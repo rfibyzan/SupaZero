@@ -8,7 +8,7 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.ViewModels;
 
-/// <summary>Halaman tab yang memakai FarmViewModel bersama (Combat, Lobby).</summary>
+/// <summary>Tab pages that share the FarmViewModel (Combat, Lobby).</summary>
 public sealed class CombatPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 public sealed class LobbyPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 public sealed class ModesPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
@@ -20,13 +20,13 @@ public sealed class TabViewModel(string title, object content, bool showHeader =
     public bool ShowHeader { get; } = showHeader;
 }
 
-/// <summary>Root VM: tab atas (General, Story, Upgrade, Settings), sesi memori read-only, runner macro, log.</summary>
+/// <summary>Root VM: top tabs (General, Story, Upgrade, Settings), read-only memory session, macro runner, log.</summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private readonly object _readGate = new();
     private readonly DispatcherTimer _timer;
     private int _selectedTabIndex;
-    private string _connectionText = "Belum attach.";
+    private string _connectionText = "Not attached yet.";
     private string _statusText = "Idle";
     private GameSnapshot _snapshot = new();
 
@@ -47,10 +47,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             prog[map] = act;
             Settings.Farm = Settings.Farm with { ActProgress = prog };
             Save();
-            AddLog($"Tuntas: {map} Act {act}.");
+            AddLog($"Cleared: {map} Act {act}.");
         });
         Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); });
-        // Discord webhook: hasil ronde + macro berhenti.
+        // Discord webhook: round result + macro stopped.
         Runner.Machine.RoundEnded = r =>
         {
             var w = Settings.Webhook;
@@ -61,8 +61,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var w = Settings.Webhook;
             if (!running && w.OnStop && SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(w.Url))
-                _ = SendWebhook(new("Macro berhenti", Runner.LastStopReason ?? "Dihentikan manual.", SupaZero.Core.Notify.DiscordWebhook.Gray,
-                    [new("Stage selesai", Runner.Machine.StagesCleared.ToString(), true)]));
+                _ = SendWebhook(new("Macro stopped", Runner.LastStopReason ?? "Stopped manually.", SupaZero.Core.Notify.DiscordWebhook.Gray,
+                    [new("Stages cleared", Runner.Machine.StagesCleared.ToString(), true)]));
         };
 
         General = new GeneralViewModel(this);
@@ -90,7 +90,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public AppSettings Settings { get; }
     public Win32Input Input { get; }
     public OverlayViewModel Overlay { get; }
-    /// <summary>Tiap tick timer saat macro jalan: (area klien Roblox di layar atau null).</summary>
+    /// <summary>Each timer tick while the macro runs: (Roblox client area on screen, or null).</summary>
     public event Action<(int X, int Y, int W, int H)?>? OverlayTick;
     public RobloxSession Session { get; }
     public MacroRunner Runner { get; }
@@ -123,7 +123,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
     public GameSnapshot Snapshot { get => _snapshot; private set => Set(ref _snapshot, value); }
 
-    /// <summary>Rebind tombol yang sedang menunggu input (hotkey macro atau tombol skill). null = tidak ada.</summary>
+    /// <summary>Key rebind currently waiting for input (macro hotkey or skill key). null = none.</summary>
     public Func<string?, bool, bool>? ActiveRebind { get; set; }
 
     public bool TryCompleteRebind(string? keyName, bool cancel)
@@ -137,7 +137,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public event Action? OffsetsChanged;
 
     private PowerKnowledge? _powers;
-    /// <summary>Nama &amp; trait power yang dipelajari dari game, disinkronkan ke settings.</summary>
+    /// <summary>Power names &amp; traits learned from the game, synced to settings.</summary>
     public PowerKnowledge Powers
     {
         get
@@ -153,7 +153,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private string? _lastTraitDebug, _lastPowerDebug;
 
-    /// <summary>Auto spin Power / reroll Trait bawaan game selesai → log + webhook Discord.</summary>
+    /// <summary>The game's built-in Power auto spin / Trait reroll finished → log + Discord webhook.</summary>
     private void CheckSpin()
     {
         if (Session.Game is not { PendingSpin: { } r } g) return;
@@ -178,20 +178,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Settings.PowerLoadout = p.Loadout.ToList();
         }
         Save();
-        AddLog("Data power/trait diperbarui dari game.");
+        AddLog("Power/trait data updated from the game.");
     }
 
     public void LoadOffsets(string? explicitPath = null)
     {
         string? path = explicitPath ?? RobloxSession.FindOffsets(Settings.OffsetsPath);
-        if (path is null) { AddLog("offsets.json tidak ditemukan."); OffsetsChanged?.Invoke(); return; }
+        if (path is null) { AddLog("offsets.json not found."); OffsetsChanged?.Invoke(); return; }
         try
         {
             lock (_readGate) Session.LoadOffsets(path);
             ApplyGuiCalibration();
-            AddLog("Offsets dimuat: " + path);
+            AddLog("Offsets loaded: " + path);
         }
-        catch (Exception ex) { AddLog("Gagal memuat offsets: " + ex.Message); }
+        catch (Exception ex) { AddLog("Failed to load offsets: " + ex.Message); }
         OffsetsChanged?.Invoke();
     }
 
@@ -209,7 +209,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Dipakai runner (thread latar) dan timer UI; dikunci agar dua pembaca tidak berebut sesi.</summary>
+    /// <summary>Used by the runner (background thread) and the UI timer; locked so two readers don't fight over the session.</summary>
     public GameSnapshot ReadSnapshot()
     {
         lock (_readGate) return Session.ReadSnapshot();
@@ -218,7 +218,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private object? _matSeeded;
     private int _matVer = -1;
 
-    /// <summary>v0.3.5: nama material (icon/key materialNNN) yang dipelajari reader disimpan ke settings; reader baru diisi dari settings.</summary>
+    /// <summary>v0.3.5: material names (icon/key materialNNN) learned by the reader are saved to settings; a new reader is seeded from settings.</summary>
     private void SyncMaterials()
     {
         if (Session.Game is not { } g) return;
@@ -234,20 +234,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (g.UnknownMaterial is { } u)
         {
             g.UnknownMaterial = null;
-            AddLog($"Nama drop belum diketahui: {u}. Buka menu Create Room map/act itu sekali (panel Rewards) agar namanya terbaca.");
+            AddLog($"Drop name unknown yet: {u}. Open the Create Room menu for that map/act once (Rewards panel) so its name gets read.");
         }
     }
 
     private void Refresh()
     {
-        // Saat macro jalan, snapshot terbaru datang dari runner; saat berhenti, baca sendiri (1x per tick timer).
+        // While the macro runs, the latest snapshot comes from the runner; when stopped, read it ourselves (once per timer tick).
         var snap = Runner.IsRunning ? Runner.LastSnapshot ?? new GameSnapshot() : ReadSnapshot();
         Snapshot = snap;
         string place = snap.PlaceId == AnimeZeroPaths.PlaceId ? "Anime Zero" : snap.PlaceId == 0 ? "-" : $"place {snap.PlaceId}";
         ConnectionText = Session.IsReady
-            ? $"{Session.Status} · {place} · {(snap.LocalPlayer.Length > 0 ? snap.LocalPlayer : "?")} · layar {snap.Screen}"
+            ? $"{Session.Status} · {place} · {(snap.LocalPlayer.Length > 0 ? snap.LocalPlayer : "?")} · screen {snap.Screen}"
             : Session.Status;
-        StatusText = Runner.IsRunning ? $"{Runner.Machine.Phase}: {Runner.Machine.Status}" : $"Layar: {snap.Screen}";
+        StatusText = Runner.IsRunning ? $"{Runner.Machine.Phase}: {Runner.Machine.Status}" : $"Screen: {snap.Screen}";
         SyncPowers();
         CheckSpin();
         General.Refresh();
@@ -263,7 +263,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public async Task SendWebhook(SupaZero.Core.Notify.DiscordWebhook.Embed embed)
     {
         var err = await SupaZero.Core.Notify.DiscordWebhook.SendAsync(Settings.Webhook.Url, embed, Settings.Webhook.Mention);
-        Dispatcher.UIThread.Post(() => AddLog(err is null ? $"Webhook terkirim: {embed.Title}." : err));
+        Dispatcher.UIThread.Post(() => AddLog(err is null ? $"Webhook sent: {embed.Title}." : err));
     }
 
     public void AddLog(string line)

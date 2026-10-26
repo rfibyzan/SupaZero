@@ -7,7 +7,7 @@ public sealed record DataModelRoots(long DataModel, long Workspace, long Players
     public static readonly DataModelRoots Empty = new(0, 0, 0, 0, 0, 0);
 }
 
-/// <summary>DataModel = [moduleBase + FakeDataModel.Pointer] + FakeDataModel.RealDataModel, lalu service utama.</summary>
+/// <summary>DataModel = [moduleBase + FakeDataModel.Pointer] + FakeDataModel.RealDataModel, then the main services.</summary>
 public sealed class DataModelLocator(InstanceReader reader)
 {
     public long ReadDataModel(long moduleBase)

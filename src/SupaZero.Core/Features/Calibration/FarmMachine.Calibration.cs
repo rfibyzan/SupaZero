@@ -3,26 +3,26 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.Core.Automation;
 
-/// <summary>Hasil kalibrasi aksi: map per mode (terkunci/terbuka) dan daftar act per map, semua dari GUI yang terbaca.</summary>
+/// <summary>Action calibration result: maps per mode (locked/unlocked) and the act list per map, all from the GUI as read.</summary>
 public sealed record CalibrationScan(IReadOnlyList<KnownMap> Maps, IReadOnlyDictionary<string, List<int>> Acts, IReadOnlyList<string> Notes)
 {
-    /// <summary>v0.3.4: material yang bisa ditarget (TargetPill tampil di Hard/Nightmare) per "Map|Act N".</summary>
+    /// <summary>v0.3.4: targetable materials (TargetPill shown on Hard/Nightmare) per "Map|Act N".</summary>
     public IReadOnlyDictionary<string, List<string>> Drops { get; init; } = new Dictionary<string, List<string>>();
 }
 
 /// <summary>
-/// v0.2.82 Kalibrasi aksi (permintaan Byzan 25 Okt 2026): karakter melakukan aksi untuk MENDAPATKAN data, bukan menebak.
-/// Lobby: buka menu Trait lalu Spin (data power) → jalan ke room Create Room → tiap mode: klik mode, baca daftar map →
-/// tiap map terbuka: klik map, baca ActsList → klik Leave (batal, tidak pernah klik Start/difficulty).
-/// Setiap bacaan baru diterima bila sama persis selama <see cref="CalStableMs"/> (daftar GUI berganti bertahap setelah klik).
+/// v0.2.82 Action calibration (Byzan's request 25 Oct 2026): the character performs actions to OBTAIN data, not guess it.
+/// Lobby: open the Trait menu, then Spin (power data) → walk to the Create Room room → each mode: click the mode, read the map list →
+/// each unlocked map: click the map, read ActsList → click Leave (cancel, never clicks Start/difficulty).
+/// Each new reading is accepted once it stays exactly the same for <see cref="CalStableMs"/> (GUI lists change gradually after a click).
 /// </summary>
 public sealed partial class FarmMachine
 {
     public bool Calibrating { get; private set; }
     public Action<CalibrationScan>? CalibrationFinished { get; set; }
-    public const int CalStableMs = 400, CalStepTimeoutMs = 10_000; // v0.3.7: 800→400 ms (percepat)
+    public const int CalStableMs = 400, CalStepTimeoutMs = 10_000; // v0.3.7: 800→400 ms (faster)
 
-    // 1 baca daftar mode · 2 pilih mode · 3 baca map · 4 pilih map · 5 baca act · 6 Leave
+    // 1 read mode list · 2 pick mode · 3 read maps · 4 pick map · 5 read acts · 6 Leave
     private int _calStage;
     private List<string> _calModes = [];
     private int _calModeIdx;
@@ -32,7 +32,7 @@ public sealed partial class FarmMachine
     private readonly Dictionary<string, List<int>> _calActs = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _calNotes = [];
     private string? _calSig;
-    // v0.3.4 drop per act: 7 pilih Hard/Nightmare · 8 tiap act terbuka: klik act, baca Rewards (TargetPill).
+    // v0.3.4 drops per act: 7 pick Hard/Nightmare · 8 each unlocked act: click the act, read Rewards (TargetPill).
     private readonly Dictionary<string, List<string>> _calDrops = new(StringComparer.OrdinalIgnoreCase);
     private List<int> _calDropActs = [];
     private int _calDropIdx;
@@ -40,9 +40,9 @@ public sealed partial class FarmMachine
     public const long CalDiffTimeoutMs = 4000, CalActTimeoutMs = 6000;
     public static string DropKey(string map, int act) => $"{map.Trim()}|Act {act}";
     private long _calSigSince, _calStepAt = -1;
-    // v0.3.7 (Byzan 25 Okt 09:03): daftar map memuat semua mode → satu kali lewat, urut posisi daftar (atas→bawah).
+    // v0.3.7 (Byzan 25 Oct 09:03): the map list contains all modes → single pass, ordered by list position (top→bottom).
     private bool _calAllListed;
-    // Trials terakhir: klik kartu → panel Trials (Floor Rewards) → baca drop → Leave Trials (sekaligus keluar menu room).
+    // Trials last: click the card → Trials panel (Floor Rewards) → read drops → Leave Trials (also exits the room menu).
     private string? _calTrials;
     private long? _calTrialsClickAt;
     private bool _calTrialsRead;
@@ -56,21 +56,21 @@ public sealed partial class FarmMachine
         _calKnown.Clear(); _calActs.Clear(); _calNotes.Clear(); _calDrops.Clear(); _calDropActs = []; _calDropIdx = 0;
         _calSig = null; _calStepAt = -1;
         _calAllListed = false; _calTrials = null; _calTrialsClickAt = null; _calTrialsRead = false;
-        _pcStep = 1; _pcStepAt = null; _pcOpenAt = null; // v0.3.12: cek power lewat tombol "Spinning" (SummonButton) → Roll → ExitButton
+        _pcStep = 1; _pcStepAt = null; _pcOpenAt = null; // v0.3.12: power check via the "Spinning" button (SummonButton) → Roll → ExitButton
         _trStep = 0; _trAt = null; _trHeader = null; _trClickAt = null; _trSeen.Clear();
     }
 
-    // ---- Trait (Byzan 25 Okt 2026): Areas → kartu "Traits" → teleport ke depan NPC Matilda → maju (W) → panel Trait Reroll
-    // (SurfaceGui "UI Animation (Working).Trait Reroll") terbuka → baca → mundur (S) sampai panel tertutup. Tidak klik apa pun di panel.
+    // ---- Trait (Byzan 25 Oct 2026): Areas → "Traits" card → teleport in front of NPC Matilda → walk forward (W) → Trait Reroll panel
+    // (SurfaceGui "UI Animation (Working).Trait Reroll") opens → read → walk back (S) until the panel closes. Never clicks anything in the panel.
     private int _trStep;
     private long? _trAt;
     private string? _trHeader;
     private long _trHeaderAt;
     private long? _trClickAt;
     private readonly HashSet<int> _trSeen = [];
-    public const int TraitNextTimeoutMs = 2500, TraitReadMs = 400; // v0.3.13: 1500→400 (layar Trait dibaca tiap tick)
+    public const int TraitNextTimeoutMs = 2500, TraitReadMs = 400; // v0.3.13: 1500→400 (Trait screen is read every tick)
 
-    /// <summary>"Shadow Lord 3/5" → (3, 5); tanpa counter → (0, 0).</summary>
+    /// <summary>"Shadow Lord 3/5" → (3, 5); no counter → (0, 0).</summary>
     public static (int Cur, int Total) TraitCounter(string? header)
     {
         var m = header is null ? null : System.Text.RegularExpressions.Regex.Match(header, @"(\d+)\s*/\s*(\d+)\s*$");
@@ -78,22 +78,22 @@ public sealed partial class FarmMachine
     }
     public const int TraitTeleportSettleMs = 1200, TraitWalkMs = 10_000, TraitBackMs = 6000;
     public const string CalRoomCard = "Story";
-    public const double TraitSpotMaxDist = 25; // spawn kartu Traits ↔ GuideSpot ≈ 7 stud (RIE)
+    public const double TraitSpotMaxDist = 25; // Traits card spawn ↔ GuideSpot ≈ 7 studs (RIE)
 
     private List<MacroAction>? CalTraits(GameSnapshot s, long now)
     {
         if (_trStep >= 5) return null;
-        var stand = new MoveAction([], "Kalibrasi trait");
+        var stand = new MoveAction([], "Trait calibration");
         _trAt ??= now;
         long dt = now - _trAt.Value;
         void Go(int st) { _trStep = st; _trAt = now; }
-        List<MacroAction> Skip(string why) { _calNotes.Add(why); _trStep = 5; _trAt = null; return [stand, new NoteAction("Kalibrasi: " + why)]; }
+        List<MacroAction> Skip(string why) { _calNotes.Add(why); _trStep = 5; _trAt = null; return [stand, new NoteAction("Calibration: " + why)]; }
         if (s.TraitMenuOpen && _trStep < 3) Go(3);
         switch (_trStep)
         {
             case 0:
             {
-                Status = "Kalibrasi trait: Areas → Traits.";
+                Status = "Trait calibration: Areas → Traits.";
                 var card = s.TeleportCards.FirstOrDefault(c => c.Name.Equals(AnimeZeroPaths.TraitsCard, StringComparison.OrdinalIgnoreCase));
                 if (card is not null)
                 {
@@ -101,72 +101,72 @@ public sealed partial class FarmMachine
                     if (r.Any(a => a is ClickAction)) Go(1);
                     return [stand, .. r];
                 }
-                if (dt > 15_000) return Skip($"kartu Traits di panel Areas tidak terbaca (terbaca: {(s.TeleportCards.Count > 0 ? string.Join(", ", s.TeleportCards.Select(c => c.Name)) : "-")}) → trait tidak dicek.");
+                if (dt > 15_000) return Skip($"Traits card in the Areas panel not readable (read: {(s.TeleportCards.Count > 0 ? string.Join(", ", s.TeleportCards.Select(c => c.Name)) : "-")}) → trait not checked.");
                 if (s.TeleportCards.Count == 0 && s.AreasButton is { } ab && InWindow(s, ab.CenterX, ab.CenterY))
-                    return Ready("cal-areas", now, 2500) ? [stand, new ClickAction(ab.CenterX, ab.CenterY, "Tombol Areas (kalibrasi trait)")] : [stand];
+                    return Ready("cal-areas", now, 2500) ? [stand, new ClickAction(ab.CenterX, ab.CenterY, "Areas button (trait calibration)")] : [stand];
                 return [stand];
             }
             case 1:
-                Status = "Kalibrasi trait: menunggu teleport ke Matilda.";
+                Status = "Trait calibration: waiting for the teleport to Matilda.";
                 if (s.TeleportCards.Count == 0 && dt >= TraitTeleportSettleMs) { Go(2); return CalTraits(s, now); }
-                if (dt > 10_000) return Skip("panel Areas tidak tertutup setelah klik Traits.");
+                if (dt > 10_000) return Skip("Areas panel did not close after clicking Traits.");
                 return [stand];
             case 2:
             {
-                // v0.2.87: jalan ke GuideSpots.Enchants (posisi terbukti RIE), arah dari posisi karakter + kamera; bukan W buta.
-                Status = "Kalibrasi trait: jalan ke titik Enchants (Matilda).";
-                if (s.TraitSpot is not { } spot) return Skip("titik Systems.GuideSpots.Enchants tidak terbaca → tidak jalan.");
-                if (s.PlayerPos is not { } pp) return Skip("posisi karakter tidak terbaca → tidak jalan.");
+                // v0.2.87: walk to GuideSpots.Enchants (position proven via RIE), direction from character position + camera; not blind W.
+                Status = "Trait calibration: walking to the Enchants spot (Matilda).";
+                if (s.TraitSpot is not { } spot) return Skip("Systems.GuideSpots.Enchants spot not readable → not walking.");
+                if (s.PlayerPos is not { } pp) return Skip("character position not readable → not walking.");
                 double d = Navigator.Distance2D(pp.X, pp.Z, spot.X, spot.Z);
-                if (d > TraitSpotMaxDist) return Skip($"titik Enchants {d:0} stud dari karakter (> {TraitSpotMaxDist}) → teleport Traits tidak terbukti, tidak jalan.");
-                if (dt > TraitWalkMs) return Skip($"panel Trait Reroll tidak terbuka dalam {TraitWalkMs / 1000} dtk (jarak ke titik {d:0.#} stud).");
-                var walk = WalkTo(s, spot, 1.0, now, "titik Enchants", attackWhenStuck: false);
+                if (d > TraitSpotMaxDist) return Skip($"Enchants spot is {d:0} studs from the character (> {TraitSpotMaxDist}) → Traits teleport not proven, not walking.");
+                if (dt > TraitWalkMs) return Skip($"Trait Reroll panel did not open within {TraitWalkMs / 1000} s (distance to spot {d:0.#} studs).");
+                var walk = WalkTo(s, spot, 1.0, now, "Enchants spot", attackWhenStuck: false);
                 return walk.Count > 0 ? walk : [stand];
             }
             case 3:
             {
-                Status = "Kalibrasi trait: panel Trait Reroll terbuka, membaca…";
-                if (!s.TraitMenuOpen) return Skip("panel Trait Reroll tertutup sebelum terbaca.");
-                // v0.3.6: baca SEMUA unit: tunggu pembacaan trait (ReadPowers tiap 2 dtk) lalu klik ">" (terbukti RIE), wajib header berganti.
+                Status = "Trait calibration: Trait Reroll panel open, reading…";
+                if (!s.TraitMenuOpen) return Skip("Trait Reroll panel closed before it was read.");
+                // v0.3.6: read ALL units: wait for the trait read (ReadPowers every 2 s), then click ">" (proven via RIE); the header must change.
                 var (cur, total) = TraitCounter(s.TraitHeader);
                 if (s.TraitHeader != _trHeader) { _trHeader = s.TraitHeader; _trHeaderAt = now; _trClickAt = null; }
                 if (cur > 0 && total > 0)
                 {
                     if (now - _trHeaderAt < TraitReadMs) return [stand];
-                    if (_trSeen.Add(cur)) _calNotes.Add($"trait unit {s.TraitHeader} terbaca");
+                    if (_trSeen.Add(cur)) _calNotes.Add($"trait for unit {s.TraitHeader} read");
                     if (_trSeen.Count < total)
                     {
                         if (_trClickAt is long ca && now - ca > TraitNextTimeoutMs)
-                            return Skip($"klik \">\" tidak mengganti unit (tetap '{s.TraitHeader}') → {_trSeen.Count}/{total} unit terbaca.");
+                            return Skip($"clicking \">\" did not change the unit (still '{s.TraitHeader}') → {_trSeen.Count}/{total} units read.");
                         if (_trClickAt is not null) return [stand];
                         if (s.TraitNext is not { } nx || !InWindow(s, nx.CenterX, nx.CenterY))
-                            return Skip($"tombol \">\" panel Trait tidak terbaca → {_trSeen.Count}/{total} unit terbaca.");
+                            return Skip($"Trait panel \">\" button not readable → {_trSeen.Count}/{total} units read.");
                         _trClickAt = now;
-                        Status = $"Kalibrasi trait: {s.TraitHeader} → unit berikutnya (>).";
+                        Status = $"Trait calibration: {s.TraitHeader} → next unit (>).";
                         return [stand, new ClickAction(nx.CenterX, nx.CenterY, $"Trait > ({cur}/{total})")];
                     }
                 }
                 else if (dt < PowerMenuReadMs) return [stand];
-                string eq = s.Equipped.Count == 0 ? "slot belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
+                string eq = s.Equipped.Count == 0 ? "slots not read yet" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
                     $"slot {p.Loadout} {p.Name}{(p.Level is { } lv ? $" Lv.{lv}" : "")}{(p.Trait is { } t ? $" ({t.Name})" : "")}"));
                 Go(4);
-                return [stand, new NoteAction($"Kalibrasi trait: {eq}.")];
+                return [stand, new NoteAction($"Trait calibration: {eq}.")];
             }
             default:
             {
-                // Keluar zona Enchants: jalan ke titik teleport Traits (AreasTeleportLocation.Traits, terbukti RIE di luar zona).
-                Status = "Kalibrasi trait: keluar zona sampai panel tertutup.";
+                // Leave the Enchants zone: walk to the Traits teleport spot (AreasTeleportLocation.Traits, proven via RIE to be outside the zone).
+                Status = "Trait calibration: leaving the zone until the panel closes.";
                 if (!s.TraitMenuOpen) { _trStep = 5; _trAt = null; return [stand]; }
-                if (s.TraitExit is not { } exit) return Skip("titik AreasTeleportLocation.Traits tidak terbaca → panel Trait tidak ditutup, tutup sendiri (X).");
-                if (dt > TraitBackMs) return Skip("panel Trait Reroll tidak tertutup setelah keluar zona → tutup sendiri (X).");
-                var walk = WalkTo(s, exit, 1.0, now, "luar zona Enchants", attackWhenStuck: false);
+                if (s.TraitExit is not { } exit) return Skip("AreasTeleportLocation.Traits spot not readable → Trait panel not closed, close it yourself (X).");
+                if (dt > TraitBackMs) return Skip("Trait Reroll panel did not close after leaving the zone → close it yourself (X).");
+                var walk = WalkTo(s, exit, 1.0, now, "outside the Enchants zone", attackWhenStuck: false);
                 return walk.Count > 0 ? walk : [stand];
             }
         }
     }
 
-    /// <summary>Awalan status sekali saja (v0.2.84: Status yang tidak diperbarui tiap tick menumpuk "Kalibrasi: Kalibrasi: …").</summary>
-    private void CalPrefix() { if (!Status.StartsWith("Kalibrasi", StringComparison.Ordinal)) Status = "Kalibrasi: " + Status; }
+    /// <summary>Status prefix added only once (v0.2.84: a Status not refreshed every tick stacked up as "Calibration: Calibration: …").</summary>
+    private void CalPrefix() { if (!Status.StartsWith("Calibration", StringComparison.Ordinal)) Status = "Calibration: " + Status; }
 
     private bool CalStable(string sig, long now)
     {
@@ -182,7 +182,7 @@ public sealed partial class FarmMachine
     {
         _calNotes.Add(note);
         CalGo(stage, now);
-        return [new NoteAction("Kalibrasi: " + note)];
+        return [new NoteAction("Calibration: " + note)];
     }
 
     private List<MacroAction> CalibrationStep(GameSnapshot s, AppSettings S, long now)
@@ -191,15 +191,15 @@ public sealed partial class FarmMachine
         switch (s.Screen)
         {
             case GameScreen.Unknown:
-                return Wait("Kalibrasi: menunggu Roblox / DataModel.");
+                return Wait("Calibration: waiting for Roblox / DataModel.");
             case GameScreen.Lobby:
                 if (_calStage == 9 && !_calTrialsRead && _calTrialsClickAt is long tc && now - tc < CalTrialsOpenMs)
-                    return [new MoveAction([], "Kalibrasi: menunggu panel Trials")];
-                if (_calStage >= 6) return CalFinish(_calStage == 9 ? "panel Trials ditutup lewat Leave" : "menu room ditutup lewat Leave");
+                    return [new MoveAction([], "Calibration: waiting for the Trials panel")];
+                if (_calStage >= 6) return CalFinish(_calStage == 9 ? "Trials panel closed via Leave" : "room menu closed via Leave");
                 if (CalTraits(s, now) is { } tr) return tr;
                 if (_calStage == 0 && PowerCheck(s, now) is { } pc) return pc;
-                if (_calStage > 0) return CalFinish("menu room tertutup sebelum selesai");
-                // v0.2.89: lingkaran Create Room ada di area Story (Byzan 25 Okt) → kalibrasi selalu pakai kartu "Story", bukan mode farm.
+                if (_calStage > 0) return CalFinish("room menu closed before finishing");
+                // v0.2.89: the Create Room circle is in the Story area (Byzan 25 Oct) → calibration always uses the "Story" card, not the farm mode.
                 var walk = WalkToLobby(s, S, now, force: true, cardName: CalRoomCard);
                 CalPrefix();
                 return walk;
@@ -209,24 +209,24 @@ public sealed partial class FarmMachine
                 return CalTrialsPanel(s, now);
             default:
                 Calibrating = false;
-                return Stop($"Kalibrasi hanya bisa dimulai dari lobby (layar sekarang: {s.Screen}).");
+                return Stop($"Calibration can only be started from the lobby (current screen: {s.Screen}).");
         }
     }
 
     private List<MacroAction> CalMenu(GameSnapshot s, long now)
     {
         Phase = MacroPhase.Lobby;
-        var stand = new MoveAction([], "Kalibrasi");
+        var stand = new MoveAction([], "Calibration");
         if (_calStage == 0) CalGo(1, now);
 
         if (_calStage == 1)
         {
-            Status = "Kalibrasi: membaca daftar mode.";
+            Status = "Calibration: reading the mode list.";
             string sig = string.Join("|", s.LobbyModes.Select(m => $"{m.Name}:{m.Locked}"));
             if (!CalStable(sig, now))
-                return CalTimedOut(now) ? CalSkip("daftar mode tidak stabil → hanya mode terpilih.", 1, now) : [stand];
+                return CalTimedOut(now) ? CalSkip("mode list not stable → selected mode only.", 1, now) : [stand];
             _calModes = s.LobbyModes.Where(m => !m.Locked).Select(m => m.Name).ToList();
-            if (_calModes.Count == 0) _calModes = [""]; // tidak ada daftar mode: pakai yang sedang terpilih saja
+            if (_calModes.Count == 0) _calModes = [""]; // no mode list: use only the currently selected one
             _calModeIdx = 0;
             CalGo(2, now);
         }
@@ -239,10 +239,10 @@ public sealed partial class FarmMachine
                 string m = CalMode;
                 var e = m.Length == 0 ? null : s.LobbyModes.FirstOrDefault(x => x.Name == m);
                 if (m.Length == 0 || e is { Selected: true }) CalGo(3, now);
-                else if (e is null || CalTimedOut(now)) { _calModeIdx++; return CalSkip($"mode {m} tidak bisa dipilih → dilewati.", 2, now); }
+                else if (e is null || CalTimedOut(now)) { _calModeIdx++; return CalSkip($"mode {m} cannot be selected → skipped.", 2, now); }
                 else
                 {
-                    Status = $"Kalibrasi: pilih mode {m}.";
+                    Status = $"Calibration: selecting mode {m}.";
                     return [stand, .. ClickEntry(s, e, s.LobbyModesView, "cal-mode", $"Mode {m}", now) ?? []];
                 }
             }
@@ -250,22 +250,22 @@ public sealed partial class FarmMachine
 
         if (_calStage == 3)
         {
-            Status = $"Kalibrasi: membaca map mode {(CalMode.Length > 0 ? CalMode : "terpilih")}.";
+            Status = $"Calibration: reading maps for mode {(CalMode.Length > 0 ? CalMode : "selected")}.";
             string sig = string.Join("|", s.LobbyMaps.Select(x => $"{x.Name}:{x.Locked}:{x.Mode}"));
             if (s.LobbyMaps.Count == 0 || !CalStable(sig, now))
             {
                 if (!CalTimedOut(now)) return [stand];
                 _calModeIdx++;
-                return CalSkip($"daftar map mode {CalMode} tidak terbaca → dilewati.", 2, now);
+                return CalSkip($"map list for mode {CalMode} not readable → skipped.", 2, now);
             }
             foreach (var x in s.LobbyMaps)
             {
                 _calKnown.RemoveAll(k => k.Name.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
                 _calKnown.Add(new KnownMap(x.Name, x.Locked, x.Mode ?? (CalMode.Length > 0 ? CalMode : null)));
             }
-            // "Trials" membuka panel Trials (bukan act) → dikalibrasi TERAKHIR karena Leave-nya menutup menu room.
+            // "Trials" opens the Trials panel (not acts) → calibrated LAST because its Leave closes the room menu.
             if (s.LobbyMaps.FirstOrDefault(x => !x.Locked && OpensOtherPanel(x.Name)) is { } tri) _calTrials = tri.Name;
-            // v0.3.7: urut posisi di daftar (atas→bawah) agar scroll searah; daftar berisi map lintas mode → mode lain tidak perlu diklik.
+            // v0.3.7: ordered by list position (top→bottom) so scrolling goes one way; the list holds maps across modes → other modes need not be clicked.
             _calAllListed = s.LobbyMaps.Select(x => x.Mode).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Count() >= 2;
             _calMaps = s.LobbyMaps.Where(x => !x.Locked && !_calActs.ContainsKey(x.Name) && !OpensOtherPanel(x.Name))
                 .OrderBy(x => x.Rect is null ? 1 : 0).ThenBy(x => x.Rect?.Y ?? 0).Select(x => x.Name).ToList();
@@ -281,8 +281,8 @@ public sealed partial class FarmMachine
             else
             {
                 var e = s.LobbyMaps.FirstOrDefault(x => x.Name == map);
-                if (e is null || CalTimedOut(now)) { _calMapIdx++; return CalSkip($"map {map} tidak bisa dipilih → act-nya tidak terbaca.", 4, now); }
-                Status = $"Kalibrasi: pilih map {map}.";
+                if (e is null || CalTimedOut(now)) { _calMapIdx++; return CalSkip($"map {map} cannot be selected → its acts not read.", 4, now); }
+                Status = $"Calibration: selecting map {map}.";
                 return [stand, .. ClickEntry(s, e, s.LobbyMapsView, "cal-map", $"Map {map}", now) ?? []];
             }
         }
@@ -290,25 +290,25 @@ public sealed partial class FarmMachine
         if (_calStage == 5)
         {
             string map = _calMaps[_calMapIdx];
-            Status = $"Kalibrasi: membaca act map {map}.";
+            Status = $"Calibration: reading acts for map {map}.";
             var nums = s.LobbyActs.Select(a => ActNumber(a.Name)).Where(n => n > 0).Distinct().Order().ToList();
             string sig = $"{s.LobbyMapTag}|{string.Join(",", s.LobbyActs.Select(a => $"{a.Name}:{a.Locked}"))}";
             if (nums.Count == 0 || !Matches(s.LobbyMapTag, map) || !CalStable(sig, now))
             {
                 if (!CalTimedOut(now)) return [stand];
                 _calMapIdx++;
-                return CalSkip($"act map {map} tidak terbaca.", 4, now);
+                return CalSkip($"acts for map {map} not readable.", 4, now);
             }
             _calActs[map] = nums;
             int locked = s.LobbyActs.Count(a => a.Locked);
-            var note = new NoteAction($"Kalibrasi: {map} → Act {string.Join(", ", nums)}{(locked > 0 ? $" ({locked} terkunci)" : "")}.");
-            // v0.3.4: lanjut baca drop tiap act terbuka (butuh Hard/Nightmare agar TargetPill tampil).
+            var note = new NoteAction($"Calibration: {map} → Act {string.Join(", ", nums)}{(locked > 0 ? $" ({locked} locked)" : "")}.");
+            // v0.3.4: continue reading drops for each unlocked act (needs Hard/Nightmare so TargetPill shows).
             _calDropActs = s.LobbyActs.Where(a => !a.Locked).Select(a => ActNumber(a.Name)).Where(n => n > 0).Distinct().Order().ToList();
             _calDropIdx = 0;
             _calDiffTry = Difficulty.Nightmare;
             if (_calDropActs.Count == 0 || s.LobbyDifficulties.Count == 0)
             {
-                if (_calDropActs.Count > 0) _calNotes.Add($"tombol difficulty tidak terbaca → drop {map} tidak dikalibrasi.");
+                if (_calDropActs.Count > 0) _calNotes.Add($"difficulty buttons not readable → drops for {map} not calibrated.");
                 _calMapIdx++;
                 CalGo(4, now);
             }
@@ -325,13 +325,13 @@ public sealed partial class FarmMachine
             {
                 if (_calDiffTry == Difficulty.Nightmare) { _calDiffTry = Difficulty.Hard; CalGo(7, now); return [stand]; }
                 _calMapIdx++;
-                return CalSkip($"Hard/Nightmare tidak bisa dipilih di {map} (terpilih: {tag ?? "?"}) → drop tidak dikalibrasi.", 4, now);
+                return CalSkip($"Hard/Nightmare cannot be selected on {map} (selected: {tag ?? "?"}) → drops not calibrated.", 4, now);
             }
             else
             {
-                Status = $"Kalibrasi drop: pilih {_calDiffTry} ({map}).";
+                Status = $"Drop calibration: selecting {_calDiffTry} ({map}).";
                 if (DifficultyPoint(s, _calDiffTry) is not var (dx, dy) || !InWindow(s, dx, dy)) return [stand];
-                return Ready("cal-diff", now, 1500) ? [stand, new ClickAction(dx, dy, $"Difficulty {_calDiffTry} (kalibrasi drop)")] : [stand];
+                return Ready("cal-diff", now, 1500) ? [stand, new ClickAction(dx, dy, $"Difficulty {_calDiffTry} (drop calibration)")] : [stand];
             }
         }
 
@@ -343,85 +343,85 @@ public sealed partial class FarmMachine
             if (ActNumber(s.LobbyActTag) != act)
             {
                 var e = s.LobbyActs.FirstOrDefault(a => ActNumber(a.Name) == act && !a.Locked);
-                if (e is null || now - _calStepAt > CalActTimeoutMs) { _calDropIdx++; return CalSkip($"{map} Act {act} tidak bisa dipilih → drop tidak terbaca.", 8, now); }
-                Status = $"Kalibrasi drop: pilih {map} Act {act}.";
-                return [stand, .. ClickEntry(s, e, s.LobbyActsView, "cal-act", $"Act {act} (kalibrasi drop)", now) ?? []];
+                if (e is null || now - _calStepAt > CalActTimeoutMs) { _calDropIdx++; return CalSkip($"{map} Act {act} cannot be selected → drops not read.", 8, now); }
+                Status = $"Drop calibration: selecting {map} Act {act}.";
+                return [stand, .. ClickEntry(s, e, s.LobbyActsView, "cal-act", $"Act {act} (drop calibration)", now) ?? []];
             }
-            Status = $"Kalibrasi drop: baca Rewards {map} Act {act}.";
+            Status = $"Drop calibration: reading Rewards for {map} Act {act}.";
             string sig = $"{s.LobbyActTag}|{s.LobbyDifficultyTag}|{string.Join(",", s.LobbyRewards.Select(r => $"{r.Name}:{r.Targetable}"))}";
             if (s.LobbyRewards.Count == 0 || !CalStable(sig, now))
             {
                 if (now - _calStepAt <= CalActTimeoutMs) return [stand];
                 _calDropIdx++;
-                return CalSkip($"Rewards {map} Act {act} tidak terbaca.", 8, now);
+                return CalSkip($"Rewards for {map} Act {act} not readable.", 8, now);
             }
             var names = s.LobbyRewards.Where(r => r.Targetable).Select(r => r.Name.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             _calDrops[DropKey(map, act)] = names;
             _calDropIdx++;
             CalGo(8, now);
-            return [stand, new NoteAction($"Kalibrasi drop: {map} Act {act} ({s.LobbyDifficultyTag?.Trim('[', ']', ' ')}) → {(names.Count > 0 ? string.Join(", ", names) : "tidak ada material yang bisa ditarget")}.")];
+            return [stand, new NoteAction($"Drop calibration: {map} Act {act} ({s.LobbyDifficultyTag?.Trim('[', ']', ' ')}) → {(names.Count > 0 ? string.Join(", ", names) : "no targetable materials")}.")];
         }
 
         if (_calStage == 9)
         {
-            // Trials terakhir: klik kartu Trials (scroll bila perlu) → layar TrialsMenu ditangani CalTrialsPanel.
+            // Trials last: click the Trials card (scroll if needed) → the TrialsMenu screen is handled by CalTrialsPanel.
             var e = s.LobbyMaps.FirstOrDefault(x => x.Name == _calTrials && !x.Locked);
-            if (e is null || (CalTimedOut(now) && _calTrialsClickAt is null)) { _calTrials = null; return CalSkip("kartu Trials tidak bisa diklik → drop Trials tidak dikalibrasi.", 6, now); }
-            if (_calTrialsClickAt is long tc && now - tc > CalTrialsOpenMs) { _calTrials = null; return CalSkip("panel Trials tidak terbuka setelah klik → drop Trials tidak dikalibrasi.", 6, now); }
-            Status = "Kalibrasi: buka Trials (terakhir).";
-            var click = ClickEntry(s, e, s.LobbyMapsView, "cal-map", "Map Trials (kalibrasi)", now) ?? [];
+            if (e is null || (CalTimedOut(now) && _calTrialsClickAt is null)) { _calTrials = null; return CalSkip("Trials card cannot be clicked → Trials drops not calibrated.", 6, now); }
+            if (_calTrialsClickAt is long tc && now - tc > CalTrialsOpenMs) { _calTrials = null; return CalSkip("Trials panel did not open after the click → Trials drops not calibrated.", 6, now); }
+            Status = "Calibration: opening Trials (last).";
+            var click = ClickEntry(s, e, s.LobbyMapsView, "cal-map", "Map Trials (calibration)", now) ?? [];
             if (click.Any(a => a is ClickAction)) _calTrialsClickAt = now;
             return [stand, .. click];
         }
 
-        // 6) Batalkan room: klik Leave, tidak pernah Start.
-        Status = "Kalibrasi selesai membaca → Leave (batalkan room).";
+        // 6) Cancel the room: click Leave, never Start.
+        Status = "Calibration finished reading → Leave (cancel room).";
         if (s.LobbyLeave is not { } lv)
-            return CalFinish("tombol Leave tidak terbaca → tutup menu room sendiri");
-        if (CalTimedOut(now)) return CalFinish("menu room tidak tertutup setelah klik Leave");
-        if (!InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("tombol Leave di luar jendela Roblox → tutup menu room sendiri");
-        return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave (batalkan room kalibrasi)")] : [stand];
+            return CalFinish("Leave button not readable → close the room menu yourself");
+        if (CalTimedOut(now)) return CalFinish("room menu did not close after clicking Leave");
+        if (!InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("Leave button is outside the Roblox window → close the room menu yourself");
+        return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave (cancel calibration room)")] : [stand];
     }
 
     /// <summary>
-    /// v0.3.7 panel Trials (snapshot s0819 / foto Byzan 25 Okt 09:03): tab Floor Rewards → Rewards stabil → simpan material ber-TargetPill
-    /// sebagai "Trials|Act &lt;floor&gt;" → klik Leave Trials (Buttons.LeaveButton.LeaveButton, teks "Leave") yang sekaligus menutup menu room.
-    /// Tidak pernah klik Start, +/-, atau material.
+    /// v0.3.7 Trials panel (snapshot s0819 / Byzan's photo 25 Oct 09:03): Floor Rewards tab → Rewards stable → save TargetPill materials
+    /// as "Trials|Act &lt;floor&gt;" → click Leave Trials (Buttons.LeaveButton.LeaveButton, text "Leave"), which also closes the room menu.
+    /// Never clicks Start, +/-, or materials.
     /// </summary>
     private List<MacroAction> CalTrialsPanel(GameSnapshot s, long now)
     {
         Phase = MacroPhase.Lobby;
-        var stand = new MoveAction([], "Kalibrasi");
+        var stand = new MoveAction([], "Calibration");
         var t = s.Trials!;
         if (_calStage != 9) { _calStage = 9; _calSig = null; _calStepAt = now; }
         _calTrialsClickAt = null;
         if (!_calTrialsRead)
         {
-            if (CalTimedOut(now)) { _calTrialsRead = true; _calNotes.Add("drop Trials tidak terbaca (batas waktu)."); _calStepAt = now; }
+            if (CalTimedOut(now)) { _calTrialsRead = true; _calNotes.Add("Trials drops not readable (timeout)."); _calStepAt = now; }
             else if (!t.FloorTabOpen)
             {
-                Status = "Kalibrasi Trials: buka tab Floor Rewards.";
+                Status = "Trials calibration: opening the Floor Rewards tab.";
                 if (t.FloorTab is not { } tab || !InWindow(s, tab.CenterX, tab.CenterY)) return [stand];
-                return Ready("cal-tr-tab", now, 1200) ? [stand, new ClickAction(tab.CenterX, tab.CenterY, "Tab Floor Rewards (kalibrasi)")] : [stand];
+                return Ready("cal-tr-tab", now, 1200) ? [stand, new ClickAction(tab.CenterX, tab.CenterY, "Floor Rewards tab (calibration)")] : [stand];
             }
             else
             {
-                Status = "Kalibrasi Trials: baca Floor Rewards.";
+                Status = "Trials calibration: reading Floor Rewards.";
                 string sig = $"{t.SelectedFloor}|{string.Join(",", t.Rewards.Select(r => $"{r.Name}:{r.Targetable}"))}";
                 if (t.SelectedFloor is not int floor || t.Rewards.Count == 0 || !CalStable(sig, now)) return [stand];
                 var names = t.Rewards.Where(r => r.Targetable).Select(r => r.Name.Trim()).Where(n => n.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 _calDrops[DropKey("Trials", floor)] = names;
                 _calTrialsRead = true; _calStepAt = now;
-                return [stand, new NoteAction($"Kalibrasi drop: Trials Floor {floor} → {(names.Count > 0 ? string.Join(", ", names) : "tidak ada material yang bisa ditarget")}.")];
+                return [stand, new NoteAction($"Drop calibration: Trials Floor {floor} → {(names.Count > 0 ? string.Join(", ", names) : "no targetable materials")}.")];
             }
         }
-        Status = "Kalibrasi Trials selesai → Leave.";
-        if (t.Leave is not { } lv || !InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("tombol Leave Trials tidak terbaca → tutup panel Trials sendiri");
-        if (CalTimedOut(now)) return CalFinish("panel Trials tidak tertutup setelah klik Leave");
-        return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave Trials (kalibrasi)")] : [stand];
+        Status = "Trials calibration finished → Leave.";
+        if (t.Leave is not { } lv || !InWindow(s, lv.CenterX, lv.CenterY)) return CalFinish("Leave Trials button not readable → close the Trials panel yourself");
+        if (CalTimedOut(now)) return CalFinish("Trials panel did not close after clicking Leave");
+        return Ready("cal-leave", now, 3000) ? [stand, new ClickAction(lv.CenterX, lv.CenterY, "Leave Trials (calibration)")] : [stand];
     }
 
-    /// <summary>Entri daftar map yang terbukti membuka panel lain (log Byzan 25 Okt 2026 00:14: klik "Trials" → TrialsMenu).</summary>
+    /// <summary>Map list entry proven to open another panel (Byzan's log 25 Oct 2026 00:14: clicking "Trials" → TrialsMenu).</summary>
     public static bool OpensOtherPanel(string map) => map.Trim().Equals("Trials", StringComparison.OrdinalIgnoreCase);
 
     private List<MacroAction> CalFinish(string how)
@@ -430,7 +430,7 @@ public sealed partial class FarmMachine
         var scan = new CalibrationScan(_calKnown.ToList(), new Dictionary<string, List<int>>(_calActs, StringComparer.OrdinalIgnoreCase), _calNotes.ToList())
         { Drops = new Dictionary<string, List<string>>(_calDrops, StringComparer.OrdinalIgnoreCase) };
         CalibrationFinished?.Invoke(scan);
-        string acts = scan.Acts.Count == 0 ? "act tidak terbaca" : string.Join("; ", scan.Acts.Select(kv => $"{kv.Key} Act {string.Join(",", kv.Value)}"));
-        return Stop($"Kalibrasi selesai ({how}): {scan.Maps.Count} map ({scan.Maps.Count(m => !m.Locked)} terbuka) · {acts} · drop {scan.Drops.Count} act.");
+        string acts = scan.Acts.Count == 0 ? "acts not read" : string.Join("; ", scan.Acts.Select(kv => $"{kv.Key} Act {string.Join(",", kv.Value)}"));
+        return Stop($"Calibration finished ({how}): {scan.Maps.Count} maps ({scan.Maps.Count(m => !m.Locked)} unlocked) · {acts} · drops for {scan.Drops.Count} acts.");
     }
 }

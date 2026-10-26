@@ -6,7 +6,7 @@
         Title="SupaZero Overlay"
         SystemDecorations="None" Topmost="True" ShowInTaskbar="False" CanResize="False" ShowActivated="False"
         SizeToContent="WidthAndHeight" Background="Transparent" TransparencyLevelHint="Transparent">
-  <!-- Overlay tembus-klik di atas jendela Roblox selama macro berjalan (tidak menyentuh Roblox). -->
+  <!-- Click-through overlay on top of the Roblox window while the macro runs (does not touch Roblox). -->
   <Border Background="#D9101010" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="10" Padding="12,10" Width="300">
     <StackPanel Spacing="3">
       <Grid ColumnDefinitions="*,Auto">
@@ -23,7 +23,7 @@
         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Target}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
         <TextBlock Grid.Row="2" Text="Power" FontSize="11" Foreground="#999999" />
         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Power}" FontSize="11" Foreground="White" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Row="3" Text="Hasil" FontSize="11" Foreground="#999999" />
+        <TextBlock Grid.Row="3" Text="Result" FontSize="11" Foreground="#999999" />
         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Score}" FontSize="11" Foreground="White" />
       </Grid>
       <TextBlock Text="{Binding Hint}" FontSize="10" Foreground="#777777" Margin="0,3,0,0" />

@@ -5,7 +5,7 @@ using RIE.Core.Roblox;
 
 namespace SupaZero.Core.Game;
 
-/// <summary>Satu sesi attach READ-ONLY (diadaptasi dari RIE RobloxSession): memori + offsets + pembaca game.</summary>
+/// <summary>One READ-ONLY attach session (adapted from RIE RobloxSession): memory + offsets + game reader.</summary>
 public sealed class RobloxSession : IDisposable
 {
     public ProcessMemory Memory { get; } = new();
@@ -14,12 +14,12 @@ public sealed class RobloxSession : IDisposable
     public PropertyReader? Properties { get; private set; }
     public GameReader? Game { get; private set; }
     public DataModelRoots Roots { get; private set; } = DataModelRoots.Empty;
-    public string Status { get; private set; } = "Belum attach.";
+    public string Status { get; private set; } = "Not attached.";
 
     public bool IsReady => Memory.IsAttached && Reader is not null && Roots.DataModel != 0;
     public int ProcessId => Memory.IsAttached ? Memory.ProcessId : 0;
 
-    /// <summary>Lokasi offsets: settings → %AppData%\SupaZero\offsets.json → offsets RIE → folder exe.</summary>
+    /// <summary>Offsets location: settings → %AppData%\SupaZero\offsets.json → RIE offsets → exe folder.</summary>
     public static string? FindOffsets(string? preferred)
     {
         string[] candidates =
@@ -40,10 +40,10 @@ public sealed class RobloxSession : IDisposable
         Game = new GameReader(Reader, Properties);
     }
 
-    /// <summary>Attach bila belum, refresh DataModel bila berubah (teleport lobby ↔ stage). Murah dipanggil tiap tick.</summary>
+    /// <summary>Attach if not yet attached, refresh DataModel when it changes (lobby ↔ stage teleport). Cheap to call every tick.</summary>
     public bool EnsureReady()
     {
-        if (Reader is null) { Status = "Offsets belum dimuat."; return false; }
+        if (Reader is null) { Status = "Offsets not loaded."; return false; }
         if (Memory.IsAttached && !IsProcessAlive()) { Memory.Detach(); Roots = DataModelRoots.Empty; }
         if (!Memory.IsAttached)
         {
@@ -54,7 +54,7 @@ public sealed class RobloxSession : IDisposable
             Roots = new DataModelLocator(Reader).Locate(Memory.MainModuleBase);
             if (Roots.DataModel == 0)
             {
-                Status = $"Attached PID {Memory.ProcessId}, DataModel tidak ditemukan. Cek offsets cocok dengan {Memory.BuildId}.";
+                Status = $"Attached PID {Memory.ProcessId}, DataModel not found. Check that the offsets match {Memory.BuildId}.";
                 return false;
             }
         }

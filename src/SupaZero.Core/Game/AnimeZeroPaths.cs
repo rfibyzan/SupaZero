@@ -1,65 +1,65 @@
 namespace SupaZero.Core.Game;
 
 /// <summary>
-/// Path instance Anime Zero hasil riset RIE fase 1 (place 114574503491412). Yang ditandai [V] perlu diverifikasi ulang di
-/// RIE: path persisnya belum tercatat, jadi <see cref="GameReader"/> mencarinya per nama di bawah PlayerGui (dibatasi
-/// kedalaman) lalu menyimpan alamatnya di cache.
+/// Anime Zero instance paths from RIE phase 1 research (place 114574503491412). Entries marked [V] need re-verification in
+/// RIE: their exact path is not recorded yet, so <see cref="GameReader"/> searches by name under PlayerGui (depth-
+/// limited) and caches the address.
 /// </summary>
 public static class AnimeZeroPaths
 {
     public const long PlaceId = 114574503491412;
 
     // Workspace
-    /// <summary>v0.2.67 (Shadow Lord): Workspace.AriseShadows.&lt;n&gt; (Part di lantai mayat) .Arise ProximityPrompt
-    /// (ActionText "ARISE", ObjectText = nama musuh, HoldDuration 0.9, KeyCode E, MaxActivationDistance 10, tanpa line of sight).</summary>
+    /// <summary>v0.2.67 (Shadow Lord): Workspace.AriseShadows.&lt;n&gt; (Part on the floor at the corpse) .Arise ProximityPrompt
+    /// (ActionText "ARISE", ObjectText = enemy name, HoldDuration 0.9, KeyCode E, MaxActivationDistance 10, no line of sight).</summary>
     public const string AriseShadows = "AriseShadows";
-    /// <summary>v0.2.70: kapasitas Shadows, PlayerGui.SystemSideLive.Container.Shadows.Value = "2/3" (snapshot 24 Okt).</summary>
+    /// <summary>v0.2.70: Shadows capacity, PlayerGui.SystemSideLive.Container.Shadows.Value = "2/3" (snapshot 24 Oct).</summary>
     public const string ShadowsValue = "SystemSideLive.Container.Shadows.Value";
     public const string ArisePrompt = "Arise";
-    public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; terparkir di Y=-5000, aktif = di lantai. Dipungut cukup dilewati.
+    public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; parked at Y=-5000, active = on the floor. Picked up by walking over it.
     public const double PooledDropParkedY = -1000;
-    public const string Enemies = "enemies";            // Workspace.enemies: Model bernama angka (HRP + Humanoid); mati = Model dihapus
-    public const string WorldMap = "Map";               // [V] S16: Part CanCollide (AlleyBarrier1-4 tembus pandang 54×60×5) = dinding
+    public const string Enemies = "enemies";            // Workspace.enemies: numerically named Models (HRP + Humanoid); dead = Model removed
+    public const string WorldMap = "Map";               // [V] S16: Part CanCollide (AlleyBarrier1-4 see-through 54×60×5) = wall
     public const string World = "World";                // Workspace.World: Areas 1-5, Spawns 1-5, Navigation, TpBack
     public const string WorldAreas = "Areas";
-    public const string WorldNavigation = "Navigation"; // [V] S15 Hxh: jejak rintangan (Part datar Y=3); ER2: node "navN" 4×4×4 (tangga)
-    public static readonly string[] WorldBarrierFolders = ["Barriers", "NpcBarriers"]; // [V] ada (kosong di S15)
+    public const string WorldNavigation = "Navigation"; // [V] S15 Hxh: obstacle footprints (flat Parts Y=3); ER2: "navN" 4×4×4 nodes (stairs)
+    public static readonly string[] WorldBarrierFolders = ["Barriers", "NpcBarriers"]; // [V] exists (empty in S15)
     public const string WorldSpawns = "Spawns";
-    public const string WorldAreaEntries = "AreaEntries"; // [V] S1 24 Okt 2026 Hxh: AreaEntries.5 (295,2,-53) = titik penanda game "AREA 5 n studs"
+    public const string WorldAreaEntries = "AreaEntries"; // [V] S1 24 Oct 2026 Hxh: AreaEntries.5 (295,2,-53) = game marker point "AREA 5 n studs"
 
-    // PlayerGui: HUD ronde
+    // PlayerGui: round HUD
     public const string RoundHud = "RoundHUD";
     public const string EnemyCountPath = "RoundHUD.Container.TopPart.RemainingFrame.EnemyCount"; // "Easy · Area 3/5 · 8 left"
     public const string TimerName = "Timer";
     public const string RespawnText = "RespawnText";
 
-    // Vote mulai (tiap awal stage, timer 48 dtk). Tombol Yes ~(960,232) di 1920x1080.
-    public const string StartVote = "StartVote";        // [V] nama frame
+    // Start vote (at the start of each stage, 48 s timer). Yes button ~(960,232) at 1920x1080.
+    public const string StartVote = "StartVote";        // [V] frame name
     public const string StartVoteYes = "Yes";           // [V]
-    public const string StartVoteButtonPath = "Holder.Main.StartButton"; // [V] snapshot 24 Okt 2026, ImageButton ~(960,232)
+    public const string StartVoteButtonPath = "Holder.Main.StartButton"; // [V] snapshot 24 Oct 2026, ImageButton ~(960,232)
     public const string StartVoteButton = "StartButton";
-    // Rubble (screenshot + snapshot PlayerGui 24 Okt 2026): HUD "Break the rubble to continue!", BillboardGui PlayerGui.RubbleBar
-    // "Rubble [BREAK IT]" (Adornee = bagian rubble di world), ScreenGui PlayerGui.RubbleBossBar (Enabled saat rubble besar).
+    // Rubble (screenshot + PlayerGui snapshot 24 Oct 2026): HUD "Break the rubble to continue!", BillboardGui PlayerGui.RubbleBar
+    // "Rubble [BREAK IT]" (Adornee = the rubble piece in the world), ScreenGui PlayerGui.RubbleBossBar (Enabled for big rubble).
     public const string RubbleBar = "RubbleBar";
     public const string RubbleBossBar = "RubbleBossBar";
     public const string RubbleName = "Rubble";
-    /// <summary>v0.2.91: World.Map.Border*.Rubble.ClimbStop = dinding tak terlihat di depan rubble (batas terdekat yang bisa dicapai).</summary>
+    /// <summary>v0.2.91: World.Map.Border*.Rubble.ClimbStop = invisible wall in front of the rubble (the nearest reachable limit).</summary>
     public const string RubbleClimbStop = "ClimbStop";
-    // Menu cek power di lobby (LobbyHUD.LeftSideButtons, "Spinning" terlihat di research.md).
+    // Power-check menus in the lobby (LobbyHUD.LeftSideButtons, "Spinning" seen in research.md).
     public const string LobbyHud = "LobbyHUD";
     public const string MenuTrait = "Trait";
     public const string MenuSpin = "Spin";
-    /// <summary>v0.3.12 (snapshot s0819 + screenshot Byzan 26 Okt): tombol "Spinning" (EXTRA LUCK, hotkey R) = ImageButton SummonButton;
-    /// teks "Spinning" ada di Juice.Body.Art.Spinning (kedalaman 6, di luar pindaian teks). Membuka "UI Animation (Finished).Roll".</summary>
+    /// <summary>v0.3.12 (snapshot s0819 + Byzan screenshot 26 Oct): the "Spinning" button (EXTRA LUCK, hotkey R) = ImageButton SummonButton;
+    /// the "Spinning" text is at Juice.Body.Art.Spinning (depth 6, outside the text scan). Opens "UI Animation (Finished).Roll".</summary>
     public const string SpinButtonPath = "LobbyHUD.LeftSideButtons.SummonButton";
-    /// <summary>Roll terbuka: MainFrame langsung di ScreenGui Roll (s0819); versi lama di Roll.SurfaceGui.MainFrame. Tombol keluar = ExitButton.HitPad.</summary>
+    /// <summary>Roll open: MainFrame directly under ScreenGui Roll (s0819); older version at Roll.SurfaceGui.MainFrame. Exit button = ExitButton.HitPad.</summary>
     public static readonly string[] RollMainFrames = ["UI Animation (Finished).Roll.MainFrame", "UI Animation (Finished).Roll.SurfaceGui.MainFrame"];
     public const string RollExit = "ExitButton.HitPad";
     public const double StartVoteYesX = 960, StartVoteYesY = 232;
 
-    // Layar akhir
+    // End screen
     public const string EndScreen = "EndScreen";        // [V]
-    public const string ResultText = "ResultText";      // "DEFEAT" saat kalah
+    public const string ResultText = "ResultText";      // "DEFEAT" on loss
     public const string NextButton = "Next";            // [V]
     public const string RetryButton = "Retry";          // [V]
     public const string LeaveButton = "Leave";          // [V]
@@ -67,51 +67,51 @@ public static class AnimeZeroPaths
 
     // Lobby CREATE LOBBY
     public const string LobbyRoot = "UI Animation (Finished).Quque.MainFrame";
-    // Hub lobby (screenshot Byzan 23 Okt 2026): tombol HUD "Areas" → kartu "Click to Teleport" → lingkaran "Start Here".
+    // Lobby hub (Byzan screenshot 23 Oct 2026): HUD button "Areas" → card "Click to Teleport" → circle "Start Here".
     public const string AreasButtonText = "Areas";
-    /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026), relatif PlayerGui. ScreenGui ini tidak memakai inset topbar (marker RIE dengan Inset 58 meleset ~58 px ke bawah).</summary>
+    /// <summary>Verified in RIE (Byzan, 23 Oct 2026), relative to PlayerGui. This ScreenGui does not use the topbar inset (RIE marker with Inset 58 was ~58 px too low).</summary>
     public const string AreasButtonPath = "LobbyHUD.LeftSideButtons.AreasButton";
     public const string StoryCardPath = "Finished UI.Areas.MainFrame.Content.Clipping.Container.MATCHES_Row1.Story.Story";
     public const string TeleportCardHint = "Click to Teleport";
     public const string AreasClipping = "Finished UI.Areas.MainFrame.Content.Clipping";
-    /// <summary>Kartu Areas untuk cek trait (Byzan 25 Okt 2026): teleport ke depan NPC Matilda, maju → panel Trait Reroll (SurfaceGui) terbuka.</summary>
+    /// <summary>Areas card for trait checks (Byzan 25 Oct 2026): teleports in front of NPC Matilda, walk forward → Trait Reroll panel (SurfaceGui) opens.</summary>
     public const string TraitsCard = "Traits";
-    /// <summary>RIE Byzan 25 Okt 2026 00:28 (pemain berdiri di sini, panel Trait terbuka): Workspace.Systems.GuideSpots.Enchants
-    /// (Part 4×0.2×4 di (-87.7,0.4,-97)), di dalam Systems.Zones.Enchants (Part 14.5×20.8×15.8, CanTouch). Titik teleport kartu
-    /// Traits: Systems.AreasTeleportLocation.Traits (-85.8,5.4,-90.2), di luar zona.</summary>
+    /// <summary>Byzan RIE 25 Oct 2026 00:28 (player standing here, Trait panel open): Workspace.Systems.GuideSpots.Enchants
+    /// (Part 4×0.2×4 at (-87.7,0.4,-97)), inside Systems.Zones.Enchants (Part 14.5×20.8×15.8, CanTouch). Teleport point of the
+    /// Traits card: Systems.AreasTeleportLocation.Traits (-85.8,5.4,-90.2), outside the zone.</summary>
     public const string TraitSpotPath = "Systems.GuideSpots.Enchants";
-    /// <summary>RIE Trait_Reroll 08:54:32→08:54:41: klik ImageButton ini (teks "&gt;", rect 582,638 42x42 di 1920x1009) mengganti header "Shadow Lord 3/5" → "Mochi Commander 4/5". Relatif TraitRoot (…Left.Content).</summary>
+    /// <summary>RIE Trait_Reroll 08:54:32→08:54:41: clicking this ImageButton (text "&gt;", rect 582,638 42x42 at 1920x1009) changes the header "Shadow Lord 3/5" → "Mochi Commander 4/5". Relative to TraitRoot (…Left.Content).</summary>
     public const string TraitNextButton = "CharacterSwitch.Next.Next";
     public const string TraitExitPath = "Systems.AreasTeleportLocation.Traits";
     public const string StartCircleText = "Start Here";
-    /// <summary>Terverifikasi RIE (Byzan, 23 Okt 2026): Workspace.Systems.QuqueRooms.&lt;n&gt;.JoinHitbox (Part 18×25×25, CanCollide false).</summary>
+    /// <summary>Verified in RIE (Byzan, 23 Oct 2026): Workspace.Systems.QuqueRooms.&lt;n&gt;.JoinHitbox (Part 18×25×25, CanCollide false).</summary>
     public const string Systems = "Systems";
-    public const string QueueRooms = "QuqueRooms"; // typo asli game
+    public const string QueueRooms = "QuqueRooms"; // original game typo
     public const string JoinHitbox = "JoinHitbox";
     public const string RoomGui = "RoomGui";
-    /// <summary>RoomGui saat room sudah dibuat pemain lain: "Join Here" + "Players 3/4" + hitung mundur.</summary>
+    /// <summary>RoomGui when the room was already created by another player: "Join Here" + "Players 3/4" + countdown.</summary>
     public const string RoomOccupiedText = "Join Here";
 
     public const string LobbyModesList = "ModesList";   // [V]
     public const string LobbyMapsList = "MapsList";
     public const string LobbyActsList = "ActsList";
-    public const string LobbyMapLine = "MapLine";       // .Tag = map terpilih
-    public const string LobbyActLine = "ActLine";       // .Tag = act terpilih
+    public const string LobbyMapLine = "MapLine";       // .Tag = selected map
+    public const string LobbyActLine = "ActLine";       // .Tag = selected act
     public const string LobbyStartButton = "StaerButton"; // (sic) ~(1364,934)
-    // Terverifikasi snapshot RIE Byzan (23 Okt 2026, root "UI Animation (Finished)".Quque.MainFrame, AbsolutePosition 0,58):
-    // ScreenGui ini TIDAK perlu inset topbar (AbsolutePosition sudah koordinat klien) → rect menu memakai inset lobby (0).
-    // HUD skill (snapshot training Sukuna, 23 Okt 2026): PlayerGui.HUD.HUD.BottomLeftHolder.main.skills berisi tiga
-    // ImageButton "skillBox" (urutan anak ≠ urutan tombol). Tombol = skillBox.keybind.Txt ("1"/"2"/"3");
-    // cooldown = skillBox.Frame.cd.Txt (kosong = siap, angka = sisa detik, mis. "1.7"); terkunci = skillBox.Frame.MasteryLock Visible.
+    // Verified by Byzan RIE snapshot (23 Oct 2026, root "UI Animation (Finished)".Quque.MainFrame, AbsolutePosition 0,58):
+    // This ScreenGui does NOT need the topbar inset (AbsolutePosition is already client coordinates) → menu rects use the lobby inset (0).
+    // Skill HUD (Sukuna training snapshot, 23 Oct 2026): PlayerGui.HUD.HUD.BottomLeftHolder.main.skills contains three
+    // ImageButtons "skillBox" (child order ≠ key order). Key = skillBox.keybind.Txt ("1"/"2"/"3");
+    // cooldown = skillBox.Frame.cd.Txt (empty = ready, number = seconds left, e.g. "1.7"); locked = skillBox.Frame.MasteryLock Visible.
     public const string HudDash = "HUD.HUD.BottomLeftHolder.buttons.Dash";
     public const string HudDashProgress = "HUD.HUD.BottomLeftHolder.buttons.Dash.Progress"; // Visible = Dash cooldown
     public const string HudSkills = "HUD.HUD.BottomLeftHolder.main.skills";
-    /// <summary>v0.2.65: tombol Ultimate (G). Anak: HT, OverStroke, Progress.Frame1/Frame2.ProgressFram (+UIGradient, bar melingkar),
-    /// Glow, FrameOutline, BGProgress, icon.left/right.icon; keybind.Txt = "G". v0.2.66: "Locked" tidak ada di template → siap = tidak diketahui.</summary>
+    /// <summary>v0.2.65: Ultimate button (G). Children: HT, OverStroke, Progress.Frame1/Frame2.ProgressFram (+UIGradient, circular bar),
+    /// Glow, FrameOutline, BGProgress, icon.left/right.icon; keybind.Txt = "G". v0.2.66: "Locked" is not in the template → ready = unknown.</summary>
     public const string HudUltimate = "HUD.HUD.BottomLeftHolder.UltimateFrame.Ultimate";
     public const string HudUltimateLock = "Locked";
-    /// <summary>v0.2.68 (snapshot PlayerGui 24 Okt): penuh = puluhan anak "ImageLabel" (kilau) langsung di bawah Ultimate;
-    /// aktif (naga Kaisel) = Progress Visible + UltimateFrame.keybind.Txt bukan "G" (mis. "KAISEL"); kosong = tanpa kilau, Txt "G".</summary>
+    /// <summary>v0.2.68 (PlayerGui snapshot 24 Oct): full = dozens of "ImageLabel" children (sparkle) directly under Ultimate;
+    /// active (Kaisel dragon) = Progress Visible + UltimateFrame.keybind.Txt not "G" (e.g. "KAISEL"); empty = no sparkle, Txt "G".</summary>
     public const string HudUltimateFrame = "HUD.HUD.BottomLeftHolder.UltimateFrame";
     public const string HudUltimateSparkle = "ImageLabel";
     public const string HudUltimateProgress = "Progress";
@@ -121,49 +121,49 @@ public static class AnimeZeroPaths
     public const string HudSkillCd = "Frame.cd.Txt";
     public const string HudSkillLock = "Frame.MasteryLock";
 
-    // Layar tunggu setelah Start (snapshot S4 Byzan, 23 Okt 2026): PlayerGui."UI Animation (Finished)".Quque.StartNow
-    // (ImageButton "Skip Waiting", ~(796,931)), .Sub "Uses 1 Crystal" (Visible = berbayar); Quque.Leave ~(1124,931). MainFrame Visible=false.
+    // Waiting screen after Start (Byzan snapshot S4, 23 Oct 2026): PlayerGui."UI Animation (Finished)".Quque.StartNow
+    // (ImageButton "Skip Waiting", ~(796,931)), .Sub "Uses 1 Crystal" (Visible = paid); Quque.Leave ~(1124,931). MainFrame Visible=false.
     public const string QueueRoot = "UI Animation (Finished).Quque";
     public const string QueueSkipButton = "StartNow";
     public const string QueueSkipCost = "Sub";
     public const string LobbyStartPath = "Content.RightHolder.Buttons.StaerButton.StaerButton";       // ImageButton
-    public const string LobbyDifficultyContainer = "Content.RightHolder.RHS.Difficulty.Difficulty.Container"; // .<Easy|Medium|Hard|Nightmare>.<sama>.Hit
+    public const string LobbyDifficultyContainer = "Content.RightHolder.RHS.Difficulty.Difficulty.Container"; // .<Easy|Medium|Hard|Nightmare>.<same>.Hit
     public const string LobbyMapTitlePath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.MapLine.Title"; // "Hxh" / "ZZZ World"
     public const string LobbyDifficultyTagPath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.MapLine.Tag"; // "[EASY]" / "[HARD]"
     public const string LobbyActTagPath = "Content.RightHolder.RHS.MapHolder.MapHolder.TxtHolder.ActLine.Tag";   // "[Act 2]"
-    public const string LobbyActsScroll = "Content.ActsList.List.ScrollingFrame"; // Act<n> (Frame, nama ganda per map; yang Visible = map terpilih) .Act<n> ImageButton .TxtHolder.Act "Act 1", .Locked
-    /// <summary>[V] RIE Byzan 25 Okt 2026 00:39 (Quque.MainFrame, room 2): ImageButton 264×63 di (1507,902); teks "Leave" ada di
-    /// anak Txt(Shadow).Txt, tidak ada node bernama "Leave" → path pasti, tanpa Find nama.</summary>
+    public const string LobbyActsScroll = "Content.ActsList.List.ScrollingFrame"; // Act<n> (Frame, duplicate names per map; the Visible one = selected map) .Act<n> ImageButton .TxtHolder.Act "Act 1", .Locked
+    /// <summary>[V] Byzan RIE 25 Oct 2026 00:39 (Quque.MainFrame, room 2): ImageButton 264×63 at (1507,902); the "Leave" text is in
+    /// child Txt(Shadow).Txt, there is no node named "Leave" → fixed path, no name Find.</summary>
     public const string LobbyLeavePath = "Content.RightHolder.Buttons.LeaveButton.LeaveButton";
-    /// <summary>Resolusi acuan koordinat cadangan (Difficulty/Start) di atas; diskalakan ke ukuran klien jendela.</summary>
+    /// <summary>Reference resolution for the fallback coordinates (Difficulty/Start) above; scaled to the window client size.</summary>
     public const double RefW = 1920, RefH = 1080;
     public const double StartRefX = 1364, StartRefY = 934;
     public static readonly (double X, double Y)[] DifficultyCenters = [(1033, 589), (1147, 589), (1261, 589), (1374, 589)];
 
-    // SkillTree per unit. [V] snapshot RIE PlayerGui Byzan 25 Okt 2026 07:36–07:37 (Shadow Lord / Divine Emperor):
-    // dibuka dari LobbyHUD.LeftSideButtons.UnitsButton (LobbyHUD Enabled=false selama SkillTree terbuka).
-    // ScreenGui SkillTree AbsolutePosition 0,58 tetapi AbsolutePosition anak = koordinat klien (cocok screenshot) → HubRect (tanpa inset).
+    // SkillTree per unit. [V] Byzan RIE PlayerGui snapshot 25 Oct 2026 07:36–07:37 (Shadow Lord / Divine Emperor):
+    // opened from LobbyHUD.LeftSideButtons.UnitsButton (LobbyHUD Enabled=false while SkillTree is open).
+    // ScreenGui SkillTree AbsolutePosition 0,58 but child AbsolutePosition = client coordinates (matches screenshot) → HubRect (no inset).
     public const string UnitsButtonPath = "LobbyHUD.LeftSideButtons.UnitsButton";
     public const string SkillTreeRoot = "UI Animation (Working).SkillTree.MainFrame";
     /// <summary>"67 Tokens Left".</summary>
     public const string SkillTreeTokens = "Header.Holder.Txt";
     public const string SkillTreeExit = "Header.ExitButton";
-    /// <summary>Content.Row (×4, nama sama) → Hitbox.Title."Txt(Shadow)".Txt = "ATK"/"CRIT"/"DEF"/"SPD"; Hitbox.Clipping.ScrollingFrame.Slot (Frame ×5) → Slot (ImageButton).</summary>
+    /// <summary>Content.Row (×4, same name) → Hitbox.Title."Txt(Shadow)".Txt = "ATK"/"CRIT"/"DEF"/"SPD"; Hitbox.Clipping.ScrollingFrame.Slot (Frame ×5) → Slot (ImageButton).</summary>
     public const string SkillTreeContent = "Content";
     public const string SkillRowTitle = "Hitbox.Title.Txt(Shadow).Txt";
     public const string SkillRowClipping = "Hitbox.Clipping";
     public const string SkillRowSlots = "Hitbox.Clipping.ScrollingFrame";
-    /// <summary>Di ImageButton Slot: CanBuy (Frame, tampil = bisa dibeli, tanda "!"), PriceShadow.Price (harga; tersembunyi/hilang = sudah dibeli),
-    /// LockedIcon (tampil = terkunci), Bolder (tampil = node terpilih, BuyFrame muncul di bawahnya).</summary>
-    /// <summary>Daftar unit SkillTree: CharacterSlots.Fade.List.SlotN.Hitbox.MainButton.MainButton.SelectedFrame tampil = unit terpilih.</summary>
+    /// <summary>On the Slot ImageButton: CanBuy (Frame, shown = buyable, "!" mark), PriceShadow.Price (price; hidden/missing = already bought),
+    /// LockedIcon (shown = locked), Bolder (shown = selected node, BuyFrame appears below it).</summary>
+    /// <summary>SkillTree unit list: CharacterSlots.Fade.List.SlotN.Hitbox.MainButton.MainButton.SelectedFrame shown = selected unit.</summary>
     public const string SkillUnitList = "CharacterSlots.Fade.List";
     public const string SkillUnitSelected = "Hitbox.MainButton.MainButton.SelectedFrame";
-    /// <summary>v0.2.97 [V] snapshot 25 Okt: ImageButton yang diklik, dan LevelShadow ("Lv.110"; Slot kosong = Visible false, teks kosong).</summary>
+    /// <summary>v0.2.97 [V] snapshot 25 Oct: the ImageButton to click, and LevelShadow ("Lv.110"; empty Slot = Visible false, empty text).</summary>
     public const string SkillUnitButton = "Hitbox.MainButton.MainButton";
     public const string SkillUnitLevel = "Hitbox.MainButton.MainButton.LevelShadow";
-    /// <summary>v0.2.93 [V] 3 snapshot + diff 07:49 (25 Okt): pilihan unit di SkillTree ikut memindah Roll.CharacterSlots…SlotN.SelectedFrame,
-    /// dan Roll.CharacterInfo.TitleShadow.Title = nama unit (Shadow Lord / Divine Emperor / Twisted Agony / Cursed King). Nama dipakai hanya bila
-    /// nomor slot kedua daftar sama.</summary>
+    /// <summary>v0.2.93 [V] 3 snapshots + diff 07:49 (25 Oct): selecting a unit in SkillTree also moves Roll.CharacterSlots…SlotN.SelectedFrame,
+    /// and Roll.CharacterInfo.TitleShadow.Title = unit name (Shadow Lord / Divine Emperor / Twisted Agony / Cursed King). The name is only used when
+    /// both lists have the same slot number.</summary>
     public const string RollRoot = "UI Animation (Finished).Roll.MainFrame";
     public const string RollUnitList = "CharacterSlots.Fade.List";
     public const string RollUnitSelected = "MainButton.MainButton.SelectedFrame";
@@ -176,22 +176,22 @@ public static class AnimeZeroPaths
     public const string BuyButton = "BuyButton";
 
 
-    // ---- Mode non-Story (snapshot RIE Byzan, 24 Okt 2026) ----
-    // Drop Target: kartu RewardN.RewardN.Main (.TxtShadow.Txt = nama, .TargetPill tampil hanya di Hard/Nightmare,
-    // .TargetPill.Pill."Txt(Shadow)".Txt = "TARGET x3" / "UNTARGET" (= sedang ditarget), .TargetPill.Hit = tombol).
+    // ---- Non-Story modes (Byzan RIE snapshot, 24 Oct 2026) ----
+    // Drop Target: card RewardN.RewardN.Main (.TxtShadow.Txt = name, .TargetPill shown only on Hard/Nightmare,
+    // .TargetPill.Pill."Txt(Shadow)".Txt = "TARGET x3" / "UNTARGET" (= currently targeted), .TargetPill.Hit = button).
     public const string LobbyRewardsScroll = "Content.RightHolder.RHS.Rewards.Rewards.Container.ScrollingFrame";
     public const string LobbyRewardsTip = "Content.RightHolder.RHS.Rewards.Rewards.Header.TargetTip"; // "Tap a material to target it: x3 drop chance for it"
-    // Mirror Blessing: FateBlessings.Picker (ScreenGui 0,58 → koordinat klien). OfferN.Body: Rarity.Txt, TextHolder.Heading/Value, PickButton.
+    // Mirror Blessing: FateBlessings.Picker (ScreenGui 0,58 → client coordinates). OfferN.Body: Rarity.Txt, TextHolder.Heading/Value, PickButton.
     public const string BlessingPicker = "FateBlessings.Picker";
     // HUD raid: RunSide.Container.Title "Wave 1/5" / "Boss Wave", .Alive.Value "09", .NextBoss.Value "Wave 5"/"Now!".
     public const string RunSideContainer = "RunSide.Container";
     // BossBar: Header.Title "Evil Astx", Header.Tag "[IMMUNE]" (wave 1-4) → "[BOSS]" (wave boss), Header.Percent.
     public const string BossHeader = "BossBar.Container.Header";
-    // Panel Trials: Tabs.RoomRewards (tab Floor Rewards), RoomRewards.CurrentRoom.Title "Floor 1",
+    // Trials panel: Tabs.RoomRewards (Floor Rewards tab), RoomRewards.CurrentRoom.Title "Floor 1",
     // RoomRewards.HighestRoom.Title "None yet", LeftButtons.Decrease/Increase, Buttons.StaerButton.StaerButton,
-    // Rewards.Container.ScrollingFrame.RewardN.Main (TargetPill sama dengan lobby).
+    // Rewards.Container.ScrollingFrame.RewardN.Main (TargetPill same as in the lobby).
     public const string TrialsRoot = "UI Animation (Finished).Trials.MainFrame";
-    // EndScreen: Holder.ConstraintedHolder.ButtonsHolder.{Retry,Next,Leave}Button.Button (Next hanya Story/Trials),
+    // EndScreen: Holder.ConstraintedHolder.ButtonsHolder.{Retry,Next,Leave}Button.Button (Next only in Story/Trials),
     // NextButton.MainText "Next Floor: 0/1". Drop: Holder.RewardsFrame.CutFrame.Holder.<money|gems|traitRerolls|luckySpins|materialNNN|unitX>.
     public const string EndButtonsHolder = "Holder.ConstraintedHolder.ButtonsHolder";
     public const string EndDropsHolder = "Holder.RewardsFrame.CutFrame.Holder";
@@ -206,7 +206,7 @@ public static class AnimeZeroPaths
         _ => key,
     };
 
-    /// <summary>Icon kartu Rewards → nama material (dari snapshot Create Room/Trials). Ditambah otomatis saat menu terbaca.</summary>
+    /// <summary>Rewards card icon → material name (from Create Room/Trials snapshots). Extended automatically when the menu is read.</summary>
     public static readonly IReadOnlyDictionary<string, string> MaterialIcons = new Dictionary<string, string>
     {
         ["rbxassetid://119252600098664"] = "Magic Pendant",
@@ -225,6 +225,6 @@ public static class AnimeZeroPaths
         ["rbxassetid://118619358407255"] = "Pure Sword Shards",
     };
 
-    /// <summary>Resolusi referensi koordinat fallback di atas (layar 1920x1080).</summary>
+    /// <summary>Reference resolution for the fallback coordinates above (1920x1080 screen).</summary>
     public const double RefWidth = 1920, RefHeight = 1080;
 }

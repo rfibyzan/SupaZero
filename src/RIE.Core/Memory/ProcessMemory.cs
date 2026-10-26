@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace RIE.Core.Memory;
 
-/// <summary>Attach read-only ke proses (default RobloxPlayerBeta, proses terbaru) dan baca memorinya.</summary>
+/// <summary>Attaches read-only to the process (default RobloxPlayerBeta, newest process) and reads its memory.</summary>
 public sealed class ProcessMemory : IMemorySource, IDisposable
 {
     public const string DefaultProcessName = "RobloxPlayerBeta";
@@ -16,7 +16,7 @@ public sealed class ProcessMemory : IMemorySource, IDisposable
     public long MainModuleBase { get; private set; }
     public string MainModulePath { get; private set; } = string.Empty;
 
-    /// <summary>Folder versi Roblox ("version-xxxx") dari path exe, kosong bila tak diketahui.</summary>
+    /// <summary>Roblox version folder ("version-xxxx") from the exe path, empty if unknown.</summary>
     public string BuildId
     {
         get
@@ -29,19 +29,19 @@ public sealed class ProcessMemory : IMemorySource, IDisposable
 
     public bool TryAttach(out string status, string processName = DefaultProcessName)
     {
-        if (!OperatingSystem.IsWindows()) { status = "Hanya Windows."; return false; }
+        if (!OperatingSystem.IsWindows()) { status = "Windows only."; return false; }
         Process[] all = Process.GetProcessesByName(processName);
         Process? newest = all.OrderByDescending(SafeStart).FirstOrDefault();
         foreach (var p in all) if (!ReferenceEquals(p, newest)) p.Dispose();
-        if (newest is null) { status = $"{processName} tidak berjalan."; return false; }
+        if (newest is null) { status = $"{processName} is not running."; return false; }
         using (newest)
         {
-            if (_handle != 0 && ProcessId == newest.Id) { status = "Sudah ter-attach."; return true; }
+            if (_handle != 0 && ProcessId == newest.Id) { status = "Already attached."; return true; }
             Detach();
             nint h = NativeMethods.OpenProcess(NativeMethods.ReadOnlyAccess, false, (uint)newest.Id);
             if (h == 0)
             {
-                status = "OpenProcess gagal: " + new Win32Exception(Marshal.GetLastWin32Error()).Message;
+                status = "OpenProcess failed: " + new Win32Exception(Marshal.GetLastWin32Error()).Message;
                 return false;
             }
             _handle = h;
@@ -56,7 +56,7 @@ public sealed class ProcessMemory : IMemorySource, IDisposable
                 MainModuleBase = 0;
                 MainModulePath = string.Empty;
             }
-            status = MainModuleBase != 0 ? $"Attached PID {ProcessId}." : $"Attached PID {ProcessId}, tapi base modul tidak terbaca.";
+            status = MainModuleBase != 0 ? $"Attached PID {ProcessId}." : $"Attached PID {ProcessId}, but the module base could not be read.";
             return MainModuleBase != 0;
         }
     }

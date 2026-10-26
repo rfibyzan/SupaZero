@@ -1,23 +1,23 @@
 namespace SupaZero.Core.Game;
 
 /// <summary>
-/// Pembacaan mode non-Story (snapshot RIE Byzan 24 Okt 2026): Drop Target di panel Rewards, kartu Mirror Blessing,
-/// HUD wave raid (RunSide), BossBar [IMMUNE], panel Trials, tombol &amp; drop EndScreen. Semua READ-ONLY.
-/// Catatan inset: semua ScreenGui di snapshot melaporkan AbsolutePosition dalam koordinat klien (root 0,0 tinggi 1009
-/// atau 0,58 tinggi 951), jadi rect di sini memakai inset 0 (<see cref="ClientRect"/>).
+/// Non-Story mode reading (Byzan RIE snapshot 24 Oct 2026): Drop Target in the Rewards panel, Mirror Blessing cards,
+/// raid wave HUD (RunSide), BossBar [IMMUNE], Trials panel, EndScreen buttons &amp; drops. All READ-ONLY.
+/// Inset note: every ScreenGui in the snapshot reports AbsolutePosition in client coordinates (root 0,0 height 1009
+/// or 0,58 height 951), so rects here use inset 0 (<see cref="ClientRect"/>).
 /// </summary>
 public sealed partial class GameReader
 {
     private GuiRect? ClientRect(long node) => HubRect(node);
     private GuiRect? ShownClientRect(long node, long pg) => node != 0 && IsShown(node, pg) ? ClientRect(node) : null;
 
-    /// <summary>Icon material (rbxassetid) → nama, dari kartu Rewards yang pernah terbaca + tabel bawaan.</summary>
+    /// <summary>Material icon (rbxassetid) → name, from Rewards cards read so far + built-in table.</summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _materialIcons = new(AnimeZeroPaths.MaterialIcons, StringComparer.Ordinal);
-    /// <summary>v0.3.5: nama key drop EndScreen ("material119") → nama material, dipelajari saat icon-nya cocok dengan kartu Rewards.</summary>
+    /// <summary>v0.3.5: EndScreen drop key name ("material119") → material name, learned when its icon matches a Rewards card.</summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _materialKeys = new(StringComparer.Ordinal);
-    /// <summary>Naik tiap ada nama material baru (icon atau key) → aplikasi menyimpan ke settings.</summary>
+    /// <summary>Increments whenever a new material name is learned (icon or key) → the app saves it to settings.</summary>
     public int MaterialVersion { get; private set; }
-    /// <summary>Isi "icon:rbxassetid://…" / "key:materialNNN" → nama, untuk disimpan antar-sesi.</summary>
+    /// <summary>Entries "icon:rbxassetid://…" / "key:materialNNN" → name, to persist across sessions.</summary>
     public Dictionary<string, string> LearnedMaterials()
     {
         var d = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -41,7 +41,7 @@ public sealed partial class GameReader
     }
 
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _unknownIcons = new(StringComparer.Ordinal);
-    /// <summary>Drop terakhir yang namanya belum diketahui (key + icon) untuk log diagnosa.</summary>
+    /// <summary>Last drop whose name is still unknown (key + icon) for diagnostic logging.</summary>
     public string? UnknownMaterial { get; set; }
 
     private string? Prop(long node, string name) =>
@@ -49,7 +49,7 @@ public sealed partial class GameReader
 
     private string? TextAt(long root, string path) => root != 0 ? CleanText(reader.ResolvePath(root, path)) : null;
 
-    /// <summary>Kartu Rewards (lobby Create Room atau panel Trials). <paramref name="nested"/> = RewardN.RewardN.Main (lobby) vs RewardN.Main (Trials).</summary>
+    /// <summary>Rewards cards (Create Room lobby or Trials panel). <paramref name="nested"/> = RewardN.RewardN.Main (lobby) vs RewardN.Main (Trials).</summary>
     private List<RewardCard> ReadRewards(long scroll, bool nested, long pg)
     {
         var list = new List<RewardCard>();
@@ -119,7 +119,7 @@ public sealed partial class GameReader
         };
     }
 
-    /// <summary>Drop layar hasil: anak RewardsFrame.CutFrame.Holder yang tampil (money, gems, materialNNN, unit...) + jumlah.</summary>
+    /// <summary>Result screen drops: visible children of RewardsFrame.CutFrame.Holder (money, gems, materialNNN, unit...) + amount.</summary>
     private List<string> ReadDrops(long end, long pg)
     {
         var list = new List<string>();
@@ -146,7 +146,7 @@ public sealed partial class GameReader
         return list;
     }
 
-    /// <summary>Tombol EndScreen: ButtonsHolder.&lt;X&gt;Button.Button, hanya bila tampil (Next tidak ada di raid).</summary>
+    /// <summary>EndScreen buttons: ButtonsHolder.&lt;X&gt;Button.Button, only when shown (Next does not exist in raids).</summary>
     private GuiRect? EndButton(long end, long pg, string name) =>
         end != 0 ? ShownClientRect(reader.ResolvePath(end, AnimeZeroPaths.EndButtonsHolder + "." + name + ".Button"), pg) : null;
 
@@ -164,7 +164,7 @@ public sealed partial class GameReader
         return (TextAt(h, "Title"), TextAt(h, "Tag")?.Trim('[', ']', ' '));
     }
 
-    /// <summary>Workspace.World.Markers.BossSpawn dan kotak Areas.&lt;n&gt; (Part: posisi + Size).</summary>
+    /// <summary>Workspace.World.Markers.BossSpawn and the Areas.&lt;n&gt; box (Part: position + Size).</summary>
     private (Settings.Vec3? Boss, AreaBox? Area) ReadMarkers(long ws, int area)
     {
         long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;

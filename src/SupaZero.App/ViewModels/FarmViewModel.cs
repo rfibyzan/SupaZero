@@ -5,7 +5,7 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.ViewModels;
 
-/// <summary>Satu baris tombol skill: badge tombol + Rebind (seperti Macro hotkey), toggle aktif, cooldown.</summary>
+/// <summary>One skill key row: key badge + Rebind (like the Macro hotkey), enabled toggle, cooldown.</summary>
 public sealed class SkillRowViewModel(FarmViewModel owner, int index) : ObservableObject
 {
     private bool _rebinding;
@@ -13,7 +13,7 @@ public sealed class SkillRowViewModel(FarmViewModel owner, int index) : Observab
 
     public string Name => B.Name;
     public string KeyText => _rebinding ? "..." : B.Key;
-    public string RebindText => _rebinding ? "Tekan tombol" : "Rebind";
+    public string RebindText => _rebinding ? "Press a key" : "Rebind";
     public bool Enabled { get => B.Enabled; set => owner.SetSkill(index, B with { Enabled = value }); }
     public decimal CooldownMs { get => B.CooldownMs; set => owner.SetSkill(index, B with { CooldownMs = (int)value }); }
 
@@ -33,7 +33,7 @@ public sealed class SkillRowViewModel(FarmViewModel owner, int index) : Observab
     });
 }
 
-/// <summary>v0.3.11: satu baris prioritas buff Mirror Blessing (urutan ▲▼ + aktif).</summary>
+/// <summary>v0.3.11: one Mirror Blessing buff priority row (▲▼ order + enabled).</summary>
 public sealed class BlessingBuffRowViewModel(FarmViewModel owner, int index) : ObservableObject
 {
     private BuffPref P => owner.BlessingBuffList[index];
@@ -44,7 +44,7 @@ public sealed class BlessingBuffRowViewModel(FarmViewModel owner, int index) : O
         get
         {
             var names = owner.BlessingAll.Where(b => b.Buffs.Contains(P.Buff)).Select(b => b.Name).ToList();
-            return names.Count > 0 ? string.Join(", ", names) : "belum ada kartu terbaca";
+            return names.Count > 0 ? string.Join(", ", names) : "no cards read yet";
         }
     }
     public bool Enabled { get => P.Enabled; set => owner.SetBuff(index, P with { Enabled = value }); }
@@ -52,7 +52,7 @@ public sealed class BlessingBuffRowViewModel(FarmViewModel owner, int index) : O
     public RelayCommand DownCommand => new(_ => owner.MoveBuff(index, 1));
 }
 
-/// <summary>v0.3.11: satu baris kartu Mirror Blessing (data kartu + urutan ▲▼ + boleh dipilih).</summary>
+/// <summary>v0.3.11: one Mirror Blessing card row (card data + ▲▼ order + allowed to pick).</summary>
 public sealed class BlessingCardRowViewModel(FarmViewModel owner, int index) : ObservableObject
 {
     private BlessingPref P => owner.BlessingCardList[index];
@@ -60,8 +60,8 @@ public sealed class BlessingCardRowViewModel(FarmViewModel owner, int index) : O
     public string Rank => $"{index + 1}.";
     public string Name => P.Name;
     public string Rarity => I?.Rarity ?? "?";
-    public string Detail => I is { } i ? (i.Description.Length > 0 ? i.Description : i.Value) : "belum terbaca";
-    public string BuffText => I is { } i ? string.Join(" · ", i.Buffs.Select(BlessingCatalog.Label)) + (i.HasDrawback ? " · ⚠ efek negatif" : "") : "";
+    public string Detail => I is { } i ? (i.Description.Length > 0 ? i.Description : i.Value) : "not read yet";
+    public string BuffText => I is { } i ? string.Join(" · ", i.Buffs.Select(BlessingCatalog.Label)) + (i.HasDrawback ? " · ⚠ drawback" : "") : "";
     public bool Enabled { get => P.Enabled; set => owner.SetCard(index, P with { Enabled = value }); }
     public RelayCommand UpCommand => new(_ => owner.MoveCard(index, -1));
     public RelayCommand DownCommand => new(_ => owner.MoveCard(index, 1));
@@ -69,7 +69,7 @@ public sealed class BlessingCardRowViewModel(FarmViewModel owner, int index) : O
 
 public sealed class FarmViewModel : ObservableObject
 {
-    private const string CurrentMapLabel = "(otomatis sesuai mode)";
+    private const string CurrentMapLabel = "(automatic per mode)";
     private readonly MainViewModel _root;
 
     public FarmViewModel(MainViewModel root)
@@ -86,12 +86,12 @@ public sealed class FarmViewModel : ObservableObject
     private AppSettings S => _root.Settings;
     private void Farm(Func<FarmSettings, FarmSettings> f) { S.Farm = f(S.Farm); _root.Save(); }
 
-    /// <summary>Mode dari label "Mode:" kartu map yang terbaca di game (urutan kartu); bawaan bila belum pernah terbaca.</summary>
+    /// <summary>Modes from the "Mode:" label of the map cards read in game (card order); defaults if never read.</summary>
     public ObservableCollection<string> Modes { get; } = [];
-    private const string AllActsLabel = "Semua act (berurutan)";
+    private const string AllActsLabel = "All acts (in order)";
     public ObservableCollection<string> Acts { get; } = [];
     public IReadOnlyList<string> Difficulties { get; } = Enum.GetNames<Difficulty>();
-    public IReadOnlyList<string> AfterWins { get; } = ["Otomatis", "Next", "Retry", "Leave"];
+    public IReadOnlyList<string> AfterWins { get; } = ["Automatic", "Next", "Retry", "Leave"];
     public ObservableCollection<string> Maps { get; } = [];
     public ObservableCollection<SkillRowViewModel> SkillRows { get; } = [];
 
@@ -103,14 +103,14 @@ public sealed class FarmViewModel : ObservableObject
             if (value < 0 || value >= Modes.Count) return;
             string mode = Modes[value];
             if (mode.Equals(S.Farm.Mode, StringComparison.OrdinalIgnoreCase)) return;
-            // Map yang tidak cocok dengan mode baru → kembali ke "map terpilih" (macro pilih map sesuai mode sendiri).
+            // A map that does not match the new mode → back to "selected map" (the macro picks the map for the mode itself).
             bool keep = S.Farm.KnownMaps?.FirstOrDefault(m => m.Name == S.Farm.Map) is { Mode: { } mm } && mm.Equals(mode, StringComparison.OrdinalIgnoreCase);
             Farm(f => f with { Mode = mode, Map = keep ? f.Map : "" });
             RebuildMaps();
         }
     }
 
-    /// <summary>Act untuk map terpilih: HANYA dari ActsList yang terbaca (v0.2.82: tanpa tebakan 1–5).</summary>
+    /// <summary>Acts for the selected map: ONLY from the ActsList that was read (v0.2.82: no 1–5 guessing).</summary>
     private List<int> ActNumbers() =>
         S.Farm.Map.Length > 0 && S.Farm.KnownActs?.GetValueOrDefault(S.Farm.Map) is { Count: > 0 } a ? a : [];
 
@@ -134,7 +134,7 @@ public sealed class FarmViewModel : ObservableObject
         want.AddRange(nums.Select(n => "Act " + n));
         if (!Acts.SequenceEqual(want))
         {
-            // Clear() membuat ComboBox jatuh ke SelectedIndex -1 (kotak Act kosong); isi ulang lalu set ulang pilihan setelah layout.
+            // Clear() drops the ComboBox to SelectedIndex -1 (empty Act box); refill, then re-set the selection after layout.
             Acts.Clear();
             foreach (var x in want) Acts.Add(x);
         }
@@ -143,10 +143,10 @@ public sealed class FarmViewModel : ObservableObject
         RebuildDrops();
     }
     public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
-        ? "Tuntas: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
+        ? "Cleared: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
         : ActNumbers().Count == 0 && S.Farm.Map.Length > 0
-            ? "Act map ini belum terbaca → jalankan Kalibrasi aksi (tab General)."
-            : "Semua act: mulai dari Act 1, lanjut otomatis tiap menang. Act yang tidak ada di map → macro berhenti.";
+            ? "Acts for this map not read yet → run Action calibration (General tab)."
+            : "All acts: starts at Act 1, advances automatically after each win. An act the map does not have → macro stops.";
     public RelayCommand ResetActProgressCommand => new(_ => { Farm(f => f with { ActProgress = null }); Raise(nameof(ActProgressText)); });
     public int DifficultyIndex { get => (int)S.Farm.Difficulty; set => Farm(f => f with { Difficulty = (Difficulty)Math.Clamp(value, 0, 3) }); }
     public int AfterWinIndex { get => (int)S.Farm.AfterWin; set => Farm(f => f with { AfterWin = (AfterWin)Math.Clamp(value, 0, 3) }); }
@@ -163,14 +163,14 @@ public sealed class FarmViewModel : ObservableObject
     }
 
     public string MapsHint => S.Farm.KnownMaps is not { Count: > 0 }
-        ? "Buka menu Create Room sekali di game: daftar map + status terkunci akan terbaca otomatis."
+        ? "Open the Create Room menu once in game: the map list + locked status are read automatically."
         : !S.Farm.KnownMaps.Any(m => m.Mode is { Length: > 0 })
-            ? "Mode map belum terbaca. Buka menu Create Room sekali lagi agar map terkelompok per mode."
+            ? "Map modes not read yet. Open the Create Room menu once more so maps are grouped by mode."
             : MapsForMode().ToList() is { Count: > 0 } k
-                ? $"Map {S.Farm.Mode}: {k.Count(m => !m.Locked)} terbuka, {k.Count(m => m.Locked)} terkunci."
-                : $"Belum ada map untuk mode {S.Farm.Mode}.";
+                ? $"Map {S.Farm.Mode}: {k.Count(m => !m.Locked)} unlocked, {k.Count(m => m.Locked)} locked."
+                : $"No maps yet for mode {S.Farm.Mode}.";
 
-    /// <summary>Map milik mode terpilih. Map tanpa label mode hanya ikut bila belum ada satu pun map yang mode-nya terbaca.</summary>
+    /// <summary>Maps of the selected mode. Maps without a mode label are only included when no map has a read mode yet.</summary>
     private IEnumerable<KnownMap> MapsForMode()
     {
         var all = S.Farm.KnownMaps ?? [];
@@ -183,11 +183,11 @@ public sealed class FarmViewModel : ObservableObject
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
     public bool InfiniteUnlimitedRetry { get => S.Farm.InfiniteUnlimitedRetry; set => Farm(f => f with { InfiniteUnlimitedRetry = value }); }
     public decimal MaxRetries { get => S.Farm.MaxRetriesPerStage; set => Farm(f => f with { MaxRetriesPerStage = (int)value }); }
-    // v0.3.4: Drop Target dipilih dari material yang terbukti bisa ditarget di map/act terpilih (kalibrasi), bukan diketik.
-    private const string DropOffLabel = "(mati)";
+    // v0.3.4: Drop Target is picked from materials proven targetable on the selected map/act (calibration), not typed.
+    private const string DropOffLabel = "(off)";
     public ObservableCollection<string> DropChoices { get; } = [];
 
-    /// <summary>Material per act map terpilih. Act "Semua" → gabungan semua act map itu.</summary>
+    /// <summary>Materials per act of the selected map. Act "All" → union of all acts of that map.</summary>
     private List<string> DropsForSelection()
     {
         var kd = S.Farm.KnownDrops;
@@ -230,15 +230,15 @@ public sealed class FarmViewModel : ObservableObject
     {
         get
         {
-            if (S.Farm.Map.Length == 0) return "Pilih map (dan act) dulu di tab General; daftar drop mengikuti map/act.";
-            if (!DropsKnown()) return $"Drop {S.Farm.Map} {(S.Farm.Act > 0 ? "Act " + S.Farm.Act : "")} belum terbaca → jalankan Kalibrasi aksi (atau buka Create Room di Hard/Nightmare untuk act ini).";
-            string act = S.Farm.Act > 0 ? $"Act {S.Farm.Act}" : "semua act (gabungan)";
+            if (S.Farm.Map.Length == 0) return "Pick a map (and act) on the General tab first; the drop list follows the map/act.";
+            if (!DropsKnown()) return $"Drop {S.Farm.Map} {(S.Farm.Act > 0 ? "Act " + S.Farm.Act : "")} not read yet → run Action calibration (or open Create Room on Hard/Nightmare for this act).";
+            string act = S.Farm.Act > 0 ? $"Act {S.Farm.Act}" : "all acts (combined)";
             string stale = S.Farm.DropTarget.Length > 0 && !DropsForSelection().Contains(S.Farm.DropTarget, StringComparer.OrdinalIgnoreCase)
-                ? $" Target lama \"{S.Farm.DropTarget}\" tidak ada di sini → tidak dipakai, pilih ulang." : "";
-            return $"Material yang bisa ditarget di {S.Farm.Map} {act}. Hanya berlaku di Hard (x2) / Nightmare (x3).{stale}";
+                ? $" Old target \"{S.Farm.DropTarget}\" is not here → not used, pick again." : "";
+            return $"Targetable materials on {S.Farm.Map} {act}. Only applies on Hard (x2) / Nightmare (x3).{stale}";
         }
     }
-    // ---- v0.3.11 Mirror Blessing: data kartu + prioritas buff + urutan kartu (bukan teks dipisah koma) ----
+    // ---- v0.3.11 Mirror Blessing: card data + buff priority + card order (not comma-separated text) ----
     public ObservableCollection<BlessingBuffRowViewModel> BlessingBuffRows { get; } = [];
     public ObservableCollection<BlessingCardRowViewModel> BlessingCardRows { get; } = [];
     public List<BlessingInfo> BlessingAll => BlessingCatalog.All(S.Farm.KnownBlessings);
@@ -275,20 +275,20 @@ public sealed class FarmViewModel : ObservableObject
     }
     public RelayCommand ResetBlessingCommand => new(_ => { Farm(f => f with { BlessingBuffs = null, BlessingCards = null }); RebuildBlessings(); });
 
-    /// <summary>Tawaran yang sedang tampil di game → kartu yang akan dipilih dengan pengaturan sekarang.</summary>
+    /// <summary>Offers currently shown in game → the card that would be picked with the current settings.</summary>
     public string BlessingPreview
     {
         get
         {
             var offers = _root.Snapshot.Blessings;
-            if (offers.Count == 0) return "Aturan: buff aktif teratas → urutan kartu → rarity tertinggi → angka terbesar. Kartu yang dimatikan hanya dipilih bila semua tawaran mati.";
+            if (offers.Count == 0) return "Rule: top enabled buff → card order → highest rarity → largest number. Disabled cards are only picked when all offers are disabled.";
             var pick = BlessingCatalog.Choose(offers, BlessingBuffList, BlessingCardList, S.Farm.KnownBlessings);
-            return $"Tawaran sekarang: {string.Join(" / ", offers.Select(o => $"{o.Name} {o.Value}"))} → pilih {pick?.Name}.";
+            return $"Current offers: {string.Join(" / ", offers.Select(o => $"{o.Name} {o.Value}"))} → pick {pick?.Name}.";
         }
     }
 
     private string? _blessSig;
-    /// <summary>Kartu yang terbaca di layar pilihan disimpan (nama, rarity, deskripsi, value); kartu baru masuk urutan paling bawah.</summary>
+    /// <summary>Cards read on the choice screen are saved (name, rarity, description, value); new cards go to the bottom of the order.</summary>
     private void LearnBlessings(IReadOnlyList<BlessingOffer> offers)
     {
         if (offers.Count == 0) return;
@@ -310,15 +310,15 @@ public sealed class FarmViewModel : ObservableObject
         {
             bool newName = offers.Any(o => !BlessingCardList.Any(c => c.Name.Equals(o.Name.Trim(), StringComparison.OrdinalIgnoreCase)));
             Farm(f => f with { KnownBlessings = known });
-            if (newName) _root.AddLog("Mirror Blessing: kartu baru tersimpan → " + string.Join(", ", offers.Select(o => o.Name)));
+            if (newName) _root.AddLog("Mirror Blessing: new cards saved → " + string.Join(", ", offers.Select(o => o.Name)));
             RebuildBlessings();
         }
     }
     public decimal TrialsFloor { get => S.Farm.TrialsFloor; set => Farm(f => f with { TrialsFloor = (int)value }); }
-    public string CircleText => S.Farm.LobbyCircle is { } c ? "Cadangan: " + c : "Cadangan manual: belum direkam";
+    public string CircleText => S.Farm.LobbyCircle is { } c ? "Fallback: " + c : "Manual fallback: not recorded";
     public string DetectedText => _root.Snapshot.StartRooms is { Count: > 0 } r
-        ? $"{r.Count} room: {r.Count(x => !x.Occupied)} kosong, {r.Count(x => x.Occupied)} terisi"
-        : _root.Snapshot.StartCircles.Count is int n and > 0 ? $"Terdeteksi {n} lingkaran \"Start Here\"" : "Lingkaran belum terdeteksi";
+        ? $"{r.Count} room(s): {r.Count(x => !x.Occupied)} empty, {r.Count(x => x.Occupied)} occupied"
+        : _root.Snapshot.StartCircles.Count is int n and > 0 ? $"Detected {n} \"Start Here\" circle(s)" : "No circle detected yet";
     public string AreasButtonPath { get => S.Farm.AreasButtonPath; set { Farm(f => f with { AreasButtonPath = value ?? "" }); _root.ApplyGuiCalibration(); } }
     public string StoryCardPath { get => S.Farm.StoryCardPath; set { Farm(f => f with { StoryCardPath = value ?? "" }); _root.ApplyGuiCalibration(); } }
     public string HubPickText => _root.Session.Game is { } g
@@ -332,9 +332,9 @@ public sealed class FarmViewModel : ObservableObject
         if (_root.Snapshot.PlayerPos is { } p)
         {
             Farm(f => f with { LobbyCircle = p });
-            _root.AddLog($"Posisi lingkaran Create Room direkam: {p}.");
+            _root.AddLog($"Create Room circle position recorded: {p}.");
         }
-        else _root.AddLog("Gagal rekam: posisi karakter tidak terbaca (attach + offsets dulu).");
+        else _root.AddLog("Record failed: character position not readable (attach + offsets first).");
         Raise(nameof(CircleText));
     });
 
@@ -360,7 +360,7 @@ public sealed class FarmViewModel : ObservableObject
         _root.Save();
     }
 
-    /// <summary>Simpan daftar map terbaru dari snapshot (saat menu Create Room terbuka).</summary>
+    /// <summary>Save the latest map list from the snapshot (while the Create Room menu is open).</summary>
     public void Refresh()
     {
         Raise(nameof(DetectedText));
@@ -368,7 +368,7 @@ public sealed class FarmViewModel : ObservableObject
         var snap = _root.Snapshot;
         LearnBlessings(snap.Blessings);
         if (snap.Blessings.Count > 0) Raise(nameof(BlessingPreview));
-        // v0.2.82: ActsList berganti bertahap setelah map diklik → act baru disimpan bila (map, daftar act) sama ≥ 1 dtk.
+        // v0.2.82: ActsList changes gradually after a map is clicked → acts are saved once (map, act list) is stable ≥ 1 s.
         string actSig = $"{snap.LobbyMapTag}|{string.Join(",", snap.LobbyActs.Select(a => a.Name))}";
         if (actSig != _actSig) { _actSig = actSig; _actSigAt = DateTime.UtcNow; }
         if (snap.LobbyMapTag is { Length: > 0 } tag && snap.LobbyActs.Count > 0 && DateTime.UtcNow - _actSigAt >= TimeSpan.FromSeconds(1))
@@ -383,7 +383,7 @@ public sealed class FarmViewModel : ObservableObject
                 RebuildActs();
             }
         }
-        // v0.3.4: drop terbaca langsung saat menu Create Room terbuka di Hard/Nightmare (stabil ≥ 1 dtk).
+        // v0.3.4: drops are read directly while the Create Room menu is open on Hard/Nightmare (stable ≥ 1 s).
         string? dtag = snap.LobbyDifficultyTag?.Trim('[', ']', ' ');
         int curAct = SupaZero.Core.Automation.FarmMachine.ActNumber(snap.LobbyActTag);
         if (snap.LobbyMapTag is { Length: > 0 } mtag && curAct > 0 && snap.LobbyRewards.Count > 0 &&
@@ -407,7 +407,7 @@ public sealed class FarmViewModel : ObservableObject
         }
         var maps = snap.LobbyMaps;
         if (maps.Count == 0) return;
-        // v0.2.82: gabung, jangan timpa — daftar map hanya berisi map mode terpilih; map mode lain tetap disimpan.
+        // v0.2.82: merge, don't overwrite — the map list only holds the selected mode's maps; other modes' maps are kept.
         var fresh = maps.Select(m => new KnownMap(m.Name, m.Locked, m.Mode)).ToList();
         var freshModes = fresh.Select(m => m.Mode).Where(m => m is not null).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var known = (S.Farm.KnownMaps ?? [])
@@ -423,7 +423,7 @@ public sealed class FarmViewModel : ObservableObject
     private DateTime _dropSigAt;
     private DateTime _actSigAt;
 
-    /// <summary>v0.2.82: hasil kalibrasi aksi menggantikan daftar map dan act yang tersimpan (act map yang terbaca).</summary>
+    /// <summary>v0.2.82: the action calibration result replaces the saved map and act lists (acts of the maps that were read).</summary>
     public void ApplyCalibration(SupaZero.Core.Automation.CalibrationScan scan)
     {
         if (scan.Maps.Count > 0) Farm(f => f with { KnownMaps = scan.Maps.ToList() });
@@ -441,13 +441,13 @@ public sealed class FarmViewModel : ObservableObject
         }
         RebuildMaps();
         RebuildDrops();
-        _root.AddLog($"Kalibrasi aksi disimpan: {scan.Maps.Count} map, act untuk {scan.Acts.Count} map, drop untuk {scan.Drops.Count} act." +
-            (scan.Notes.Count > 0 ? " Catatan: " + string.Join(" ", scan.Notes) : ""));
+        _root.AddLog($"Action calibration saved: {scan.Maps.Count} map(s), acts for {scan.Acts.Count} map(s), drops for {scan.Drops.Count} act(s)." +
+            (scan.Notes.Count > 0 ? " Notes: " + string.Join(" ", scan.Notes) : ""));
     }
 
     private void RebuildMaps()
     {
-        // Buang sisa bug v0.2.4 (wadah MapsList terbaca sebagai map).
+        // Remove leftovers of the v0.2.4 bug (MapsList container read as a map).
         if (S.Farm.KnownMaps is { } km && km.Any(m => IsJunk(m.Name)))
             Farm(f => f with { KnownMaps = km.Where(m => !IsJunk(m.Name)).ToList() is { Count: > 0 } k ? k : null });
         if (IsJunk(S.Farm.Map)) Farm(f => f with { Map = "" });
@@ -455,8 +455,8 @@ public sealed class FarmViewModel : ObservableObject
         Maps.Clear();
         Maps.Add(CurrentMapLabel);
         foreach (var m in MapsForMode())
-            Maps.Add(m.Locked ? $"{m.Name} (terkunci)" : m.Name);
-        // Map tersimpan yang bukan milik mode ini → kembali ke otomatis.
+            Maps.Add(m.Locked ? $"{m.Name} (locked)" : m.Name);
+        // A saved map that does not belong to this mode → back to automatic.
         if (S.Farm.Map.Length > 0 && !Maps.Any(m => Strip(m) == S.Farm.Map)) Farm(f => f with { Map = "" });
         Raise(nameof(SelectedMap));
         Avalonia.Threading.Dispatcher.UIThread.Post(() => Raise(nameof(SelectedMap)));
@@ -478,5 +478,5 @@ public sealed class FarmViewModel : ObservableObject
 
     private static bool IsJunk(string n) => n is "ScrollingBar" or "List" or "UIListLayout" or "UIGridLayout" or "FadeSpacer";
 
-    private static string Strip(string s) => s.Replace(" (terkunci)", string.Empty).Trim();
+    private static string Strip(string s) => s.Replace(" (locked)", string.Empty).Trim();
 }

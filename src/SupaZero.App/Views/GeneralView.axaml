@@ -3,7 +3,7 @@
              xmlns:vm="using:SupaZero.App.ViewModels"
              x:Class="SupaZero.App.Views.GeneralView"
              x:DataType="vm:GeneralViewModel">
-  <!-- General: kiri hotkey + target farm, kanan macro + power + kalibrasi ringkas, bawah Log. -->
+  <!-- General: left hotkey + farm target, right macro + powers + compact calibration, bottom Log. -->
   <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto">
     <StackPanel Spacing="8" Margin="0,0,8,0">
       <Border Classes="card" Padding="0">
@@ -46,9 +46,9 @@
             <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Difficulties}" SelectedIndex="{Binding DifficultyIndex}" />
           </Grid>
           <Grid ColumnDefinitions="*,210" MinHeight="34">
-            <TextBlock Classes="label" Text="Setelah menang" />
+            <TextBlock Classes="label" Text="After victory" />
             <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding AfterWins}" SelectedIndex="{Binding AfterWinIndex}"
-                      ToolTip.Tip="Otomatis: Story → Next, mode lain → Retry." />
+                      ToolTip.Tip="Automatic: Story → Next, other modes → Retry." />
           </Grid>
         </StackPanel>
       </Border>
@@ -59,13 +59,13 @@
         <StackPanel Spacing="10">
           <TextBlock Classes="h2" Text="Running Overlay" />
           <StackPanel HorizontalAlignment="Center">
-            <!-- Layar = jendela Roblox dalam skala kecil; kotak = posisi overlay, bisa di-drag. -->
+            <!-- Screen = scaled-down Roblox window; box = overlay position, draggable. -->
             <Border Width="220" Height="124" BorderBrush="{DynamicResource OfMuted}" BorderThickness="2" CornerRadius="6" Background="{DynamicResource OfInset}">
               <Canvas x:Name="PreviewArea" Width="216" Height="120" ClipToBounds="True" Background="Transparent">
                 <Border x:Name="PreviewBox" Width="{Binding PreviewBoxWidth}" Height="{Binding PreviewBoxHeight}" CornerRadius="3"
                         Background="#C0101418" BorderBrush="{DynamicResource OfAccent}" BorderThickness="1"
                         Canvas.Left="{Binding PreviewLeft}" Canvas.Top="{Binding PreviewTop}" Cursor="SizeAll"
-                        ToolTip.Tip="Overlay. Drag untuk memindahkan di jendela Roblox.">
+                        ToolTip.Tip="Overlay. Drag to move it within the Roblox window.">
                   <StackPanel Spacing="3" VerticalAlignment="Top" Margin="4,5,4,0">
                     <Border Height="2" Background="#C0FFFFFF" Width="12" HorizontalAlignment="Left" />
                     <Border Height="2" Background="#80FFFFFF" Width="16" HorizontalAlignment="Left" />
@@ -77,14 +77,14 @@
             <Border Width="12" Height="8" Background="{DynamicResource OfMuted}" HorizontalAlignment="Center" />
             <Border Width="60" Height="3" Background="{DynamicResource OfMuted}" CornerRadius="1" HorizontalAlignment="Center" />
           </StackPanel>
-          <TextBlock Classes="muted" FontSize="11" HorizontalAlignment="Center" Text="Drag kotak untuk menempatkan overlay di jendela Roblox." />
-          <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Tampilkan overlay saat macro berjalan" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowOverlay}" /></Grid>
+          <TextBlock Classes="muted" FontSize="11" HorizontalAlignment="Center" Text="Drag the box to place the overlay in the Roblox window." />
+          <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Show overlay while the macro runs" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowOverlay}" /></Grid>
         </StackPanel>
       </Border>
 
       <Border Classes="card">
         <StackPanel Spacing="6">
-          <TextBlock Classes="h2" Text="Power terpasang" />
+          <TextBlock Classes="h2" Text="Equipped powers" />
           <Border Classes="sep" Margin="0,2,0,4" />
           <StackPanel Spacing="1">
             <Grid ColumnDefinitions="56,*"><TextBlock Classes="label" Text="Slot 1" /><TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding Power1Name}" TextTrimming="CharacterEllipsis" /></Grid>
@@ -100,16 +100,16 @@
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel VerticalAlignment="Center">
-              <TextBlock Classes="label" FontWeight="SemiBold" Text="Kalibrasi" />
+              <TextBlock Classes="label" FontWeight="SemiBold" Text="Calibration" />
               <TextBlock Classes="muted" FontSize="11" Text="{Binding CalibrationSummary}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <Button Content="Cek" Command="{Binding CalibrateCommand}" Padding="12,3" ToolTip.Tip="Baca memori sekali tanpa input: offset, GUI, posisi, power tersimpan. Untuk cek cepat apakah SupaZero membaca game dengan benar." />
-              <Button Content="Kalibrasi aksi" Command="{Binding CalibrateActionCommand}" Padding="12,3"
-                      ToolTip.Tip="Dari lobby: cek Trait, buka Spinning (baca power), masuk room, baca semua mode/map/act, lalu Leave. Tidak menekan Start." />
+              <Button Content="Check" Command="{Binding CalibrateCommand}" Padding="12,3" ToolTip.Tip="Reads memory once without input: offsets, GUI, position, saved powers. A quick check that SupaZero reads the game correctly." />
+              <Button Content="Action calibration" Command="{Binding CalibrateActionCommand}" Padding="12,3"
+                      ToolTip.Tip="From the lobby: checks Trait, opens Spinning (reads powers), enters a room, reads all modes/maps/acts, then Leaves. Does not press Start." />
             </StackPanel>
           </Grid>
-          <Expander Header="Detail" IsVisible="{Binding HasCalibration}" Padding="4" FontSize="11" HorizontalAlignment="Stretch">
+          <Expander Header="Details" IsVisible="{Binding HasCalibration}" Padding="4" FontSize="11" HorizontalAlignment="Stretch">
             <ItemsControl ItemsSource="{Binding CalibrationItems}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>

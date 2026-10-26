@@ -3,16 +3,16 @@ using RIE.Core.Offsets;
 
 namespace RIE.Core.Macro;
 
-/// <summary>Matriks view-projection VisualEngine + ukuran render (piksel klien).</summary>
+/// <summary>VisualEngine view-projection matrix + render size (client pixels).</summary>
 public sealed record ViewState(float[] Matrix, float Width, float Height)
 {
     public bool IsValid => Matrix.Length == 16 && Width > 1 && Height > 1;
 }
 
 /// <summary>
-/// Proyeksi posisi dunia (stud) ke koordinat klien jendela Roblox memakai VisualEngine.ViewMatrix (row-major 4x4).
-/// Hasil sudah termasuk topbar (render 3D memenuhi area klien), jadi tidak perlu Inset Y.
-/// Read-only: hanya membaca [moduleBase + VisualEngine.Pointer] → ViewMatrix dan Dimensions.
+/// Projects a world position (studs) to Roblox window client coordinates using VisualEngine.ViewMatrix (row-major 4x4).
+/// The result already includes the topbar (3D rendering fills the client area), so no Y inset is needed.
+/// Read-only: only reads [moduleBase + VisualEngine.Pointer] → ViewMatrix and Dimensions.
 /// </summary>
 public static class WorldToScreen
 {
@@ -24,7 +24,7 @@ public static class WorldToScreen
         double cx = m[0] * x + m[1] * y + m[2] * z + m[3];
         double cy = m[4] * x + m[5] * y + m[6] * z + m[7];
         double w = m[12] * x + m[13] * y + m[14] * z + m[15];
-        if (w < 0.1) return false; // di belakang kamera
+        if (w < 0.1) return false; // behind the camera
         double nx = cx / w, ny = cy / w;
         sx = view.Width / 2.0 * nx + view.Width / 2.0;
         sy = -(view.Height / 2.0) * ny + view.Height / 2.0;

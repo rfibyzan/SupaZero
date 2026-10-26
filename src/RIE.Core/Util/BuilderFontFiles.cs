@@ -1,16 +1,16 @@
 namespace RIE.Core.Util;
 
 /// <summary>
-/// v3.7: mencari file font Builder (font website/klien Roblox) di PC pengguna.
-/// Font TIDAK disertakan di repo (lisensi Builder hanya untuk UGC Roblox); app hanya memuat
-/// file yang sudah ada di PC: folder fonts milik app atau instalasi Roblox/Bloxstrap/Fishstrap.
+/// v3.7: locates Builder font files (the Roblox website/client font) on the user's PC.
+/// Fonts are NOT included in the repo (the Builder licence is for Roblox UGC only); the app only loads
+/// files already on the PC: the app's own fonts folder or a Roblox/Bloxstrap/Fishstrap install.
 /// </summary>
 public static class BuilderFontFiles
 {
     public const string Sans = "Builder Sans";
     public const string Mono = "Builder Mono";
 
-    /// <summary>Keluarga font dari nama file, atau null bila bukan Builder Sans/Mono (Extended diabaikan).</summary>
+    /// <summary>Font family from the file name, or null if not Builder Sans/Mono (Extended is ignored).</summary>
     public static string? FamilyOf(string fileName)
     {
         string ext = Path.GetExtension(fileName).ToLowerInvariant();
@@ -21,7 +21,7 @@ public static class BuilderFontFiles
         return null;
     }
 
-    /// <summary>Folder kandidat berurutan: folder fonts app dulu, lalu versi Roblox terbaru per launcher.</summary>
+    /// <summary>Candidate folders in order: the app fonts folder first, then the newest Roblox version per launcher.</summary>
     public static IReadOnlyList<string> CandidateDirs(string appFontsDir, string? localAppData, string? programFilesX86)
     {
         var dirs = new List<string> { appFontsDir };
@@ -46,7 +46,7 @@ public static class BuilderFontFiles
         return dirs;
     }
 
-    /// <summary>File Builder per keluarga; untuk nama file yang sama, folder yang lebih awal menang.</summary>
+    /// <summary>Builder files per family; for the same file name, the earlier folder wins.</summary>
     public static Dictionary<string, List<string>> Find(IEnumerable<string> dirs)
     {
         var result = new Dictionary<string, List<string>>();
@@ -66,10 +66,10 @@ public static class BuilderFontFiles
         return result;
     }
 
-    /// <summary>Berat terdekat ala CSS: untuk &gt;= 500 cari yang lebih tebal dulu, selain itu yang lebih tipis dulu.</summary>
+    /// <summary>Nearest weight, CSS-style: for &gt;= 500 look for heavier first, otherwise lighter first.</summary>
     public static int NearestWeight(IReadOnlyCollection<int> available, int wanted)
     {
-        if (available.Count == 0) throw new ArgumentException("kosong", nameof(available));
+        if (available.Count == 0) throw new ArgumentException("empty", nameof(available));
         if (available.Contains(wanted)) return wanted;
         bool heavierFirst = wanted >= 500;
         return available

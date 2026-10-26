@@ -5,7 +5,7 @@ using SupaZero.App.ViewModels;
 
 namespace SupaZero.App.Views;
 
-/// <summary>General: preview Running Overlay (drag kotak → SettingsPageViewModel.MovePreviewBox). v0.3.12: pindah dari Settings.</summary>
+/// <summary>General: Running Overlay preview (drag box → SettingsPageViewModel.MovePreviewBox). v0.3.12: moved from Settings.</summary>
 public partial class GeneralView : UserControl
 {
     private Point? _grab;

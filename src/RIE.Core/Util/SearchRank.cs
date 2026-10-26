@@ -1,9 +1,9 @@
 namespace RIE.Core.Util;
 
-/// <summary>Peringkat dan pengelompokan hasil pencarian (murni, tanpa UI).</summary>
+/// <summary>Ranking and grouping of search results (pure, no UI).</summary>
 public static class SearchRank
 {
-    /// <summary>0 = nama sama persis, 1 = awalan, 2 = nama mengandung, 3 = cocok class/path, 4 = cocok teks/value.</summary>
+    /// <summary>0 = exact name, 1 = prefix, 2 = name contains, 3 = class/path match, 4 = text/value match.</summary>
     public static int Rank(string name, string className, string match, string query)
     {
         string q = query.Trim();
@@ -20,13 +20,13 @@ public static class SearchRank
         return 3;
     }
 
-    /// <summary>Kedalaman path ("game.Workspace.A" = 2).</summary>
+    /// <summary>Path depth ("game.Workspace.A" = 2).</summary>
     public static int Depth(string path) => path.Count(c => c == '.');
 
-    /// <summary>Path induk ("game.Players.A.B" → "game.Players.A"); kosong bila tidak ada.</summary>
+    /// <summary>Parent path ("game.Players.A.B" → "game.Players.A"); empty if none.</summary>
     public static string ParentPath(string path) => path.LastIndexOf('.') is var i and > 0 ? path[..i] : string.Empty;
 
-    /// <summary>Service teratas ("game.Players.A" → "Players").</summary>
+    /// <summary>Top-level service ("game.Players.A" → "Players").</summary>
     public static string Service(string path)
     {
         var parts = path.Split('.');
@@ -35,7 +35,7 @@ public static class SearchRank
         return start < parts.Length ? parts[start] : parts[0];
     }
 
-    /// <summary>Path induk ringkas untuk header grup: "Players › TestUser › … › Slots" (tanpa "game").</summary>
+    /// <summary>Compact parent path for group headers: "Players › TestUser › … › Slots" (without "game").</summary>
     public static string GroupTitle(string parentPath, int maxSegments = 4)
     {
         var parts = parentPath.Split('.', StringSplitOptions.RemoveEmptyEntries).ToList();
@@ -45,13 +45,13 @@ public static class SearchRank
         return string.Join(" › ", parts);
     }
 
-    /// <summary>Hitung kemunculan per kunci, urut terbanyak lalu nama.</summary>
+    /// <summary>Counts occurrences per key, sorted by most frequent then name.</summary>
     public static List<(string Key, int Count)> Facets(IEnumerable<string> keys) =>
         keys.Where(k => k.Length > 0).GroupBy(k => k, StringComparer.Ordinal)
             .Select(g => (g.Key, g.Count()))
             .OrderByDescending(t => t.Item2).ThenBy(t => t.Key, StringComparer.OrdinalIgnoreCase).ToList();
 
-    /// <summary>Urutan natural tanpa beda huruf besar/kecil: Slot2 sebelum Slot10.</summary>
+    /// <summary>Case-insensitive natural order: Slot2 before Slot10.</summary>
     public static readonly IComparer<string> Natural = Comparer<string>.Create(CompareNatural);
 
     public static int CompareNatural(string? a, string? b)

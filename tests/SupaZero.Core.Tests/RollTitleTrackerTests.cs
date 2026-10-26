@@ -6,10 +6,10 @@ public class RollTitleTrackerTests
     [Fact]
     public void EmptyRollList_TitleAcceptedOnlyAfterChangeOnSwitch()
     {
-        // Snapshot 08:19:35: daftar Roll kosong, SkillTree Slot5 terpilih, Title "Twisted Agony".
+        // Snapshot 08:19:35: Roll list empty, SkillTree Slot5 selected, Title "Twisted Agony".
         var t = new RollTitleTracker();
-        Assert.Null(t.Resolve(1, "Shadow Lord", false, null));         // awal: belum terbukti
-        Assert.Null(t.Resolve(5, "Shadow Lord", false, null));         // ganti slot, judul belum berubah (basi)
+        Assert.Null(t.Resolve(1, "Shadow Lord", false, null));         // start: not proven yet
+        Assert.Null(t.Resolve(5, "Shadow Lord", false, null));         // slot switched, title not changed yet (stale)
         Assert.Equal("Twisted Agony", t.Resolve(5, "Twisted Agony", false, null));
         Assert.Equal("Twisted Agony", t.Resolve(5, "Twisted Agony", false, null));
     }

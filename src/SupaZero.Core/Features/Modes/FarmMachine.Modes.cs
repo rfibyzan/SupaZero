@@ -11,13 +11,13 @@ public sealed partial class FarmMachine
     private static string Wave(GameSnapshot s) => s.RunWave is { Length: > 0 } w ? w + " · " : "";
 
     /// <summary>
-    /// Musuh yang boleh diserang. v0.2.81 (jangan menebak): saat BossBar [IMMUNE], yang dilewati hanya model bertanda pasti
-    /// (<see cref="EnemyInfo.ImmuneMark"/>: 2 Highlight). Tebakan lama "dekat Markers.BossSpawn 12 stud" dihapus.
+    /// Enemies that may be attacked. v0.2.81 (no guessing): while BossBar shows [IMMUNE], only models with a definite mark are skipped
+    /// (<see cref="EnemyInfo.ImmuneMark"/>: 2 Highlights). The old guess "near Markers.BossSpawn 12 studs" was removed.
     /// </summary>
-    private int _waveArea = -1; // v0.3.12: area HUD yang wave musuhnya terlihat (rubble sesudahnya boleh dipukul)
+    private int _waveArea = -1; // v0.3.12: HUD area whose enemy wave was seen (rubble after it may be hit)
     public const double RubbleNearPlayer = 250, RubbleNearArea = 80;
 
-    /// <summary>Rubble menunggu dekat pemain (≤ 250 stud) atau dekat kotak area sekarang (≤ 80 stud dari tepi).</summary>
+    /// <summary>Rubble waiting near the player (≤ 250 studs) or near the current area box (≤ 80 studs from its edge).</summary>
     internal static bool RubbleNear(GameSnapshot s, Vec3 rp) =>
         (s.PlayerPos is { } p && Navigator.Distance2D(p.X, p.Z, rp.X, rp.Z) <= RubbleNearPlayer)
         || (s.CurrentArea is { } a && a.Contains(rp, -RubbleNearArea));
@@ -28,21 +28,21 @@ public sealed partial class FarmMachine
         return s.BossImmune ? alive.Where(e => !e.ImmuneMark).ToList() : alive;
     }
 
-    /// <summary>Klik kartu reward <paramref name="want"/> sampai bertanda UNTARGET (= ditarget). null = sudah / tidak berlaku.</summary>
+    /// <summary>Click reward card <paramref name="want"/> until it shows UNTARGET (= targeted). null = done / not applicable.</summary>
     private List<MacroAction>? DropTarget(GameSnapshot s, IReadOnlyList<RewardCard> cards, GuiRect? view, string want, string key, long now)
     {
         if (string.IsNullOrWhiteSpace(want) || cards.Count == 0) return null;
         var c = cards.FirstOrDefault(x => Matches(x.Name, want.Trim()));
         if (c is null)
         {
-            _pending.AddRange(Note(key + "-none", now, 30000, $"Drop Target '{want}' tidak ada di Rewards (ada: {string.Join(", ", cards.Where(x => x.Targetable).Select(x => x.Name))})."));
+            _pending.AddRange(Note(key + "-none", now, 30000, $"Drop Target '{want}' not in Rewards (available: {string.Join(", ", cards.Where(x => x.Targetable).Select(x => x.Name))})."));
             return null;
         }
         if (!c.Targetable || c.Targeted || c.Hit is null) { if (c.Targeted) _targetTries.Remove(key); return null; }
         int n = _targetTries.GetValueOrDefault(key);
         if (n >= 3)
         {
-            _pending.AddRange(Note(key + "-fail", now, 30000, $"Drop Target {c.Name} belum terbaca ditarget setelah 3 klik → lanjut Start."));
+            _pending.AddRange(Note(key + "-fail", now, 30000, $"Drop Target {c.Name} still not read as targeted after 3 clicks → continuing to Start."));
             return null;
         }
         var act = ClickEntry(s, new LobbyEntry(c.Name, false, false, c.Hit), view, key, $"Drop Target {c.Name}", now);
@@ -50,7 +50,7 @@ public sealed partial class FarmMachine
         return act ?? [];
     }
 
-    /// <summary>Pilih kartu Mirror Blessing: urutan nama di pengaturan, lalu rarity tertinggi.</summary>
+    /// <summary>Pick a Mirror Blessing card: name order from settings, then highest rarity.</summary>
     private List<MacroAction> PickBlessing(GameSnapshot s, AppSettings S, long now)
     {
         Phase = MacroPhase.Fighting;
@@ -58,45 +58,45 @@ public sealed partial class FarmMachine
         var all = BlessingCatalog.All(f.KnownBlessings);
         var pick = BlessingCatalog.Choose(s.Blessings, BlessingCatalog.EffectiveBuffs(f.BlessingBuffs),
             BlessingCatalog.EffectiveCards(f.BlessingCards, f.BlessingPriority, all), f.KnownBlessings);
-        if (pick?.Pick is not { } r) return Note("bless-none", now, 5000, "Kartu Mirror Blessing terbaca tapi tombol PICK tidak.");
-        Status = $"Mirror Blessing: {pick.Name} ({pick.Rarity}, {string.Join("/", BlessingCatalog.BuffsOf(pick).Select(BlessingCatalog.Label))}) dari {string.Join(" / ", s.Blessings.Select(b => b.Name))}";
-        if (!InWindow(s, r.CenterX, r.CenterY)) return Note("bless-out", now, 5000, $"Tombol PICK {pick.Name} di luar jendela.");
-        return Ready("bless-pick", now, 1500) ? [new MoveAction([], "Pilih kartu"), new ClickAction(r.CenterX, r.CenterY, $"PICK {pick.Name}")] : [];
+        if (pick?.Pick is not { } r) return Note("bless-none", now, 5000, "Mirror Blessing cards read but the PICK button was not.");
+        Status = $"Mirror Blessing: {pick.Name} ({pick.Rarity}, {string.Join("/", BlessingCatalog.BuffsOf(pick).Select(BlessingCatalog.Label))}) from {string.Join(" / ", s.Blessings.Select(b => b.Name))}";
+        if (!InWindow(s, r.CenterX, r.CenterY)) return Note("bless-out", now, 5000, $"PICK button for {pick.Name} outside the window.");
+        return Ready("bless-pick", now, 1500) ? [new MoveAction([], "Pick card"), new ClickAction(r.CenterX, r.CenterY, $"PICK {pick.Name}")] : [];
     }
 
-    /// <summary>Urutan nama saja (kompatibel lama): tanpa buff, tidak cocok → rarity tertinggi.</summary>
+    /// <summary>Name order only (legacy compatible): no buffs, no match → highest rarity.</summary>
     public static BlessingOffer? ChooseBlessing(IReadOnlyList<BlessingOffer> offers, IReadOnlyList<string> priority) =>
         BlessingCatalog.Choose(offers, [], priority.Select(n => new BlessingPref(n, true)).ToList());
 
-    /// <summary>Panel Trials: buka tab Floor Rewards → atur floor (bila diset) → Drop Target → Start. Skip floor berbayar tidak pernah diklik.</summary>
+    /// <summary>Trials panel: open the Floor Rewards tab → set floor (if configured) → Drop Target → Start. The paid floor skip is never clicked.</summary>
     private List<MacroAction> TrialsMenu(GameSnapshot s, AppSettings S, long now)
     {
         Phase = MacroPhase.Lobby;
         var t = s.Trials!;
         var f = S.Farm;
-        if (!f.AutoCreateLobby) return Wait("Panel Trials terbuka (Auto create room mati).");
+        if (!f.AutoCreateLobby) return Wait("Trials panel open (Auto create room off).");
         if (!t.FloorTabOpen)
         {
-            if (t.FloorTab is not { } tab) return Note("tr-tab", now, 5000, "Tab Floor Rewards Trials tidak terbaca.");
-            Status = "Trials: buka tab Floor Rewards.";
+            if (t.FloorTab is not { } tab) return Note("tr-tab", now, 5000, "Trials Floor Rewards tab not read.");
+            Status = "Trials: opening Floor Rewards tab.";
             return Ready("tr-tab", now, 1500) && InWindow(s, tab.CenterX, tab.CenterY) ? [new ClickAction(tab.CenterX, tab.CenterY, "Tab Floor Rewards")] : [];
         }
         if (f.TrialsFloor > 0 && t.SelectedFloor is int cur && cur != f.TrialsFloor)
         {
             var btn = cur < f.TrialsFloor ? t.Increase : t.Decrease;
             Status = $"Trials: floor {cur} → {f.TrialsFloor}.";
-            if (btn is not { } b) return Note("tr-floor", now, 5000, "Tombol +/- floor Trials tidak terbaca.");
+            if (btn is not { } b) return Note("tr-floor", now, 5000, "Trials floor +/- buttons not read.");
             if (cur < f.TrialsFloor && t.HighestFloor is int hi && cur > hi)
-                return Stop($"Floor {f.TrialsFloor} belum terbuka (tertinggi {hi}).");
+                return Stop($"Floor {f.TrialsFloor} not unlocked yet (highest {hi}).");
             return Ready("tr-floor", now, 350) ? [new ClickAction(b.CenterX, b.CenterY, cur < f.TrialsFloor ? "Floor +" : "Floor -")] : [];
         }
         if (DropTarget(s, t.Rewards, t.RewardsView, f.DropTarget, "trials-target", now) is { } tg) return tg;
         _selectedMap = "Trials";
         _selectedAct = t.SelectedFloor ?? 0;
-        if (t.Start is not { } st) return Note("tr-start", now, 5000, "Tombol Start Trials tidak terbaca.");
+        if (t.Start is not { } st) return Note("tr-start", now, 5000, "Trials Start button not read.");
         Status = $"Trials floor {t.SelectedFloor?.ToString() ?? "?"} → Start.";
         return Ready("tr-start", now, 3000) && InWindow(s, st.CenterX, st.CenterY) ? [new ClickAction(st.CenterX, st.CenterY, "Start Trials")] : [];
     }
 
-    // ---------- Layar akhir ----------
+    // ---------- End screen ----------
 }

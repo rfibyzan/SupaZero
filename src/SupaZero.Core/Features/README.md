@@ -1,23 +1,23 @@
-# Struktur per fitur (v0.3.14)
+# Per-feature layout (v0.3.14)
 
-FarmMachine (otak, murni) dan GameReader (pembaca memori, read-only) adalah `partial class`.
-Setiap folder fitur berisi potongan keduanya + kelas pendukungnya. Namespace TIDAK ikut folder
-(tetap `SupaZero.Core.Automation` / `SupaZero.Core.Game`), jadi memindah file tidak mengubah kode lain.
+FarmMachine (the brain, pure) and GameReader (memory reader, read-only) are `partial class`es.
+Each feature folder holds pieces of both + its supporting classes. Namespaces do NOT follow folders
+(they stay `SupaZero.Core.Automation` / `SupaZero.Core.Game`), so moving a file does not change other code.
 
-| Folder | Isi |
+| Folder | Contents |
 |---|---|
-| `Automation/` (inti) | `FarmMachine.cs` (Step, fase, util), `MacroRunner`, `MacroAction`, `IInput` |
-| `Game/` (inti) | `GameReader.cs` (Read, Rect, IsShown, Text, Find), `GameReader.World.cs` (musuh, pickup, HP, kamera, posisi, area), `GameSnapshot`, `AnimeZeroPaths`, `HudText`, `RobloxSession` |
-| `Features/Lobby` | `FarmMachine.Lobby.cs` (jalan ke room, menu mode/map/act, vote), `GameReader.Lobby.cs` (hub, room, lingkaran), `GameReader.LobbyLists.cs` (daftar map/act/difficulty) |
+| `Automation/` (core) | `FarmMachine.cs` (Step, phases, utils), `MacroRunner`, `MacroAction`, `IInput` |
+| `Game/` (core) | `GameReader.cs` (Read, Rect, IsShown, Text, Find), `GameReader.World.cs` (enemies, pickups, HP, camera, position, area), `GameSnapshot`, `AnimeZeroPaths`, `HudText`, `RobloxSession` |
+| `Features/Lobby` | `FarmMachine.Lobby.cs` (walk to room, mode/map/act menu, vote), `GameReader.Lobby.cs` (hub, rooms, circles), `GameReader.LobbyLists.cs` (map/act/difficulty lists) |
 | `Features/Combat` | `FarmMachine.Fight.cs`, `.Pickup.cs`, `.Arise.cs`, `GameReader.CombatHud.cs` (skill/ult/dash) |
 | `Features/Navigation` | `FarmMachine.Walk.cs`, `Navigator`, `PathPlanner`, `NavMap`, `NavReader` |
-| `Features/Rubble` | `GameReader.Rubble.cs` (RubblePending, titik serang) |
+| `Features/Rubble` | `GameReader.Rubble.cs` (RubblePending, attack points) |
 | `Features/Modes` | `FarmMachine.Modes.cs` (Blessing, Trials, Drop Target), `ModeReader`, `BlessingCatalog` |
-| `Features/Power` | `FarmMachine.PowerCheck.cs` (cek Trait/Spinning), `Powers`, `SpinWatch`, `RollTitleTracker` |
+| `Features/Power` | `FarmMachine.PowerCheck.cs` (Trait/Spinning check), `Powers`, `SpinWatch`, `RollTitleTracker` |
 | `Features/Upgrade` | `FarmMachine.Upgrade.cs`, `GameReader.SkillTree.cs`, `UpgradePlanner` |
 | `Features/EndScreen` | `FarmMachine.EndScreen.cs` (Victory/Defeat) |
 | `Features/Calibration` | `FarmMachine.Calibration.cs`, `Calibration` |
 
-Tes: `tests/SupaZero.Core.Tests/FarmMachine<Fitur>Tests.cs` (partial `FarmMachineTests`, helper `New`/`Real` di `FarmMachineTests.cs`).
+Tests: `tests/SupaZero.Core.Tests/FarmMachine<Feature>Tests.cs` (partial `FarmMachineTests`, helpers `New`/`Real` in `FarmMachineTests.cs`).
 
-Aturan: fitur baru = folder baru + `FarmMachine.<Fitur>.cs` + `FarmMachine<Fitur>Tests.cs`; path game hanya di `AnimeZeroPaths` dengan bukti snapshot.
+Rule: new feature = new folder + `FarmMachine.<Feature>.cs` + `FarmMachine<Feature>Tests.cs`; game paths only in `AnimeZeroPaths`, backed by snapshot evidence.

@@ -9,10 +9,10 @@ public sealed record NearbyHit(long Address, string Name, string ClassName, doub
     public string DistanceText => double.IsNaN(Distance) ? "-" : $"{Distance:0.0}";
 }
 
-/// <summary>Cari objek di Workspace (ProximityPrompt, ClickDetector, Part, ...) dan urutkan berdasarkan jarak dari karakter lokal.</summary>
+/// <summary>Find objects in Workspace (ProximityPrompt, ClickDetector, Part, ...) and sort them by distance from the local character.</summary>
 public sealed class NearbyFinder(InstanceReader reader, PropertyReader props)
 {
-    public static readonly string[] Presets = { "ProximityPrompt", "ClickDetector", "BasePart (nama)", "Model (nama)", "Semua class (nama)" };
+    public static readonly string[] Presets = { "ProximityPrompt", "ClickDetector", "BasePart (name)", "Model (name)", "All classes (name)" };
 
     public bool TryGetLocalPosition(DataModelRoots roots, out float x, out float y, out float z)
     {

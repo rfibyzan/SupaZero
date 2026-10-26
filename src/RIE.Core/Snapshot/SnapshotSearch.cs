@@ -2,7 +2,7 @@ namespace RIE.Core.Snapshot;
 
 public enum SearchField { Any, Name, ClassName, Text }
 
-/// <summary>Cari node di snapshot berdasarkan nama, class, atau nilai properti (contains, case-insensitive).</summary>
+/// <summary>Finds nodes in a snapshot by name, class, or property value (contains, case-insensitive).</summary>
 public static class SnapshotSearch
 {
     public static IEnumerable<SnapshotNode> Find(InstanceSnapshot s, string query, SearchField field = SearchField.Any)

@@ -7,10 +7,10 @@ namespace SupaZero.Core.Automation;
 public enum MacroPhase { Idle, WalkingToLobby, Lobby, Voting, Fighting, Navigating, Upgrading, Advancing, Retrying, Done }
 
 /// <summary>
-/// Otak AutoFarm: murni (tanpa I/O), menerima <see cref="GameSnapshot"/> + waktu, mengembalikan aksi. Mudah dites.
-/// Alur: lobby (jalan ke lingkaran Create Room → pilih mode/map/act/difficulty → Start) → vote Yes → ronde (serang +
-/// skill; area bersih → jalan ke area berikutnya, serang rubble bila tersangkut) → EndScreen: menang (upgrade bila perlu
-/// → Next/Retry/Leave sesuai mode) / kalah (Retry s.d. batas).
+/// AutoFarm brain: pure (no I/O), takes a <see cref="GameSnapshot"/> + time and returns actions. Easy to test.
+/// Flow: lobby (walk to the Create Room circle → pick mode/map/act/difficulty → Start) → vote Yes → round (attack +
+/// skills; area cleared → walk to the next area, attack rubble when stuck) → EndScreen: victory (upgrade if needed
+/// → Next/Retry/Leave depending on mode) / defeat (Retry up to the limit).
 /// </summary>
 public sealed partial class FarmMachine(Func<AppSettings> settings)
 {
@@ -33,7 +33,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     public int Defeats { get; private set; }
     private double? _lastHp;
     private int _afterWinClicks;
-    /// <summary>Map/act yang sedang dimainkan (dari menu Create Room).</summary>
+    /// <summary>Map/act currently being played (from the Create Room menu).</summary>
     public string CurrentMap => _selectedMap;
     public int CurrentAct => _selectedAct;
     private bool _actAdvancePending;
@@ -83,9 +83,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                 RoundEnded?.Invoke(new Notify.RoundReport(screen == GameScreen.Victory, _selectedMap, actBefore, _lastHud?.Difficulty,
                     _roundStart is long rs ? TimeSpan.FromMilliseconds(nowMs - rs) : null, StagesCleared, s.ResultText, s.Drops,
                     Matches(S.Farm.Mode, nameof(FarmMode.Infinite))));
-                Diagnostic?.Invoke($"EndScreen: '{s.ResultText ?? "?"}' · darah terakhir {(_lastHp is double lh ? lh.ToString("P0") : "?")} · " +
+                Diagnostic?.Invoke($"EndScreen: '{s.ResultText ?? "?"}' · last HP {(_lastHp is double lh ? lh.ToString("P0") : "?")} · " +
                     $"Next {(s.NextButton is { } n1 ? $"({n1.CenterX:0},{n1.CenterY:0})" : "-")} · Retry {(s.RetryButton is { } r1 ? $"({r1.CenterX:0},{r1.CenterY:0})" : "-")} · " +
-                    $"Leave {(s.LeaveButton is { } l1 ? $"({l1.CenterX:0},{l1.CenterY:0})" : "-")} · mode {S.Farm.Mode}, setelah menang {S.Farm.AfterWin}.");
+                    $"Leave {(s.LeaveButton is { } l1 ? $"({l1.CenterX:0},{l1.CenterY:0})" : "-")} · mode {S.Farm.Mode}, after win {S.Farm.AfterWin}.");
                 _roundStart = null;
             }
         }
@@ -93,17 +93,17 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         if (s.Hud is not null) _lastHud = s.Hud;
         if (screen == GameScreen.InRound && s.PlayerHp is double hpNow)
         {
-            // Log diagnosa: darah turun melewati 50% / 25%, dan saat 0.
+            // Diagnostic log: HP drops below 50% / 25%, and at 0.
             foreach (var th in new[] { 0.5, 0.25, 0.0001 })
                 if (_lastHp is double prev && prev >= th && hpNow < th)
-                    Diagnostic?.Invoke($"Darah {hpNow:P0} ({Wave(s)}{s.Enemies.Count(e => e.Alive)} musuh hidup" +
-                        (s.PlayerPos is { } pp ? $", di ({pp.X:0},{pp.Z:0})" : "") + (s.BossName is { Length: > 0 } bn ? $", boss {bn}" : "") + ").");
+                    Diagnostic?.Invoke($"HP {hpNow:P0} ({Wave(s)}{s.Enemies.Count(e => e.Alive)} enemies alive" +
+                        (s.PlayerPos is { } pp ? $", at ({pp.X:0},{pp.Z:0})" : "") + (s.BossName is { Length: > 0 } bn ? $", boss {bn}" : "") + ").");
             _lastHp = hpNow;
         }
 
         var actions = Calibrating ? CalibrationStep(s, S, nowMs) : screen switch
         {
-            GameScreen.Unknown => Wait("Menunggu Roblox / DataModel."),
+            GameScreen.Unknown => Wait("Waiting for Roblox / DataModel."),
             GameScreen.Lobby => WalkToLobby(s, S, nowMs),
             GameScreen.LobbyMenu => LobbyMenu(s, S, nowMs),
             GameScreen.QueueWaiting => QueueWait(s, nowMs),
@@ -116,9 +116,9 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             _ => [],
         };
         if (_pending.Count > 0) { actions = [.. _pending, .. actions]; _pending.Clear(); }
-        // Lepas tombol gerak di semua fase yang tidak berjalan.
+        // Release movement keys in every phase that is not walking.
         if (Phase is not (MacroPhase.WalkingToLobby or MacroPhase.Navigating) && !actions.Any(a => a is MoveAction))
-            return [new MoveAction([], "Berhenti jalan"), .. actions];
+            return [new MoveAction([], "Stop walking"), .. actions];
         return actions;
     }
 
@@ -130,7 +130,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             if (_selectedAct > 0 && _selectedMap.Length > 0 && !Matches(settings().Farm.Mode, nameof(FarmMode.Infinite)))
             {
                 ActCleared?.Invoke(_selectedMap, _selectedAct);
-                _actAdvancePending = true; // v0.3.5: act naik hanya bila yang diklik Next (Raid/Retry: act tetap; log 25 Okt "Act 212")
+                _actAdvancePending = true; // v0.3.5: act only advances when Next is clicked (Raid/Retry: act stays; log 25 Oct "Act 212")
             }
         }
         if (to == GameScreen.StartVote || (to == GameScreen.InRound && from is GameScreen.Victory or GameScreen.Defeat))
@@ -146,16 +146,16 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         _stuckRef = null;
     }
 
-    /// <summary>Layar tunggu room: klik "Skip Waiting" bila gratis; bila berbayar (Uses 1 Crystal) tunggu hitung mundur.</summary>
+    /// <summary>Room waiting screen: click "Skip Waiting" when free; when it costs (Uses 1 Crystal), wait for the countdown.</summary>
     private IReadOnlyList<MacroAction> QueueWait(GameSnapshot s, long now)
     {
         if (s.QueueSkip is not { } r) return [];
         if (s.QueueSkipCosts)
-            return Note("queue-cost", now, 8000, "Skip Waiting butuh 1 Crystal → tidak diklik, menunggu hitung mundur.");
+            return Note("queue-cost", now, 8000, "Skip Waiting costs 1 Crystal → not clicked, waiting for the countdown.");
         if (!InWindow(s, r.CenterX, r.CenterY))
-            return Note("queue-out", now, 5000, $"Tombol Skip Waiting di luar jendela ({r.CenterX:0},{r.CenterY:0}).");
+            return Note("queue-out", now, 5000, $"Skip Waiting button is outside the window ({r.CenterX:0},{r.CenterY:0}).");
         if (!Ready("queue-skip", now, 2000)) return [];
-        Status = "Menunggu room, klik Skip Waiting.";
+        Status = "Waiting for room, clicking Skip Waiting.";
         return [new ClickAction(r.CenterX, r.CenterY, "Skip Waiting")];
     }
 
@@ -178,38 +178,38 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         Ready("note:" + key, now, everyMs) ? [new NoteAction(text)] : [];
 
     /// <summary>
-    /// Delta X mouse untuk memutar yaw kamera dari arah (lx,lz) ke (tx,tz). Mouse ke kanan = kamera ke kanan.
-    /// Toleransi 2°, setengah galat per tick, maks 80 px per tick agar tidak overshoot.
+    /// Mouse delta X to turn the camera yaw from direction (lx,lz) to (tx,tz). Mouse right = camera right.
+    /// 2° tolerance, half the error per tick, max 80 px per tick to avoid overshoot.
     /// </summary>
     public static int Turn(double lx, double lz, double tx, double tz, double pxPerDeg, double gain = 0.5, double deadzone = 2, int max = 80)
     {
         if (Math.Abs(lx) + Math.Abs(lz) < 1e-6 || Math.Abs(tx) + Math.Abs(tz) < 1e-6) return 0;
-        // Sudut searah jarum jam dilihat dari atas (Roblox: right = (-lz, lx) untuk look (lx, lz)).
+        // Clockwise angle seen from above (Roblox: right = (-lz, lx) for look (lx, lz)).
         double cross = lx * tz - lz * tx, dot = lx * tx + lz * tz;
-        double deg = Math.Atan2(cross, dot) * 180 / Math.PI; // positif = target di kanan
+        double deg = Math.Atan2(cross, dot) * 180 / Math.PI; // positive = target on the right
         if (Math.Abs(deg) < deadzone) return 0;
-        // Kendali proporsional (default setengah galat per tick) agar mulus tanpa overshoot.
+        // Proportional control (default half the error per tick) for smooth turning without overshoot.
         return (int)Math.Clamp(Math.Round(deg * gain * Math.Max(0.5, pxPerDeg)), -max, max);
     }
 
     /// <summary>
-    /// Delta Y mouse untuk pitch kamera: mouse ke bawah = kamera menunduk. Target pitch = arah ke musuh, dibatasi -40°..+10°
-    /// agar kamera tidak pernah mendongak ke langit-langit.
+    /// Mouse delta Y for camera pitch: mouse down = camera looks down. Target pitch = direction to the enemy, clamped to -40°..+10°
+    /// so the camera never looks up at the ceiling.
     /// </summary>
     public static int Pitch(Vec3 look, double dx, double dy, double dz, double pxPerDeg, double gain = 0.5, double deadzone = 3, int max = 60)
     {
         double ll = Math.Sqrt(look.X * look.X + look.Z * look.Z), tl = Math.Sqrt(dx * dx + dz * dz);
         if (ll < 1e-6 && Math.Abs(look.Y) < 1e-6) return 0;
         double cur = Math.Atan2(look.Y, ll) * 180 / Math.PI;
-        double want = Math.Clamp(tl < 1e-6 ? -80 : Math.Atan2(dy, tl) * 180 / Math.PI, -80, 10); // -80°: musuh menggerombol di bawah saat pemain di udara
-        double err = cur - want; // positif = kamera terlalu mendongak → mouse ke bawah
+        double want = Math.Clamp(tl < 1e-6 ? -80 : Math.Atan2(dy, tl) * 180 / Math.PI, -80, 10); // -80°: enemies cluster below while the player is airborne
+        double err = cur - want; // positive = camera looking up too much → mouse down
         if (Math.Abs(err) < deadzone) return 0;
         return (int)Math.Clamp(Math.Round(err * gain * Math.Max(0.5, pxPerDeg)), -max, max);
     }
 
     private static bool IsDash(SkillBinding k) => k.Name == "Dash";
     private static bool IsUlt(SkillBinding k) => k.Name == "Ultimate";
-    private static bool IsSwap(SkillBinding k) => k.Name == "Ganti senjata" || k.Name == "Ganti power";
+    private static bool IsSwap(SkillBinding k) => k.Name is "Swap power" or "Ganti power" or "Ganti senjata"; // v0.3.16: legacy Indonesian names from older settings.json
 
     private bool Ready(string key, long now, int cooldownMs)
     {
@@ -223,12 +223,12 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     private string _selectedMap = "";
     private long? _roundStart;
     private HudInfo? _lastHud;
-    /// <summary>Dipanggil sekali saat layar berubah ke Victory/Defeat (untuk webhook).</summary>
+    /// <summary>Called once when the screen changes to Victory/Defeat (for the webhook).</summary>
     public Action<Notify.RoundReport>? RoundEnded { get; set; }
-    /// <summary>Log diagnosa (darah turun, isi EndScreen) tanpa mengubah daftar aksi.</summary>
+    /// <summary>Diagnostic log (HP drops, EndScreen contents) without changing the action list.</summary>
     public Action<string>? Diagnostic { get; set; }
 
-    /// <summary>Nomor act dari teks "Act 3", "Training [Act 1]", "Act 1 Training". 0 = tidak ada.</summary>
+    /// <summary>Act number from text like "Act 3", "Training [Act 1]", "Act 1 Training". 0 = none.</summary>
     public static int ActNumber(string? text)
     {
         if (text is null) return 0;
@@ -236,7 +236,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         return m.Success ? int.Parse(m.Groups[1].Value) : 0;
     }
 
-    /// <summary>Dipanggil saat menang: catat act yang tuntas (untuk mode "Semua act").</summary>
+    /// <summary>Called on victory: records the cleared act (for "All acts" mode).</summary>
     public Action<string, int>? ActCleared { get; set; }
 
     private static bool Matches(string? actual, string want) =>

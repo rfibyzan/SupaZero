@@ -3,7 +3,7 @@ using RIE.Core.Roblox;
 
 namespace RIE.Core.Snapshot;
 
-/// <summary>Walk subtree (DFS) dan rekam nama, class, alamat, properti.</summary>
+/// <summary>Walks a subtree (DFS) and records name, class, address, properties.</summary>
 public sealed class SnapshotBuilder(InstanceReader reader, PropertyReader properties)
 {
     public InstanceSnapshot Build(long root, string rootPath, SnapshotOptions? options = null, string label = "", CancellationToken ct = default)

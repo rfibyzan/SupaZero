@@ -27,7 +27,7 @@ public partial class MainWindow : Window
             _vm.General.HotkeyError = () => _hotkey.LastError;
             _vm.General.ApplyHotkey();
         };
-        // Overlay status selama macro berjalan.
+        // Status overlay while the macro is running.
         _vm.Runner.RunningChanged += running => Dispatcher.UIThread.Post(() =>
         {
             if (running && _vm.Settings.General.ShowOverlay)

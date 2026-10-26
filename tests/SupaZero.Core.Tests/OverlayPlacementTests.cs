@@ -35,7 +35,21 @@ public class OverlayPlacementTests
         var s = new SupaZero.Core.Game.GameSnapshot { Attached = true, StartVoteVisible = true, EnemyCount = 3 };
         Assert.Equal(SupaZero.Core.Game.GameScreen.InRound, s.Screen);
         Assert.Equal(SupaZero.Core.Game.GameScreen.StartVote, (s with { EnemyCount = 0 }).Screen);
-        // v0.2.71: sisa model di Workspace.Enemies (EnemyCount 2, daftar kosong) tapi HUD "Easy · Get ready!" → tetap vote.
+        // v0.2.71: leftover models in Workspace.Enemies (EnemyCount 2, empty list) but HUD "Easy · Get ready!" → still vote.
         Assert.Equal(SupaZero.Core.Game.GameScreen.StartVote, (s with { EnemyCount = 2, HudRaw = "Easy · Get ready!" }).Screen);
+    }
+}
+
+public class SettingsMigrationTests
+{
+    [Fact]
+    public void Load_RenamesLegacyIndonesianSwapSkill()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"sz_{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """{"Combat":{"Skills":[{"Name":"Ganti power","Key":"T","Enabled":false,"CooldownMs":9000}]}}""");
+        var s = SupaZero.Core.Settings.AppSettings.Load(path);
+        File.Delete(path);
+        var k = Assert.Single(s.Combat.Skills!);
+        Assert.Equal("Swap power", k.Name); Assert.Equal("T", k.Key); Assert.False(k.Enabled); Assert.Equal(9000, k.CooldownMs);
     }
 }

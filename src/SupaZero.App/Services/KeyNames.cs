@@ -3,7 +3,7 @@ using Avalonia.Input;
 namespace SupaZero.App.Services;
 
 /// <summary>
-/// Key Avalonia → nama tombol HotkeyMap (tanpa Enum.ToString/refleksi). null = tombol tidak didukung untuk hotkey.
+/// Avalonia Key → HotkeyMap key name (no Enum.ToString/reflection). null = key not supported as a hotkey.
 /// </summary>
 public static class KeyNames
 {

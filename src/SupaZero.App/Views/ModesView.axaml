@@ -3,7 +3,7 @@
              xmlns:vm="using:SupaZero.App.ViewModels"
              x:Class="SupaZero.App.Views.ModesView"
              x:DataType="vm:ModesPageViewModel">
-  <!-- v0.3.14: pengaturan per mode (Drop Target, Trials, Evil Reflection) dipisah dari tab Lobby. -->
+  <!-- v0.3.14: per-mode settings (Drop Target, Trials, Evil Reflection) split out of the Lobby tab. -->
   <Grid ColumnDefinitions="*,*" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
     <Border Margin="0,0,8,0" Classes="card" VerticalAlignment="Top">
       <StackPanel Spacing="6">
@@ -15,7 +15,7 @@
         </Grid>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Floor Trials (0 = floor berikutnya)" />
+          <TextBlock Classes="label" Text="Trials floor (0 = next floor)" />
           <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />
         </Grid>
       </StackPanel>
@@ -27,7 +27,7 @@
           <Button Grid.Column="1" Content="Reset" Command="{Binding ResetBlessingCommand}" Padding="8,2" />
         </Grid>
         <Border Classes="sep" Margin="0,2,0,4" />
-        <TextBlock Classes="muted" FontSize="11" Text="Prioritas buff (centang = diprioritaskan, atas = paling penting)" />
+        <TextBlock Classes="muted" FontSize="11" Text="Buff priority (checked = prioritized, top = most important)" />
         <ItemsControl ItemsSource="{Binding BlessingBuffRows}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:BlessingBuffRowViewModel">
@@ -41,7 +41,7 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-        <TextBlock Classes="muted" FontSize="11" Text="Kartu (centang = boleh dipilih, urutan = cadangan bila buff sama)" Margin="0,6,0,0" />
+        <TextBlock Classes="muted" FontSize="11" Text="Cards (checked = may be picked, order = tiebreak when buffs are equal)" Margin="0,6,0,0" />
         <ItemsControl ItemsSource="{Binding BlessingCardRows}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:BlessingCardRowViewModel">

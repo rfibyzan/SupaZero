@@ -1,16 +1,16 @@
 namespace SupaZero.Core.Automation;
 
 /// <summary>
-/// Jalan ke titik tujuan TANPA teleport dan tanpa tulis memori: posisi karakter + arah kamera dibaca read-only, lalu
-/// dipilih kombinasi W/A/S/D (8 arah) yang paling dekat dengan arah tujuan. Gerak Roblox relatif kamera, jadi kamera
-/// tidak perlu diputar.
+/// Walk to a destination point WITHOUT teleporting and without writing memory: character position + camera direction are read read-only, then
+/// the W/A/S/D combination (8 directions) closest to the target direction is chosen. Roblox movement is camera-relative, so the camera
+/// does not need to be turned.
 /// </summary>
 public static class Navigator
 {
-    private const double Threshold = 0.38; // ≈ sin 22.5°: batas sektor 8 arah
+    private const double Threshold = 0.38; // ≈ sin 22.5°: 8-direction sector boundary
 
     /// <summary>
-    /// Tombol yang harus ditahan. Kosong = sudah sampai (dalam <paramref name="arriveRadius"/>) atau data tidak valid.
+    /// Keys to hold. Empty = arrived (within <paramref name="arriveRadius"/>) or invalid data.
     /// </summary>
     public static IReadOnlyList<ushort> KeysToward(double px, double pz, double lookX, double lookZ, double tx, double tz, double arriveRadius)
     {

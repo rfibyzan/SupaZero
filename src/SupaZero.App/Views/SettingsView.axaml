@@ -3,7 +3,7 @@
              xmlns:vm="using:SupaZero.App.ViewModels"
              x:Class="SupaZero.App.Views.SettingsView"
              x:DataType="vm:SettingsPageViewModel">
-  <!-- Appearance identik dengan SupaFisch (Transparent UI, Theme Black/White/Custom, Custom colours) + Macro. -->
+  <!-- Appearance identical to SupaFisch (Transparent UI, Theme Black/White/Custom, Custom colours) + Macro. -->
   <UserControl.Styles>
     <Style Selector="ToggleButton.themechip">
       <Setter Property="Background" Value="Transparent" />
@@ -29,14 +29,14 @@
     <TextBlock Classes="caps" Text="DISCORD WEBHOOK" Margin="2,0,0,0" />
     <Border Classes="card">
       <StackPanel Spacing="6">
-        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="URL webhook" /><TextBox Grid.Column="1" Text="{Binding WebhookUrl}" PasswordChar="•" Watermark="https://discord.com/api/webhooks/..." /></Grid>
+        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Webhook URL" /><TextBox Grid.Column="1" Text="{Binding WebhookUrl}" PasswordChar="•" Watermark="https://discord.com/api/webhooks/..." /></Grid>
         <TextBlock Classes="muted" FontSize="11" Margin="140,0,0,0" Text="{Binding WebhookStatus}" />
-        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Mention (opsional)" /><TextBox Grid.Column="1" Text="{Binding WebhookMention}" Watermark="&lt;@id discord kamu&gt;" /></Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat menang (dengan drop)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnVictory}" /></Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat kalah" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnDefeat}" /></Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat macro berhenti / Story tamat" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnStop}" /></Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Kirim saat auto spin Power / reroll Trait selesai" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnSpin}" /></Grid>
-        <Button HorizontalAlignment="Left" Content="Tes webhook" Command="{Binding TestWebhookCommand}" />
+        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Mention (optional)" /><TextBox Grid.Column="1" Text="{Binding WebhookMention}" Watermark="&lt;@your discord id&gt;" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Send on victory (with drops)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnVictory}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Send on defeat" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnDefeat}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Send when the macro stops / Story completes" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnStop}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Send when Power auto spin / Trait reroll finishes" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnSpin}" /></Grid>
+        <Button HorizontalAlignment="Left" Content="Test webhook" Command="{Binding TestWebhookCommand}" />
       </StackPanel>
     </Border>
 

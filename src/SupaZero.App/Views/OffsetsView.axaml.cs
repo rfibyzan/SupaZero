@@ -14,7 +14,7 @@ public partial class OffsetsView : UserControl
         if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } sp || DataContext is not OffsetsViewModel vm) return;
         var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Pilih offsets.json",
+            Title = "Select offsets.json",
             AllowMultiple = false,
             FileTypeFilter = [new FilePickerFileType("JSON") { Patterns = ["*.json"] }],
         });

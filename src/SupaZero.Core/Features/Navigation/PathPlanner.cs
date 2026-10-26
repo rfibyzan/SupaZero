@@ -4,18 +4,18 @@ using SupaZero.Core.Settings;
 namespace SupaZero.Core.Automation;
 
 /// <summary>
-/// Cari jalur di bidang XZ dengan A* di grid dari <see cref="NavMap"/> (tanpa PathfindingService, murni dari memori yang dibaca).
-/// Sel jalan = di dalam kotak Areas (diperbesar sedikit) atau dekat node "navN"; sel tertutup = di dalam jejak rintangan
-/// (diperbesar setebal badan karakter). Jalur dirapikan (string pulling) jadi beberapa titik belok.
+/// Pathfinding in the XZ plane with A* on a grid built from <see cref="NavMap"/> (no PathfindingService, purely from memory that was read).
+/// Walkable cell = inside an Areas box (slightly grown) or near a "navN" node; blocked cell = inside an obstacle footprint
+/// (grown by the character body width). The path is smoothed (string pulling) into a few waypoints.
 /// </summary>
 public sealed class PathPlanner
 {
-    /// <summary>Margin kotak Areas, jari-jari node nav, tebal badan (inflasi rintangan), stud.</summary>
+    /// <summary>Areas box margin, nav node radius, body width (obstacle inflation), in studs.</summary>
     public const double AreaGrow = 1, NodeRadius = 5, BodyInflate = 1.6, EndpointRadius = 4;
     /// <summary>
-    /// v0.2.47: biaya langkah di lantai di luar kotak Areas. Rute resmi antar-area bisa keluar kotak Areas
-    /// (Hxh Area 4 → 5: memutar blok lewat jalan timur x≈598 lalu ke barat di z≈-56), jadi lantai padat di luar Areas
-    /// tetap bisa dilewati, tapi hanya bila tidak ada jalur penuh di dalam kotak Areas (pass kedua).
+    /// v0.2.47: step cost on floors outside the Areas boxes. The official inter-area route can leave the Areas boxes
+    /// (Hxh Area 4 → 5: around the block via the east road x≈598, then west at z≈-56), so solid floor outside Areas
+    /// is still walkable, but only when there is no full path inside the Areas boxes (second pass).
     /// </summary>
     public const double OutsideCost = 1.5;
     private const int MaxCells = 300_000;
@@ -28,14 +28,14 @@ public sealed class PathPlanner
     private bool _allowOutside;
     private bool Free(int i) => _free[i] && (_allowOutside || !_outside[i]);
 
-    /// <summary>Titik belok dari <paramref name="from"/> ke <paramref name="to"/> (tidak termasuk titik awal), atau null bila tidak ada jalur.</summary>
+    /// <summary>Waypoints from <paramref name="from"/> to <paramref name="to"/> (excluding the start point), or null when there is no path.</summary>
     public List<Vec3>? Find(NavMap map, Vec3 from, Vec3 to)
     {
         if (NeedBuild(map, from, to)) Build(map, from, to);
         _allowOutside = false;
         var first = FindPass(from, to);
         if (first is not null && !Partial || !_outside.Any(o => o)) { UsedOutside = false; return first; }
-        // Pass kedua: boleh lewat lantai di luar kotak Areas (jalan memutar blok).
+        // Second pass: may use floor outside the Areas boxes (detour around the block).
         string? firstFail = LastFailure; bool firstPartial = Partial;
         _allowOutside = true;
         var second = FindPass(from, to);
@@ -49,24 +49,24 @@ public sealed class PathPlanner
     {
         UsedOutside = false; Partial = false;
         var s = Nearest(Cell(from)); var g = Nearest(Cell(to), Cell(from), 30);
-        LastFailure = s < 0 ? $"posisi karakter ({from.X:0},{from.Z:0}) tertutup rintangan"
-            : g < 0 ? $"tujuan ({to.X:0},{to.Z:0}) tertutup rintangan" : null;
+        LastFailure = s < 0 ? $"character position ({from.X:0},{from.Z:0}) blocked by obstacles"
+            : g < 0 ? $"destination ({to.X:0},{to.Z:0}) blocked by obstacles" : null;
         if (s < 0) return null;
         if (g < 0) g = Cell(to);
         bool goalShifted = g != Cell(to);
         var cells = AStar(s, g, out bool reached);
-        if (cells is null) { LastFailure ??= "tidak ada sel yang bisa didekati"; return null; }
+        if (cells is null) { LastFailure ??= "no reachable cell"; return null; }
         Partial = !reached;
-        if (!reached) LastFailure ??= $"tujuan ({to.X:0},{to.Z:0}) tidak tersambung (pintu/Blocker tertutup?), jalan ke titik terdekat";
+        if (!reached) LastFailure ??= $"destination ({to.X:0},{to.Z:0}) not connected (door/Blocker closed?), walking to the nearest point";
         UsedOutside = _allowOutside && cells.Any(c => _outside[c]);
         var pts = Smooth(cells);
         var result = pts.Skip(1).Select(c => new Vec3(_minX + (c % _w + 0.5) * _cell, to.Y, _minZ + (c / _w + 0.5) * _cell)).ToList();
         if (reached && !goalShifted) { if (result.Count > 0) result[^1] = to; else result.Add(to); }
-        if (reached && goalShifted) LastFailure = $"tujuan ({to.X:0},{to.Z:0}) di dalam rintangan, berhenti di sisi terdekat";
+        if (reached && goalShifted) LastFailure = $"destination ({to.X:0},{to.Z:0}) inside an obstacle, stopping at the nearest side";
         return result.Count > 0 ? result : null;
     }
 
-    /// <summary>Apakah garis lurus dari a ke b bebas rintangan (grid sudah dibangun untuk map ini).</summary>
+    /// <summary>Whether the straight line from a to b is obstacle-free (grid already built for this map).</summary>
     public bool Clear(NavMap map, Vec3 a, Vec3 b)
     {
         if (NeedBuild(map, a, b)) Build(map, a, b);
@@ -76,13 +76,13 @@ public sealed class PathPlanner
     }
 
     private double _builtY;
-    /// <summary>Alasan terakhir jalur gagal / hanya parsial (untuk log).</summary>
+    /// <summary>Last reason the path failed / was only partial (for the log).</summary>
     public string? LastFailure { get; private set; }
-    /// <summary>Jalur terakhir berhenti di titik terdekat yang terjangkau, bukan tujuan.</summary>
+    /// <summary>The last path stops at the nearest reachable point, not the destination.</summary>
     public bool Partial { get; private set; }
     private readonly List<(double X, double Z, double R)> _blocks = [];
 
-    /// <summary>Tandai titik tempat karakter tersangkut (objek yang tidak ada di peta) sebagai rintangan untuk map ini.</summary>
+    /// <summary>Mark the point where the character got stuck (an object not on the map) as an obstacle for this map.</summary>
     public void Block(double x, double z, double r = 2.5)
     {
         if (_blocks.Count >= 30) _blocks.RemoveAt(0);
@@ -90,7 +90,7 @@ public sealed class PathPlanner
         if (_w > 0) Paint((x - r, z - r, x + r, z + r), (px, pz) => Navigator.Distance2D(px, pz, x, z) <= r, false);
     }
 
-    /// <summary>v0.3.9: hapus tanda tersangkut (bisa menutup satu-satunya celah) lalu bangun ulang grid saat dipakai lagi.</summary>
+    /// <summary>v0.3.9: clear stuck marks (they can close the only gap), then rebuild the grid on next use.</summary>
     public bool ClearBlocks()
     {
         if (_blocks.Count == 0) return false;
@@ -103,8 +103,8 @@ public sealed class PathPlanner
         !ReferenceEquals(map, _map) || !Inside(a) || !Inside(b) || Math.Abs(FootY(map, a) - _builtY) > 3;
 
     /// <summary>
-    /// v0.2.64: tinggi kaki = atas lantai tertinggi tepat di bawah karakter, bukan HRP.Y − 3. Saat lompat/dash (HRP Y ≥ 8)
-    /// jalan timur Hxh/Shadow Gate tidak lagi terhitung lantai → jalur parsial ke gang buntu (log Byzan 24 Okt 2026 20:54).
+    /// v0.2.64: foot height = top of the highest floor directly below the character, not HRP.Y − 3. While jumping/dashing (HRP Y ≥ 8)
+    /// the Hxh/Shadow Gate east road no longer counted as floor → partial path into a dead-end alley (Byzan log 24 Oct 2026 20:54).
     /// </summary>
     public static double FootY(NavMap map, Vec3 from)
     {
@@ -134,7 +134,7 @@ public sealed class PathPlanner
         double minX = Math.Min(from.X, to.X), minZ = Math.Min(from.Z, to.Z), maxX = Math.Max(from.X, to.X), maxZ = Math.Max(from.Z, to.Z);
         foreach (var r in map.Walkable) { var b = r.Bounds(AreaGrow); minX = Math.Min(minX, b.MinX); minZ = Math.Min(minZ, b.MinZ); maxX = Math.Max(maxX, b.MaxX); maxZ = Math.Max(maxZ, b.MaxZ); }
         foreach (var n in map.Nodes) { minX = Math.Min(minX, n.X - NodeRadius); minZ = Math.Min(minZ, n.Z - NodeRadius); maxX = Math.Max(maxX, n.X + NodeRadius); maxZ = Math.Max(maxZ, n.Z + NodeRadius); }
-        // Area sangat luas (mis. Areas.1 682 stud) → sel diperbesar agar grid tetap ≤ MaxCells.
+        // Very large area (e.g. Areas.1 682 studs) → cells are enlarged so the grid stays ≤ MaxCells.
         minX -= 20; minZ -= 20; maxX += 20; maxZ += 20;
         _cell = 2;
         while ((maxX - minX) / _cell * ((maxZ - minZ) / _cell) > MaxCells) _cell += 0.5;
@@ -148,20 +148,20 @@ public sealed class PathPlanner
         foreach (var r in map.Walkable) Paint(r.Bounds(AreaGrow), (x, z) => r.Contains(x, z, AreaGrow), true);
         foreach (var n in map.Nodes) Paint((n.X - NodeRadius, n.Z - NodeRadius, n.X + NodeRadius, n.Z + NodeRadius), (x, z) => Navigator.Distance2D(x, z, n.X, n.Z) <= NodeRadius, true);
         double footY = _builtY;
-        // v0.2.47: lantai padat (Baseplate, platform jalan) di luar kotak Areas = boleh dilewati dengan biaya lebih (bukan jurang/void).
+        // v0.2.47: solid floor (Baseplate, road platforms) outside the Areas boxes = walkable at a higher cost (not a chasm/void).
         if (!open && map.Solids is { } floors)
             foreach (var r in floors)
                 if (r.IsFloorAt(footY) && r.HalfX >= 2 && r.HalfZ >= 2)
                     PaintOutside(r);
-        // Titik awal/tujuan di luar wilayah jalan (mis. spawn raid 56 stud sebelum node tangga): sambungkan dengan koridor lurus ke sel jalan terdekat.
+        // Start/destination outside the walkable zone (e.g. raid spawn 56 studs before the stair node): connect with a straight corridor to the nearest walkable cell.
         if (!open) foreach (var p in new[] { from, to }) Connect(p);
         foreach (var p in new[] { from, to }) Paint((p.X - EndpointRadius, p.Z - EndpointRadius, p.X + EndpointRadius, p.Z + EndpointRadius), (x, z) => Navigator.Distance2D(x, z, p.X, p.Z) <= EndpointRadius, true);
         foreach (var r in map.Obstacles) Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
-        // Part padat di Map setinggi badan (HumanoidRootPart ≈ 3 stud di atas kaki); lantai, ramp, dan atap dilewati.
+        // Solid Parts in Map at body height (HumanoidRootPart ≈ 3 studs above the feet); floors, ramps and roofs are ignored.
         if (map.Solids is { } solids)
             foreach (var r in solids)
-                // v0.2.56: tujuan di dalam gedung (penanda "AREA 5" di fasad Hxh) tidak lagi membuat gedung itu dianggap tembus;
-                // tujuan digeser ke sel bebas terdekat (Nearest). Hanya part yang sedang diinjak pemain yang dikecualikan.
+                // v0.2.56: a destination inside a building (the "AREA 5" marker on the Hxh facade) no longer makes that building passable;
+                // the destination is moved to the nearest free cell (Nearest). Only the part the player is standing on is excluded.
                 if (r.BlocksBodyAt(footY) && !r.Contains(from.X, from.Z))
                     Paint(r.Bounds(BodyInflate), (x, z) => r.Contains(x, z, BodyInflate), false);
         foreach (var (bx, bz, br) in _blocks) Paint((bx - br, bz - br, bx + br, bz + br), (x, z) => Navigator.Distance2D(x, z, bx, bz) <= br, false);
@@ -182,7 +182,7 @@ public sealed class PathPlanner
             }
     }
 
-    /// <summary>Jalur terakhir lewat lantai di luar kotak Areas (untuk log).</summary>
+    /// <summary>The last path used floor outside the Areas boxes (for the log).</summary>
     public bool UsedOutside { get; private set; }
 
     private void Connect(Vec3 p)
@@ -221,7 +221,7 @@ public sealed class PathPlanner
                 if (test(_minX + (x + 0.5) * _cell, _minZ + (z + 0.5) * _cell)) _free[z * _w + x] = value;
     }
 
-    /// <summary>Sel bebas terdekat (karakter bisa berdiri di tepi rintangan yang diinflasi).</summary>
+    /// <summary>Nearest free cell (the character can stand at the edge of an inflated obstacle).</summary>
     private int Nearest(int c, int prefer = -1, int maxR = 12)
     {
         if (c < 0) return -1;
@@ -237,7 +237,7 @@ public sealed class PathPlanner
                     if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r) continue;
                     int x = cx + dx, z = cz + dz;
                     if (x < 0 || z < 0 || x >= _w || z >= _h || !Free(z * _w + x)) continue;
-                    // Dari beberapa sel bebas sejarak sama, pilih yang paling dekat ke pemain (sisi gedung yang menghadap pemain).
+                    // Among several equally distant free cells, pick the one closest to the player (the building side facing the player).
                     long d = (long)(x - px) * (x - px) + (long)(z - pz) * (z - pz);
                     if (d < bestD) { bestD = d; best = z * _w + x; }
                 }
@@ -281,7 +281,7 @@ public sealed class PathPlanner
                     if (x < 0 || z < 0 || x >= _w || z >= _h) continue;
                     int n = z * _w + x;
                     if (!Free(n) || closed.Contains(n)) continue;
-                    // Diagonal tidak boleh memotong sudut rintangan.
+                    // Diagonals must not cut obstacle corners.
                     if (dx != 0 && dz != 0 && (!Free(cz * _w + x) || !Free(z * _w + cx))) continue;
                     double ng = gScore[c] + (dx != 0 && dz != 0 ? 1.4142 : 1) * (_outside[n] ? OutsideCost : 1);
                     if (gScore.TryGetValue(n, out double old) && old <= ng) continue;
@@ -290,7 +290,7 @@ public sealed class PathPlanner
                     open.Enqueue(n, ng + H(n));
                 }
         }
-        // Tujuan tidak terjangkau: jalur ke sel terjangkau paling dekat ke tujuan (bila memang lebih dekat dari posisi awal).
+        // Destination unreachable: path to the reachable cell closest to the destination (if it is actually closer than the start position).
         reached = false;
         if (best == s || H(s) - bestH < 3) return null;
         var part = new List<int> { best };
@@ -300,7 +300,7 @@ public sealed class PathPlanner
         return part;
     }
 
-    /// <summary>String pulling: lompati sel selama garis lurus tetap bebas.</summary>
+    /// <summary>String pulling: skip cells as long as the straight line stays clear.</summary>
     private List<int> Smooth(List<int> cells)
     {
         var outp = new List<int> { cells[0] };
@@ -315,7 +315,7 @@ public sealed class PathPlanner
         return outp;
     }
 
-    /// <summary>Garis sel a→b bebas (sampling ¼ sel, termasuk tetangga agar tidak menyerempet sudut).</summary>
+    /// <summary>Cell line a→b is clear (sampling every ¼ cell, including neighbors so it does not graze corners).</summary>
     private bool Line(int a, int b)
     {
         double ax = a % _w + 0.5, az = a / _w + 0.5, bx = b % _w + 0.5, bz = b / _w + 0.5;

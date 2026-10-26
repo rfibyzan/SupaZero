@@ -9,7 +9,7 @@ public partial class FarmMachineTests
     [Fact]
     public void Fight_NoSkillHud_NoSkillKeys()
     {
-        // v0.2.79: tanpa HUD skill, status cooldown tidak diketahui → hanya serangan dasar.
+        // v0.2.79: without the skill HUD the cooldown state is unknown → basic attack only.
         var (m, _) = New();
         var a = m.Step(new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left") }, 10_000);
         Assert.Contains(a, x => x is AttackAction);
@@ -35,7 +35,7 @@ public partial class FarmMachineTests
         var snap = new GameSnapshot { Attached = true, EnemyCount = 4, Hud = HudText.Parse("Easy · Area 1/5 · 4 left"),
             SkillCooldowns = [new("1", null, false), new("2", null, false), new("3", null, false)] };
         var a1 = m.Step(snap, 10_000);
-        Assert.DoesNotContain(a1, x => x is AttackAction); // tick dengan skill → basic attack dilewati
+        Assert.DoesNotContain(a1, x => x is AttackAction); // tick with a skill → basic attack skipped
         var k1 = Assert.Single(a1.OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
         var a2 = m.Step(snap, 11_300);
         var k2 = Assert.Single(a2.OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
@@ -53,10 +53,10 @@ public partial class FarmMachineTests
             PlayerPos = new(0, 3, 0), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -15), 100, 100)],
         };
         var mv = m.Step(snap, 10_000).OfType<MoveAction>().First(x => x.Keys.Count > 0);
-        Assert.Contains(VirtualKeys.S, mv.Keys); // musuh di depan 15 stud < 40 → mundur
+        Assert.Contains(VirtualKeys.S, mv.Keys); // enemy 15 studs ahead < 40 → back off
         var far = snap with { Enemies = [new("1", new(0, 3, -80), 100, 100)] };
         var mf = m.Step(far, 10_100).OfType<MoveAction>().First(x => x.Keys.Count > 0);
-        Assert.Contains(VirtualKeys.W, mf.Keys); // 80 > 44 → kejar
+        Assert.Contains(VirtualKeys.W, mf.Keys); // 80 > 44 → chase
     }
 
     [Fact]
@@ -70,20 +70,20 @@ public partial class FarmMachineTests
         };
         var k = Assert.Single(m.Step(snap, 10_000).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash")));
         Assert.Contains("(3)", k.Reason);
-        Assert.Empty(m.Step(snap, 10_200).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash"))); // 1 cooldown, 2 terkunci, 3 baru dipakai
-        Assert.Single(m.Step(snap, 10_700).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash"))); // HUD bilang 3 siap lagi
+        Assert.Empty(m.Step(snap, 10_200).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash"))); // 1 on cooldown, 2 locked, 3 just used
+        Assert.Single(m.Step(snap, 10_700).OfType<KeyAction>().Where(k => k.VirtualKey != VirtualKeys.Space && !k.Reason.Contains("Dash"))); // HUD says 3 is ready again
     }
 
     [Fact]
     public void Camera_ProjectsEnemyFromSnapshot()
     {
-        // Snapshot 23 Okt 2026: kamera (75.508,20.141,-330.377) look (0,-0.744,-0.668) FOV 70 viewport 1920x1009.
+        // Snapshot 23 Oct 2026: camera (75.508,20.141,-330.377) look (0,-0.744,-0.668) FOV 70 viewport 1920x1009.
         var cam = new CameraInfo(new(75.508, 20.141, -330.377), new(0, -0.744, -0.668), 70, 1920, 1009);
         var p = cam.WorldToScreen(new(74.8, 3.001, -362));
         Assert.NotNull(p);
-        Assert.InRange(p!.Value.X, 930, 960);   // sedikit kiri tengah
-        Assert.InRange(p.Value.Y, 200, 300);    // lebih jauh ke depan → bagian atas layar
-        Assert.Null(cam.WorldToScreen(new(75.5, 20, -300))); // di belakang kamera
+        Assert.InRange(p!.Value.X, 930, 960);   // slightly left of center
+        Assert.InRange(p.Value.Y, 200, 300);    // farther ahead → upper part of the screen
+        Assert.Null(cam.WorldToScreen(new(75.5, 20, -300))); // behind the camera
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public partial class FarmMachineTests
         var move = Assert.Single(a.OfType<MoveAction>());
         Assert.Contains(VirtualKeys.W, move.Keys);
         Assert.Contains("#1", Assert.Single(a.OfType<AimAction>()).Reason);
-        // v0.2.79: viewport kamera ≠ area klien (mis. skala DPI) → tidak membidik dengan kursor.
+        // v0.2.79: camera viewport ≠ client area (e.g. DPI scaling) → no cursor aiming.
         var (m2, _) = New();
         Assert.Empty(m2.Step(snap with { ClientW = 1536, ClientH = 807 }, 10_000).OfType<AimAction>());
     }
@@ -124,24 +124,24 @@ public partial class FarmMachineTests
 
         var near = far with { PlayerPos = new(75, 3, -336) };
         var b = m.Step(near, 11_000);
-        Assert.DoesNotContain(b, x => x is AttackAction); // skill ditekan → basic attack dilewati tick ini
+        Assert.DoesNotContain(b, x => x is AttackAction); // skill pressed → basic attack skipped this tick
         Assert.Contains(b.OfType<KeyAction>(), k => k.Reason.Contains("(1)"));
         Assert.Contains(b.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
 
         var cooling = near with { SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", null, true)] };
-        // Semua cooldown → berhenti serang dulu (animasi selesai), T baru ditekan setelah 900 ms.
+        // All on cooldown → stop attacking first (animation finishes), T pressed only after 900 ms.
         var c0 = m.Step(cooling, 12_100);
         Assert.DoesNotContain(c0, x => x is AttackAction);
-        Assert.Contains(c0.OfType<KeyAction>(), k => k.Reason.Contains("menghindar")); // skill habis → Dash sambil roaming
+        Assert.Contains(c0.OfType<KeyAction>(), k => k.Reason.Contains("evade")); // skills used up → Dash while roaming
         Assert.DoesNotContain(c0.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
         var c = m.Step(cooling, 13_000);
         Assert.Contains(c.OfType<KeyAction>(), k => k.Reason.Contains("(T)"));
         Assert.DoesNotContain(c, x => x is AttackAction);
-        // Power berganti (HUD skill siap lagi) → skill dipakai lagi.
+        // Power swapped (HUD skills ready again) → skills used again.
         Assert.Contains(m.Step(near, 13_600).OfType<KeyAction>(), k => k.Reason.Contains("(1)") || k.Reason.Contains("(2)") || k.Reason.Contains("(3)"));
-        // Skill habis + dekat musuh → roaming melingkar (bergerak) sambil lompat, tidak diam.
+        // Skills used up + near enemy → circular roaming (moving) while jumping, not standing still.
         Assert.Contains(c.OfType<MoveAction>(), mv => mv.Keys.Count > 0 && mv.Reason.Contains("Roaming"));
-        Assert.Contains(c0.Concat(c).OfType<KeyAction>(), k => k.Reason.Contains("Lompat"));
+        Assert.Contains(c0.Concat(c).OfType<KeyAction>(), k => k.Reason.Contains("Jump"));
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public partial class FarmMachineTests
             Enemies = [new("1", new(75, 3, -340), 100, 100)],
             SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", 4, false)],
         };
-        // HUD ult terkunci → G tidak ditekan; siap → G ditekan dulu meski skill 1 siap.
+        // HUD ult locked → G not pressed; ready → G pressed first even though skill 1 is ready.
         Assert.DoesNotContain(m.Step(snap with { UltReady = false }, 10_000).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
         var ready = snap with { UltReady = true, SkillCooldowns = [new("1", null, false), new("2", 2, false), new("3", 4, false)] };
         Assert.Contains(m.Step(ready, 11_000).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
@@ -167,15 +167,15 @@ public partial class FarmMachineTests
     [Fact]
     public void Turn_DirectionAndDeadzone()
     {
-        // Look -Z (0,-1); kanan kamera = +X (Roblox). Musuh di +X → putar ke kanan (dx > 0).
+        // Look -Z (0,-1); camera right = +X (Roblox). Enemy at +X → turn right (dx > 0).
         Assert.True(FarmMachine.Turn(0, -1, 1, -1, 4) > 0);
         Assert.True(FarmMachine.Turn(0, -1, -1, -1, 4) < 0);
         Assert.Equal(0, FarmMachine.Turn(0, -1, 0.02, -1, 4));
-        Assert.Equal(80, FarmMachine.Turn(0, -1, 0, 1, 4)); // di belakang → langkah dibatasi
-        // Kamera mendongak (look Y +0,9) ke musuh setinggi kamera → mouse ke bawah (dy > 0); sudah pas → 0.
+        Assert.Equal(80, FarmMachine.Turn(0, -1, 0, 1, 4)); // behind → step is clamped
+        // Camera looking up (look Y +0.9) at an enemy at camera height → mouse down (dy > 0); already aligned → 0.
         Assert.True(FarmMachine.Pitch(new(0, 0.9, -0.43), 0, 0, -10, 4) > 0);
         Assert.Equal(0, FarmMachine.Pitch(new(0, -0.17, -0.98), 0, -1.76, -10, 4));
-        // Musuh jauh di atas (bos raksasa) → pitch dibatasi +10°, kamera tetap tidak mendongak.
+        // Enemy far above (giant boss) → pitch clamped to +10°, camera still does not look up.
         Assert.True(FarmMachine.Pitch(new(0, 0.5, -0.86), 0, 50, -5, 4) > 0);
     }
 
@@ -209,7 +209,7 @@ public partial class FarmMachineTests
             Attached = true, EnemyCount = 2, BossTag = "IMMUNE", BossSpawn = new(61.85, 279, -146.55),
             Enemies = [new("0", new(61.85, 281.5, -146.55), 100, 100, 2), new("7", new(62, 281.5, -150), 100, 100)],
         };
-        // v0.2.81: yang dilewati = model ber-2 Highlight, walau summon berdiri dekat BossSpawn.
+        // v0.2.81: the skipped one = the model with 2 Highlights, even though a summon stands near BossSpawn.
         Assert.Equal("7", Assert.Single(FarmMachine.Targets(snap)).Name);
         Assert.Equal(2, FarmMachine.Targets(snap with { BossTag = "BOSS" }).Count);
     }
@@ -255,9 +255,9 @@ public partial class FarmMachineTests
         var near = far with { PlayerPos = new(0, 3, 18) };
         var e = Assert.Single(m.Step(near, 10_500).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
         Assert.Equal(1150, e.HoldMs);
-        // v0.2.79: Shadows naik → Arise dinyatakan berhasil, mayat itu tidak didatangi lagi.
+        // v0.2.79: Shadows go up → Arise declared successful, that corpse is not visited again.
         var done = m.Step(near with { Shadows = (1, 3) }, 11_000);
-        Assert.Contains(done.OfType<NoteAction>(), n => n.Reason.Contains("Arise berhasil"));
+        Assert.Contains(done.OfType<NoteAction>(), n => n.Reason.Contains("Arise succeeded"));
         Assert.DoesNotContain(m.Step(near with { Shadows = (1, 3) }, 13_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
     }
 

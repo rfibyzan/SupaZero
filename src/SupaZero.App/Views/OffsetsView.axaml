@@ -3,7 +3,7 @@
              xmlns:vm="using:SupaZero.App.ViewModels"
              x:Class="SupaZero.App.Views.OffsetsView"
              x:DataType="vm:OffsetsViewModel">
-  <!-- Sama dengan tab Offsets SupaFisch. -->
+  <!-- Same as SupaFisch's Offsets tab. -->
   <StackPanel Spacing="8">
     <Border Classes="card" Padding="0">
       <StackPanel>
@@ -28,7 +28,7 @@
       <StackPanel Spacing="6">
         <TextBlock Classes="caps" Text="MANUAL OFFSETS FILE" />
         <Grid ColumnDefinitions="*,Auto,Auto">
-          <TextBox Text="{Binding Path}" Watermark="Path ke offsets.json" FontSize="12" Margin="0,0,6,0" />
+          <TextBox Text="{Binding Path}" Watermark="Path to offsets.json" FontSize="12" Margin="0,0,6,0" />
           <Button Grid.Column="1" Content="Browse…" Click="Browse_Click" Margin="0,0,6,0" Padding="10,4" />
           <Button Grid.Column="2" Content="Load" Command="{Binding LoadCommand}" Padding="10,4" />
         </Grid>

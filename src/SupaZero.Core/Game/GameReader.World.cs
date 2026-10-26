@@ -31,7 +31,7 @@ public sealed partial class GameReader
         return list;
     }
 
-    /// <summary>Item aktif di Workspace.PooledDrops (cash/health). Yang terparkir (Y = -5000) dilewati.</summary>
+    /// <summary>Active items in Workspace.PooledDrops (cash/health). Parked ones (Y = -5000) are skipped.</summary>
     private List<PickupInfo> ReadPickups(long ws)
     {
         var list = new List<PickupInfo>();
@@ -45,7 +45,7 @@ public sealed partial class GameReader
         return list;
     }
 
-    /// <summary>v0.2.67: Workspace.AriseShadows.&lt;n&gt;.Arise (ProximityPrompt Enabled) → posisi Part induk + HoldDuration.</summary>
+    /// <summary>v0.2.67: Workspace.AriseShadows.&lt;n&gt;.Arise (ProximityPrompt Enabled) → parent Part position + HoldDuration.</summary>
     public static (int Count, int Max)? ParseShadows(string? t)
     {
         var m = t is null ? null : System.Text.RegularExpressions.Regex.Match(t, @"(\d+)\s*/\s*(\d+)");
@@ -72,7 +72,7 @@ public sealed partial class GameReader
         return list;
     }
 
-    /// <summary>Darah karakter (Character.Humanoid Health/MaxHealth) 0..1.</summary>
+    /// <summary>Character HP (Character.Humanoid Health/MaxHealth) 0..1.</summary>
     private double? ReadPlayerHp(long localPlayer)
     {
         if (localPlayer == 0 || !reader.Offsets.TryResolve("Player.ModelInstance", out long mo)) return null;
@@ -104,7 +104,7 @@ public sealed partial class GameReader
     private static Settings.Vec3? Vec(string s) { var n = Nums(s); return n.Length == 3 ? new(n[0], n[1], n[2]) : null; }
     private static double Num(string s, double fallback) { var n = Nums(s); return n.Length > 0 ? n[0] : fallback; }
 
-    /// <summary>Posisi HumanoidRootPart karakter: Player.ModelInstance → Character → HumanoidRootPart.</summary>
+    /// <summary>Character HumanoidRootPart position: Player.ModelInstance → Character → HumanoidRootPart.</summary>
     private Settings.Vec3? ReadPlayerPos(long localPlayer)
     {
         if (localPlayer == 0 || !reader.Offsets.TryResolve("Player.ModelInstance", out long mo)) return null;
@@ -113,7 +113,7 @@ public sealed partial class GameReader
         return hrp != 0 && props.TryGetWorldPosition(hrp, out float x, out float y, out float z) ? new(x, y, z) : null;
     }
 
-    /// <summary>LookVector kamera (XZ) dari Workspace.CurrentCamera.</summary>
+    /// <summary>Camera LookVector (XZ) from Workspace.CurrentCamera.</summary>
     private (double X, double Z)? ReadCameraLook(long ws)
     {
         if (ws == 0 || !reader.Offsets.TryResolve("Workspace.CurrentCamera", out long co)) return null;
@@ -125,7 +125,7 @@ public sealed partial class GameReader
             ? (x, z) : null;
     }
 
-    /// <summary>Posisi area ke-n: Workspace.World.Spawns[n] lalu Areas[n] (Part, Model, atau Folder berisi Part).</summary>
+    /// <summary>Position of area n: Workspace.World.Spawns[n], then Areas[n] (Part, Model, or Folder containing Parts).</summary>
     private Settings.Vec3? WsPos(long ws, string path)
     {
         long part = ws != 0 ? reader.ResolvePath(ws, path) : 0;
@@ -150,10 +150,10 @@ public sealed partial class GameReader
             long node = f != 0 ? reader.FindChild(f, n.ToString()) : 0;
             return node != 0 ? PositionOf(node) : null;
         }
-        // v0.2.47: AreaEntries.<n> dulu (titik masuk resmi, sama dengan penanda "AREA n" di layar). Hanya ada untuk sebagian area.
+        // v0.2.47: AreaEntries.<n> first (official entry point, same as the on-screen "AREA n" marker). Only exists for some areas.
         if (Pos(AnimeZeroPaths.WorldAreaEntries) is { } entry) return entry;
-        // v0.2.50: Spawns.<n> ada di ujung area n-1 (Hxh: Spawns.4 (158,-198) masih di kotak Area 3, penanda AREA 4 ~150 stud lagi).
-        // → titik kotak Areas.<n> terdekat ke Spawns.<n>, masuk 8 stud ke dalam = tepi masuk area n.
+        // v0.2.50: Spawns.<n> is at the end of area n-1 (Hxh: Spawns.4 (158,-198) is still in the Area 3 box, AREA 4 marker ~150 studs further).
+        // → point of the Areas.<n> box nearest Spawns.<n>, 8 studs inward = entry edge of area n.
         var spawn = Pos(AnimeZeroPaths.WorldSpawns);
         long areas = reader.FindChild(world, AnimeZeroPaths.WorldAreas);
         long part = areas != 0 ? reader.FindChild(areas, n.ToString()) : 0;
@@ -167,7 +167,7 @@ public sealed partial class GameReader
         return spawn;
     }
 
-    /// <summary>Titik kotak area (center/size) terdekat ke <paramref name="from"/>, digeser <paramref name="inset"/> stud ke dalam. Y = Y titik asal.</summary>
+    /// <summary>Point of the area box (center/size) nearest <paramref name="from"/>, moved <paramref name="inset"/> studs inward. Y = Y of the origin point.</summary>
     public static Settings.Vec3 AreaEntryPoint(Settings.Vec3 center, Settings.Vec3 size, Settings.Vec3 from, double inset = 8)
     {
         double hx = Math.Max(0, size.X / 2 - inset), hz = Math.Max(0, size.Z / 2 - inset);

@@ -2,9 +2,9 @@ namespace RIE.Core.Snapshot;
 
 public sealed class SnapshotNode
 {
-    /// <summary>Kunci stabil untuk diff: path dengan indeks duplikat saudara, mis. "PlayerGui.Main.Frame[2]".</summary>
+    /// <summary>Stable key for diffing: path with duplicate-sibling indices, e.g. "PlayerGui.Main.Frame[2]".</summary>
     public string Key { get; set; } = string.Empty;
-    /// <summary>Key parent (null untuk akar).</summary>
+    /// <summary>Parent key (null for the root).</summary>
     public string? ParentKey { get; set; }
     public string Name { get; set; } = string.Empty;
     public string ClassName { get; set; } = string.Empty;

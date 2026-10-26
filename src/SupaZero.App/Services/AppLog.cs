@@ -3,7 +3,7 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.Services;
 
-/// <summary>Log file harian: %AppData%\SupaZero\logs\supazero-YYYYMMDD.log (append, thread-safe, gagal I/O ditelan).</summary>
+/// <summary>Daily log file: %AppData%\SupaZero\logs\supazero-YYYYMMDD.log (append, thread-safe, I/O failures swallowed).</summary>
 public static class AppLog
 {
     private static readonly object Gate = new();
@@ -21,6 +21,6 @@ public static class AppLog
                     now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture) + " " + text + Environment.NewLine);
             }
         }
-        catch { /* logging tidak boleh menjatuhkan app */ }
+        catch { /* logging must never crash the app */ }
     }
 }

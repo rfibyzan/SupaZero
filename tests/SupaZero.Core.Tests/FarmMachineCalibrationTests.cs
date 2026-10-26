@@ -6,7 +6,7 @@ namespace SupaZero.Core.Tests;
 
 public partial class FarmMachineTests
 {
-    // ---------- v0.2.82 kalibrasi aksi ----------
+    // ---------- v0.2.82 action calibration ----------
     [Fact]
     public void Calibration_ReadsModesMapsActs_ThenLeaves_NeverStarts()
     {
@@ -37,7 +37,7 @@ public partial class FarmMachineTests
     [Fact]
     public void Calibration_ReadsTargetableDropsPerAct_AtNightmare()
     {
-        // v0.3.4 (Byzan 25 Okt 08:38): drop berbeda per act (Hxh Act 1 = A,B; Act 2 = C,D) → kalibrasi klik Nightmare + tiap act, baca TargetPill.
+        // v0.3.4 (Byzan 25 Oct 08:38): drops differ per act (Hxh Act 1 = A,B; Act 2 = C,D) → calibration clicks Nightmare + each act, reads TargetPill.
         var (m, _) = New();
         CalibrationScan? scan = null;
         m.CalibrationFinished = x => scan = x;
@@ -78,7 +78,7 @@ public partial class FarmMachineTests
     [Fact]
     public void Calibration_TrialsLast_ReadsFloorRewards_ThenLeavesTrials()
     {
-        // v0.3.7 (Byzan 25 Okt 09:03): kartu Trials → panel Trials (Floor Rewards) → drop → Leave Trials menutup menu room.
+        // v0.3.7 (Byzan 25 Oct 09:03): Trials card → Trials panel (Floor Rewards) → drops → Leave Trials closes the room menu.
         var (m, _) = New();
         CalibrationScan? scan = null;
         m.CalibrationFinished = x => scan = x;
@@ -116,7 +116,7 @@ public partial class FarmMachineTests
         {
             Attached = true, LobbyMenuOpen = true, ClientW = 1920, ClientH = 1080, LobbyMapTag = tag, LobbyLeave = new GuiRect(1600, 900, 80, 60),
             LobbyModes = [new LobbyEntry("Story", false, true, new GuiRect(100, 100, 100, 40)), new LobbyEntry("Raid", false, false, new GuiRect(100, 150, 100, 40))],
-            // urutan baca berbeda dengan urutan tampil (Y)
+            // read order differs from display order (Y)
             LobbyMaps = [new LobbyEntry("Spirit's Bathtub", false, false, new GuiRect(300, 500, 200, 60), "Raid"), new LobbyEntry("Hxh", false, tag == "Hxh", new GuiRect(300, 100, 200, 60), "Story"),
                 new LobbyEntry("Evil Reflection", false, false, new GuiRect(300, 300, 200, 60), "Raid")],
             LobbyActs = [new LobbyEntry("Act 1", false, true, new GuiRect(600, 150, 100, 40))],
@@ -138,7 +138,7 @@ public partial class FarmMachineTests
         m.StartCalibration();
         var lobby = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
         for (long t = 0; t <= 9000; t += 300) m.Step(lobby, t);
-        Assert.DoesNotContain("Kalibrasi: Kalibrasi", m.Status);
+        Assert.DoesNotContain("Calibration: Calibration", m.Status);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public partial class FarmMachineTests
             AreasView = new GuiRect(50, 50, 900, 600),
         };
         var acts = new List<MacroAction>();
-        for (long t = 0; t <= 19_000; t += 500) acts.AddRange(m.Step(far, t)); // trait dilewati (kartu Traits tidak ada), lalu ke room
+        for (long t = 0; t <= 19_000; t += 500) acts.AddRange(m.Step(far, t)); // trait skipped (no Traits card), then to the room
         Assert.Contains(acts, a => a is ClickAction c && c.Reason == "Teleport Story");
         Assert.DoesNotContain(acts, a => a is ClickAction c && c.Reason == "Teleport Raid");
     }
@@ -162,7 +162,7 @@ public partial class FarmMachineTests
     [Fact]
     public void Calibration_Traits_CyclesAllUnitsWithNextButton()
     {
-        // RIE Trait_Reroll 25 Okt 08:54: tombol ">" (582,638 42x42) → "Shadow Lord 3/5" jadi "Mochi Commander 4/5".
+        // RIE Trait_Reroll 25 Oct 08:54: ">" button (582,638 42x42) → "Shadow Lord 3/5" becomes "Mochi Commander 4/5".
         Assert.Equal((3, 5), FarmMachine.TraitCounter("Shadow Lord 3/5"));
         var (m, _) = New();
         m.StartCalibration();
@@ -176,9 +176,9 @@ public partial class FarmMachineTests
         {
             var a = m.Step(Open(), t);
             foreach (var c in a.OfType<ClickAction>().Where(c => c.Reason.StartsWith("Trait >"))) { clicks++; idx = (idx + 1) % 5; }
-            exited = a.Any(x => x is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("luar zona"));
+            exited = a.Any(x => x is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("outside the Enchants zone"));
         }
-        Assert.Equal(4, clicks);   // 3/5 → 4 → 5 → 1 → 2: lima unit terbaca, tanpa klik ekstra
+        Assert.Equal(4, clicks);   // 3/5 → 4 → 5 → 1 → 2: five units read, no extra clicks
         Assert.True(exited);
     }
 
@@ -192,7 +192,7 @@ public partial class FarmMachineTests
         var all = new List<MacroAction>();
         for (long t = 0; t <= 12000; t += 250) all.AddRange(m.Step(baseS, t));
         Assert.Single(all, a => a is ClickAction c && c.Reason.StartsWith("Trait >"));
-        Assert.Contains(all, a => a is NoteAction n && n.Reason.Contains("tidak mengganti unit"));
+        Assert.Contains(all, a => a is NoteAction n && n.Reason.Contains("did not change the unit"));
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public partial class FarmMachineTests
         var baseS = new GameSnapshot { Attached = true, PlayerPos = spawn, CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)], ClientW = 1920, ClientH = 1080 };
         var panel = baseS with { TeleportCards = [new LobbyEntry("Traits", false, false, new GuiRect(100, 300, 200, 100))], AreasView = new GuiRect(50, 50, 600, 600) };
         Assert.Contains(m.Step(panel, 0), a => a is ClickAction c && c.Reason == "Teleport Traits");
-        // Tanpa titik GuideSpot → tidak jalan.
+        // No GuideSpot point → no walking.
         var noSpot = new List<MacroAction>();
         for (long t = 500; t <= 2500; t += 500) noSpot.AddRange(m.Step(baseS, t));
         Assert.DoesNotContain(noSpot, a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("Enchants"));
@@ -214,10 +214,10 @@ public partial class FarmMachineTests
         var withSpot = baseS with { TraitSpot = new Vec3(-87.7, 0.4, -97), TraitExit = spawn };
         m2.Step(withSpot with { TeleportCards = panel.TeleportCards, AreasView = panel.AreasView }, 0);
         var acts = m2.Step(withSpot, 2500);
-        Assert.Contains(acts, a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("titik Enchants"));
+        Assert.Contains(acts, a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("Enchants spot"));
         var open = withSpot with { PlayerPos = new Vec3(-87.7, 3, -97), TraitMenuOpen = true };
         m2.Step(open, 3000);
         m2.Step(open, 6100);
-        Assert.Contains(m2.Step(open, 6400), a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("luar zona"));
+        Assert.Contains(m2.Step(open, 6400), a => a is MoveAction mv && mv.Keys.Count > 0 && mv.Reason.Contains("outside the Enchants zone"));
     }
 }

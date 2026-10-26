@@ -1,45 +1,45 @@
 namespace SupaZero.Core.Automation;
 
-/// <summary>Aksi input yang diputuskan <see cref="StoryMachine"/>; dieksekusi <see cref="MacroRunner"/> lewat <see cref="IInput"/>.</summary>
+/// <summary>Input action decided by <see cref="StoryMachine"/>; executed by <see cref="MacroRunner"/> via <see cref="IInput"/>.</summary>
 public abstract record MacroAction(string Reason);
 
-/// <summary>Klik kiri di koordinat KLIEN jendela Roblox.</summary>
+/// <summary>Left-click at Roblox window CLIENT coordinates.</summary>
 public sealed record ClickAction(double X, double Y, string Reason) : MacroAction(Reason)
 {
-    /// <summary>Klik GUI di dalam stage (Vote Yes / Retry / Next): shift lock mungkin aktif walau belum pasti terdeteksi.</summary>
+    /// <summary>GUI click inside a stage (Vote Yes / Retry / Next): shift lock may be on even if not yet reliably detected.</summary>
     public bool InRound { get; init; }
 }
 
-/// <summary>Scroll roda mouse di koordinat KLIEN (kursor digeser ke sana dulu). Notches &gt; 0 = ke atas, &lt; 0 = ke bawah.</summary>
+/// <summary>Mouse wheel scroll at CLIENT coordinates (cursor is moved there first). Notches &gt; 0 = up, &lt; 0 = down.</summary>
 public sealed record ScrollAction(double X, double Y, int Notches, string Reason) : MacroAction(Reason);
 
-/// <summary>Geser kursor (tanpa klik) ke koordinat KLIEN, mis. mengarahkan ke musuh.</summary>
+/// <summary>Move the cursor (no click) to CLIENT coordinates, e.g. aiming at an enemy.</summary>
 public sealed record AimAction(double X, double Y, string Reason) : MacroAction(Reason);
 
-/// <summary>Gerak mouse relatif (putar kamera saat shift lock).</summary>
-/// <summary>Drag = tahan klik kanan selama gerak (putar kamera tanpa shift lock).</summary>
+/// <summary>Relative mouse movement (turn the camera during shift lock).</summary>
+/// <summary>Drag = hold right-click while moving (turn the camera without shift lock).</summary>
 public sealed record TurnAction(int Dx, int Dy, string Reason, bool Drag = false) : MacroAction(Reason);
 
-/// <summary>Klik kiri di posisi kursor sekarang (serangan dasar).</summary>
+/// <summary>Left-click at the current cursor position (basic attack).</summary>
 public sealed record AttackAction(string Reason) : MacroAction(Reason);
 
-/// <summary>Tekan tombol (virtual-key) selama <paramref name="HoldMs"/>.</summary>
+/// <summary>Press a key (virtual-key) for <paramref name="HoldMs"/>.</summary>
 public sealed record KeyAction(ushort VirtualKey, int HoldMs, string Reason) : MacroAction(Reason);
 
-/// <summary>Tahan tepat tombol gerak ini (W/A/S/D); tombol gerak lain dilepas. Kosong = lepas semua.</summary>
+/// <summary>Hold exactly these movement keys (W/A/S/D); other movement keys are released. Empty = release all.</summary>
 public sealed record MoveAction(IReadOnlyList<ushort> Keys, string Reason) : MacroAction(Reason);
 
-/// <summary>Tidak ada input; hanya catatan log (mis. menunggu pemain, fitur belum ada).</summary>
+/// <summary>No input; log note only (e.g. waiting for the player, feature not available yet).</summary>
 public sealed record NoteAction(string Reason) : MacroAction(Reason);
 
-/// <summary>Hentikan macro (Story selesai, retry habis, dsb.).</summary>
+/// <summary>Stop the macro (Story finished, retries exhausted, etc.).</summary>
 public sealed record StopAction(string Reason) : MacroAction(Reason);
 
 public static class VirtualKeys
 {
     public const ushort W = 0x57, A = 0x41, S = 0x53, D = 0x44, Q = 0x51, T = 0x54, E = 0x45, Space = 0x20;
 
-    /// <summary>"1" → 0x31, "Q" → 0x51. Hanya huruf/angka tunggal.</summary>
+    /// <summary>"1" → 0x31, "Q" → 0x51. Single letters/digits only.</summary>
     public static bool TryParse(string? key, out ushort vk)
     {
         vk = 0;

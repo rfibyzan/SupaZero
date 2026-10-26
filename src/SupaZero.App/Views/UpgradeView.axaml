@@ -8,35 +8,35 @@
       <StackPanel Spacing="6">
         <TextBlock Classes="h2" Text="Auto upgrade" />
         <Border Classes="sep" Margin="0,2,0,4" />
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Upgrade di lobby (unit terpilih)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Enabled}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Upgrade in lobby (selected unit)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Enabled}" /></Grid>
         <Grid ColumnDefinitions="*,220" MinHeight="34">
           <TextBlock Classes="label" Text="Mode" />
           <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Modes}" SelectedIndex="{Binding ModeIndex}" />
         </Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Maks beli per kunjungan lobby" />
+          <TextBlock Classes="label" Text="Max buys per lobby visit" />
           <NumericUpDown Grid.Column="1" Value="{Binding MaxBuysPerStage}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,220" MinHeight="34">
           <TextBlock Classes="label" Text="Unit target (slot)" />
           <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding TargetSlots}" SelectedIndex="{Binding TargetSlotIndex}" />
         </Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Mode uji (tanpa klik Buy)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding DryRun}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Dry run (no Buy click)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding DryRun}" /></Grid>
         <Border Classes="sep" Margin="0,4" />
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Di lobby sebelum ke room: Units → SkillTree unit yang sedang terpilih → klik node bertanda ! (harga ≤ token) → Buy → berhasil bila token turun → tutup X. Prioritas: habiskan kolom ON teratas dulu. Bergiliran: satu node per kolom ON bergantian.  Unit target Slot N: klik SlotN di daftar unit bawah SkillTree (scroll bila perlu; urutan sama dengan Trait/Power Spin). Slot kosong/tidak terpilih = tidak membeli. Mode uji: buka Units, pilih node, pastikan tombol Buy terbaca, tulis rencana di log, tutup X, lalu macro berhenti tanpa membeli." />
+                   Text="In the lobby before entering a room: Units → SkillTree of the currently selected unit → click a node marked ! (price ≤ tokens) → Buy → success when tokens drop → close X. Priority: max out the top ON column first. Round-robin: one node per ON column in turn.  Target unit Slot N: clicks SlotN in the unit list below the SkillTree (scrolls if needed; same order as Trait/Power Spin). Empty/unselected slot = no purchase. Dry run: opens Units, picks a node, checks the Buy button is readable, writes the plan to the log, closes X, then the macro stops without buying." />
       </StackPanel>
     </Border>
 
     <Border Grid.Column="1" Classes="card" Margin="8,0,0,0" VerticalAlignment="Top">
       <StackPanel Spacing="6">
-        <TextBlock Classes="h2" Text="Kolom yang di-upgrade" />
+        <TextBlock Classes="h2" Text="Columns to upgrade" />
         <Border Classes="sep" Margin="0,2,0,4" />
         <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="ATK" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Atk}" /></Grid></Border>
         <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="CRIT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Crit}" /></Grid></Border>
         <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="SPD" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Spd}" /></Grid></Border>
         <Border Classes="row" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto"><TextBlock Classes="label" Text="DEF" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding Def}" /></Grid></Border>
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="Hanya kolom ON yang dibeli. Semua OFF = tidak membeli apa pun. Bila lebih dari satu ON, urutan ATK → CRIT → SPD → DEF mengikuti Mode." />
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="Only ON columns are bought. All OFF = nothing is bought. With more than one ON, the ATK → CRIT → SPD → DEF order follows Mode." />
       </StackPanel>
     </Border>
   </Grid>

@@ -5,19 +5,19 @@ using RIE.Core.Roblox;
 
 namespace SupaZero.Core.Game;
 
-/// <summary>Trait satu power, dibaca dari layar Trait Reroll.</summary>
+/// <summary>Trait of one power, read from the Trait Reroll screen.</summary>
 public sealed record PowerTrait(string Name, string? Chance, IReadOnlyList<string> Buffs);
 
-/// <summary>Power yang dipasang di loadout (Slot 1/2).</summary>
+/// <summary>Power equipped in the loadout (Slot 1/2).</summary>
 public sealed record EquippedPower(int Loadout, int InventorySlot, string Name, string? CharacterId, int? Level, string? Rarity, PowerTrait? Trait);
 
 /// <summary>
-/// Pengetahuan power yang dipelajari saat jalan: id karakter internal → nama tampil, dan trait per nama tampil.
-/// Disimpan ke settings agar tidak perlu dibaca ulang.
+/// Power knowledge learned at runtime: internal character id → display name, and trait per display name.
+/// Saved to settings so it does not need to be read again.
 /// </summary>
 public sealed class PowerKnowledge
 {
-    /// <summary>Terverifikasi RIE 23 Okt 2026 (animasi idle preview slot ↔ judul/CharacterSwitch).</summary>
+    /// <summary>Verified via RIE 23 Oct 2026 (slot preview idle animation ↔ title/CharacterSwitch).</summary>
     public static readonly IReadOnlyDictionary<string, string> BuiltInNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["shanks"] = "Divine Emperor",
@@ -30,12 +30,12 @@ public sealed class PowerKnowledge
     public Dictionary<string, string> Names { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, PowerTrait> Traits { get; } = new(StringComparer.OrdinalIgnoreCase);
     public bool Dirty { get; set; }
-    /// <summary>Loadout terakhir yang terbaca (daftar slot hanya ada saat menu karakter pernah dibuka).</summary>
+    /// <summary>Last loadout read (the slot list only exists once the character menu has been opened).</summary>
     public List<EquippedPower> Loadout { get; set; } = [];
 
     public void LearnLoadout(List<EquippedPower> loadout)
     {
-        loadout = loadout.Select(p => p with { Trait = null }).ToList(); // trait disimpan terpisah (list Buffs tak bisa dibandingkan per nilai)
+        loadout = loadout.Select(p => p with { Trait = null }).ToList(); // trait stored separately (the Buffs list cannot be compared by value)
         lock (_gate)
         {
             if (Loadout.Select(p => p with { Trait = null }).SequenceEqual(loadout)) return;
@@ -44,7 +44,7 @@ public sealed class PowerKnowledge
         }
     }
 
-    /// <summary>Loadout tersimpan dengan trait terbaru.</summary>
+    /// <summary>Saved loadout with the latest traits.</summary>
     public IReadOnlyList<EquippedPower> SavedLoadout()
     {
         lock (_gate) return Loadout.Select(p => p with { Trait = Traits.TryGetValue(p.Name, out var t) ? t : p.Trait }).ToList();
@@ -83,7 +83,7 @@ public sealed class PowerKnowledge
         }
     }
 
-    /// <summary>Format id internal ("sung_jinwoo" → "Sung Jinwoo") bila nama tampil belum diketahui.</summary>
+    /// <summary>Formats an internal id ("sung_jinwoo" → "Sung Jinwoo") when the display name is not known yet.</summary>
     public static string Pretty(string id) =>
         string.Join(' ', id.Split('_', StringSplitOptions.RemoveEmptyEntries).Select(w => char.ToUpperInvariant(w[0]) + w[1..]));
 }
@@ -92,10 +92,10 @@ public sealed partial class GameReader
 {
     public PowerKnowledge Powers { get; set; } = new();
 
-    // Terverifikasi RIE 23 Okt 2026, relatif PlayerGui.
+    // Verified via RIE 23 Oct 2026, relative to PlayerGui.
     private const string InventoryList = "CharacterSlots.Fade.List";
     private const string SelectedTitle = "CharacterInfo.TitleShadow.Title";
-    /// <summary>v0.3.12: MainFrame Roll (ScreenGui langsung, atau SurfaceGui lama); 0 bila tidak ada.</summary>
+    /// <summary>v0.3.12: Roll MainFrame (direct ScreenGui, or the old SurfaceGui); 0 when absent.</summary>
     internal long RollFrame(long pg)
     {
         if (pg == 0) return 0;
@@ -114,10 +114,10 @@ public sealed partial class GameReader
     private static readonly Regex SlotNumRx = new(@"(\d+)");
     private static readonly Regex TagRx = new(@"<[^>]*>");
 
-    /// <summary>Teks GUI tanpa tag RichText (mis. "Cursed King &lt;font color=..&gt;2/4&lt;/font&gt;").</summary>
+    /// <summary>GUI text without RichText tags (e.g. "Cursed King &lt;font color=..&gt;2/4&lt;/font&gt;").</summary>
     private string? Plain(long node) => Text(node) is { } t ? TagRx.Replace(t, string.Empty).Trim() is { Length: > 0 } p ? p : null : null;
 
-    /// <summary>Ringkasan pembacaan layar Trait terakhir (untuk log diagnosa).</summary>
+    /// <summary>Summary of the last Trait screen read (for the diagnostic log).</summary>
     public string? TraitDebug { get; private set; }
     public string? PowerDebug { get; private set; }
 
@@ -125,12 +125,12 @@ public sealed partial class GameReader
     private DateTime _powersAt = DateTime.MinValue;
     private IReadOnlyList<EquippedPower> _equipped = [];
 
-    /// <summary>Loadout + trait, dibaca paling sering tiap 2 detik (tanpa input apa pun).</summary>
+    /// <summary>Loadout + traits, read at most every 2 seconds (no input of any kind).</summary>
     public IReadOnlyList<EquippedPower> ReadPowers(DataModelRoots roots)
     {
         if (DateTime.UtcNow - _powersAt < TimeSpan.FromSeconds(1))
         {
-            // v0.3.13: layar Trait dibaca tiap tick (bukan tiap 1 dtk) → kalibrasi trait tidak perlu menunggu 1,5 dtk per unit.
+            // v0.3.13: the Trait screen is read every tick (not every 1 s) → trait calibration does not need to wait 1.5 s per unit.
             try { if (roots.PlayerGui != 0) LearnFromTraitScreen(roots.PlayerGui); } catch { }
             return _equipped;
         }
@@ -143,7 +143,7 @@ public sealed partial class GameReader
             LearnFromTraitScreen(pg);
             WatchSpins(pg);
             var list = RollPath(pg, InventoryList);
-            if (list == 0) { PowerDebug = "Power: daftar slot tidak ada (buka menu karakter sekali)"; return _equipped = Powers.SavedLoadout(); }
+            if (list == 0) { PowerDebug = "Power: no slot list (open the character menu once)"; return _equipped = Powers.SavedLoadout(); }
             EnsureIdleMap(roots.ReplicatedStorage);
 
             var result = new List<EquippedPower>();
@@ -156,7 +156,7 @@ public sealed partial class GameReader
                 long main = reader.ResolvePath(slot, "MainButton.MainButton");
                 string? id = CharacterId(slot);
 
-                // Nama: belajar dari judul saat slot ini sedang dipilih.
+                // Name: learned from the title while this slot is selected.
                 if (id is not null && main != 0 && IsVisibleFlag(Find(main, "SelectedFrame", 2)) && Text(RollPath(pg, SelectedTitle)) is { Length: > 0 } title)
                     Powers.LearnName(id, title.Trim());
 
@@ -170,15 +170,15 @@ public sealed partial class GameReader
                 int? level = main != 0 ? ParseInt(Text(reader.ResolvePath(main, "LevelShadow.Level"))) : null;
                 result.Add(new EquippedPower(loadout, inv, name, id, level, main != 0 ? Rarity(main) : null, Powers.TraitFor(name)));
             }
-            PowerDebug = $"Power: {slots} slot terbaca, {result.Count} terpasang";
+            PowerDebug = $"Power: {slots} slots read, {result.Count} equipped";
             if (result.Count > 0) Powers.LearnLoadout(result.OrderBy(p => p.Loadout).ToList());
             _equipped = Powers.SavedLoadout();
         }
-        catch { /* baca memori gagal sesaat → pakai hasil sebelumnya */ }
+        catch { /* memory read failed momentarily → use the previous result */ }
         return _equipped;
     }
 
-    /// <summary>Power yang sedang dipakai karakter (nama tampil), dari animasi yang diputar Animator karakter. Tetap nilai terakhir bila tak terbaca.</summary>
+    /// <summary>Power the character is currently using (display name), from the animation played by the character's Animator. Keeps the last value when unreadable.</summary>
     public string? ActivePower { get; private set; }
     private Dictionary<string, string>? _animToId;
 
@@ -200,10 +200,10 @@ public sealed partial class GameReader
                     return;
                 }
         }
-        catch { /* sesaat gagal → nilai terakhir */ }
+        catch { /* momentary failure → last value */ }
     }
 
-    /// <summary>Semua Animation di assets.animations.characters.&lt;id&gt; (idle, run, serangan, skill) → id karakter.</summary>
+    /// <summary>All Animations in assets.animations.characters.&lt;id&gt; (idle, run, attack, skill) → character id.</summary>
     private void EnsureAnimMap(long rs)
     {
         if (_animToId is { Count: > 0 } || rs == 0) return;
@@ -240,7 +240,7 @@ public sealed partial class GameReader
         return Rarities.FirstOrDefault(x => reader.FindChild(r, x) is var c && c != 0 && IsVisibleFlag(c));
     }
 
-    /// <summary>Peta AnimationId idle → id karakter dari ReplicatedStorage.assets.animations.characters.&lt;id&gt;.idle.</summary>
+    /// <summary>Map of idle AnimationId → character id from ReplicatedStorage.assets.animations.characters.&lt;id&gt;.idle.</summary>
     private void EnsureIdleMap(long rs)
     {
         if (_idleToId is { Count: > 0 } || rs == 0) return;
@@ -254,7 +254,7 @@ public sealed partial class GameReader
         _idleToId = map;
     }
 
-    /// <summary>Animasi idle yang diputar model preview di kartu slot → id karakter.</summary>
+    /// <summary>Idle animation played by the preview model on the slot card → character id.</summary>
     private string? CharacterId(long slot)
     {
         if (_idleToId is not { Count: > 0 }) return null;
@@ -272,16 +272,16 @@ public sealed partial class GameReader
         return m.Success ? m.Groups[1].Value : null;
     }
 
-    /// <summary>Saat layar Trait Reroll terbuka: catat trait power yang sedang ditampilkan.</summary>
+    /// <summary>While the Trait Reroll screen is open: record the trait of the power being shown.</summary>
     private void LearnFromTraitScreen(long pg)
     {
         long root = reader.ResolvePath(pg, TraitRoot);
         if (root == 0 || !IsShown(root, pg)) return;
         string? header = Plain(reader.ResolvePath(root, TraitPowerName));
-        if (header is null) { TraitDebug = "Trait: nama power kosong"; return; }
+        if (header is null) { TraitDebug = "Trait: power name empty"; return; }
         string power = CounterRx.Replace(header, string.Empty).Trim();
 
-        // Kartu trait aktif: TraitCard1, cadangan kartu lain yang terlihat dan berisi teks.
+        // Active trait card: TraitCard1, falling back to another visible card that has text.
         long rollFrame = reader.ResolvePath(root, TraitCard[..TraitCard.LastIndexOf(".TraitCard1", StringComparison.Ordinal)]);
         string? trait = null, chance = null;
         foreach (int i in new[] { 1, 2, 3, 4, 5, 6, 7 })
@@ -304,7 +304,7 @@ public sealed partial class GameReader
                 long sh = reader.FindChild(b, "Txt(Shadow)");
                 if ((Plain(reader.FindChild(sh, "Txt")) ?? Plain(sh)) is { } v) buffs.Add(v);
             }
-        TraitDebug = $"Trait: '{header}' → {power} = {trait ?? "(kosong)"} {chance} {string.Join(" ", buffs)}".TrimEnd();
+        TraitDebug = $"Trait: '{header}' → {power} = {trait ?? "(empty)"} {chance} {string.Join(" ", buffs)}".TrimEnd();
         if (trait is null) return;
         Powers.LearnTrait(power, new PowerTrait(trait, chance, buffs));
     }

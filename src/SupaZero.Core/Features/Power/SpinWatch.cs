@@ -2,20 +2,20 @@ using System.Text.RegularExpressions;
 
 namespace SupaZero.Core.Game;
 
-/// <summary>Satu pembacaan menu Power Spin (Roll) bawaan game.</summary>
+/// <summary>One reading of the game's built-in Power Spin (Roll) menu.</summary>
 public sealed record PowerSpinObs(bool AutoRunning, string? Status, string? Result, string? ResultRarity, bool StoppedOnTarget,
     int? RollsLeft, int? LuckyLeft, IReadOnlyList<string> Pity);
 
-/// <summary>Satu pembacaan layar Trait Reroll.</summary>
+/// <summary>One reading of the Trait Reroll screen.</summary>
 public sealed record TraitSpinObs(bool AutoRunning, string? Power, string? Trait, string? Chance, IReadOnlyList<string> Buffs, int? DiceLeft = null);
 
-/// <summary>Laporan auto spin yang sudah berhenti.</summary>
+/// <summary>Report of an auto spin that has stopped.</summary>
 public sealed record SpinReport(bool IsTrait, string Title, string? Result, string? Rarity, string? Chance, IReadOnlyList<string> Buffs,
     string? Power, int? Spins, int? Used, int? LeftAfter, string? Mode, string? StopAt, IReadOnlyList<string> Pity, TimeSpan Duration, bool StoppedOnTarget);
 
 /// <summary>
-/// Pantau auto spin bawaan game (hanya membaca GUI). Power: frame AutoStatus terlihat = auto jalan, hilang = selesai.
-/// Trait: Trait Reroll.SurfaceGui.MainFrame.Left.Content.AutoStatus ("Auto Rerolling") terlihat atau AutoButton.Sub = "On" = auto jalan.
+/// Watches the game's built-in auto spin (GUI reads only). Power: AutoStatus frame visible = auto running, gone = finished.
+/// Trait: Trait Reroll.SurfaceGui.MainFrame.Left.Content.AutoStatus ("Auto Rerolling") visible or AutoButton.Sub = "On" = auto running.
 /// </summary>
 public sealed class SpinWatcher
 {
@@ -43,7 +43,7 @@ public sealed class SpinWatcher
             return null;
         }
         if (_pStart is null) return null;
-        // Dua pembacaan berturut-turut tanpa AutoStatus (jeda antar spin bisa sesaat menyembunyikannya).
+        // Two consecutive reads without AutoStatus (the pause between spins can hide it briefly).
         if (++_pOff < 2) { _pLast = o with { AutoRunning = false, Status = _pLast?.Status }; return null; }
         var first = _pFirst!; var start = _pStart.Value;
         _pStart = null; _pOff = 0; _pFirst = null;
@@ -54,7 +54,7 @@ public sealed class SpinWatcher
         int? spins = status is not null && SpinNRx.Match(status) is { Success: true } sm ? int.Parse(sm.Groups[1].Value) : null;
         string? stopAt = status is not null && StopsRx.Match(status) is { Success: true } st ? st.Groups[1].Value.Trim() : null;
         int? used = before is { } b && after is { } a && b >= a ? b - a : null;
-        return new SpinReport(false, o.StoppedOnTarget ? "Auto spin power: target didapat" : "Auto spin power selesai",
+        return new SpinReport(false, o.StoppedOnTarget ? "Power auto spin: target obtained" : "Power auto spin finished",
             o.Result, o.ResultRarity, null, [], null, spins, used, after, mode, stopAt, o.Pity, now - start, o.StoppedOnTarget);
     }
 
@@ -69,11 +69,11 @@ public sealed class SpinWatcher
         if (_tStart is null) return null;
         if (++_tOff < 2) return null;
         var first = _tFirst!; var start = _tStart.Value;
-        // Hasil akhir = pembacaan sekarang (kartu sudah berhenti), cadangan pembacaan terakhir saat auto jalan.
+        // Final result = current read (the card has stopped), falling back to the last read while auto was running.
         var fin = o.Trait is not null ? o : _tLast ?? o;
         int? used = first.DiceLeft is { } b && o.DiceLeft is { } a2 && b >= a2 ? b - a2 : null;
         _tStart = null; _tOff = 0; _tFirst = _tLast = null;
-        return new SpinReport(true, "Auto reroll trait selesai", fin.Trait, null, fin.Chance, fin.Buffs, fin.Power ?? first.Power,
+        return new SpinReport(true, "Trait auto reroll finished", fin.Trait, null, fin.Chance, fin.Buffs, fin.Power ?? first.Power,
             null, used, o.DiceLeft ?? fin.DiceLeft, null, null, [], now - start, false);
     }
 
@@ -87,7 +87,7 @@ public sealed partial class GameReader
     private Dictionary<string, string>? _powerRarity;
 
     public SpinWatcher Spins { get; } = new();
-    /// <summary>Laporan auto spin yang baru selesai (diambil sekali oleh UI lalu dikosongkan).</summary>
+    /// <summary>Report of a just-finished auto spin (taken once by the UI, then cleared).</summary>
     public SpinReport? PendingSpin { get; set; }
 
     private static int? FirstInt(string? s) =>
@@ -101,7 +101,7 @@ public sealed partial class GameReader
             if (ReadPowerSpin(pg) is { } p && Spins.ObservePower(p, now) is { } r1) PendingSpin = r1;
             if (ReadTraitSpin(pg) is { } t && Spins.ObserveTrait(t, now) is { } r2) PendingSpin = r2;
         }
-        catch { /* pembacaan GUI gagal sesaat: abaikan */ }
+        catch { /* GUI read failed momentarily: ignore */ }
     }
 
     private PowerSpinObs? ReadPowerSpin(long pg)
@@ -129,7 +129,7 @@ public sealed partial class GameReader
         return new PowerSpinObs(running, status, result, rarity, onTarget, rolls, lucky, pity);
     }
 
-    /// <summary>Nama power → rarity dari tabel peluang (CharacterChances.Fade.Holder.Container.&lt;Rarity&gt;.Holder.Fill.Slot*.Fill.Title).</summary>
+    /// <summary>Power name → rarity from the chance table (CharacterChances.Fade.Holder.Container.&lt;Rarity&gt;.Holder.Fill.Slot*.Fill.Title).</summary>
     private string? PowerRarity(long main, string name)
     {
         if (_powerRarity is null || !_powerRarity.ContainsKey(name))

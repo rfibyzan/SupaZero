@@ -3,9 +3,9 @@ using System.Globalization;
 namespace RIE.Core.Watch;
 
 /// <summary>
-/// Riwayat angka per "path.properti" untuk sparkline. Hanya nilai yang bisa dibaca sebagai satu angka
-/// (Health, Value, Transparency, ChildCount, true/false → 1/0). Vector "x, y, z" dicatat sebagai panjangnya.
-/// Buffer melingkar per seri (default 120 titik).
+/// Numeric history per "path.property" for sparklines. Only values readable as a single number
+/// (Health, Value, Transparency, ChildCount, true/false → 1/0). Vector "x, y, z" is recorded as its length.
+/// Ring buffer per series (default 120 points).
 /// </summary>
 public sealed class WatchSeries
 {
@@ -26,7 +26,7 @@ public sealed class WatchSeries
         if (sp > 0 && v.IndexOf(',') < 0) v = v[..sp];
         if (v.Contains(','))
         {
-            // vector "x, y[, z]" (bukan UDim2 yang memakai kurung kurawal)
+            // vector "x, y[, z]" (not UDim2, which uses braces)
             if (v.Contains('{')) return false;
             var parts = v.Split(',', StringSplitOptions.TrimEntries);
             if (parts.Length is < 2 or > 3) return false;
@@ -69,7 +69,7 @@ public sealed class WatchSeries
 
     public void Clear() { lock (_lock) _series.Clear(); }
 
-    /// <summary>Salinan semua seri. Hanya seri yang nilainya pernah berubah bila <paramref name="changingOnly"/>.</summary>
+    /// <summary>Copy of all series. Only series whose value has ever changed if <paramref name="changingOnly"/>.</summary>
     public Dictionary<string, double[]> Snapshot(bool changingOnly = false)
     {
         lock (_lock)

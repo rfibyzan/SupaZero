@@ -18,7 +18,7 @@ public partial class FarmMachineTests
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
         Assert.Equal([VirtualKeys.W], move.Keys);
         Assert.Equal(MacroPhase.Navigating, m.Phase);
-        // Tersangkut 2 dtk → lompat + serang rintangan
+        // Stuck for 2 s → jump + attack obstacle
         var stuck = m.Step(snap, 2000);
         Assert.Contains(stuck, x => x is KeyAction { VirtualKey: VirtualKeys.Space });
         Assert.Contains(stuck, x => x is AttackAction);
@@ -35,10 +35,10 @@ public partial class FarmMachineTests
             PlayerHp = 1, Pickups = [new("cash", new(20, 0, 0)), new("health", new(5, 0, 0))],
         };
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
-        Assert.Equal([VirtualKeys.D], move.Keys); // health dilewati karena darah penuh → koin di +X
-        Assert.Contains("koin", m.Status);
+        Assert.Equal([VirtualKeys.D], move.Keys); // health skipped because HP is full → coin at +X
+        Assert.Contains("coin", m.Status);
         m.Step(snap, 3000);
-        m.Step(snap, 6500); // tidak terambil → dilewati
+        m.Step(snap, 6500); // not picked up → skipped
         Assert.Contains(Real(m.Step(snap, 7000)), x => x is MoveAction mv && mv.Keys.SequenceEqual([VirtualKeys.W]));
     }
 
@@ -59,8 +59,8 @@ public partial class FarmMachineTests
     {
         // Snapshot S1: Spawns.4 (158,0.5,-198.5), Areas.4 center (453.905,25,-200.97) size 299.536×80×131.551.
         var e = GameReader.AreaEntryPoint(new Vec3(453.905, 25, -200.97), new Vec3(299.536, 80, 131.551), new Vec3(158, 0.5, -198.5));
-        Assert.InRange(e.X, 311, 313);   // tepi barat Area 4 (304.1) + 8
+        Assert.InRange(e.X, 311, 313);   // west edge of Area 4 (304.1) + 8
         Assert.Equal(-198.5, e.Z, 3);
-        Assert.InRange(Math.Sqrt((e.X - 158) * (e.X - 158)), 145, 160); // ≈ penanda "AREA 4 150 studs"
+        Assert.InRange(Math.Sqrt((e.X - 158) * (e.X - 158)), 145, 160); // ≈ marker "AREA 4 150 studs"
     }
 }

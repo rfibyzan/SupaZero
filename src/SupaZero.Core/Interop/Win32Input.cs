@@ -5,8 +5,8 @@ using SupaZero.Core.Automation;
 namespace SupaZero.Core.Interop;
 
 /// <summary>
-/// Input lewat SendInput (sama seperti SupaFisch). Koordinat klien dikonversi ke layar dengan ClientToScreen jendela
-/// utama RobloxPlayerBeta. Hanya mengirim input; tidak membaca/menulis memori.
+/// Input via SendInput (same as SupaFisch). Client coordinates are converted to screen with ClientToScreen of the
+/// RobloxPlayerBeta main window. Only sends input; never reads/writes memory.
 /// </summary>
 public sealed partial class Win32Input(Func<int> processId) : IInput
 {
@@ -42,7 +42,7 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         return fg != 0 && GetWindowThreadProcessId(fg, out uint fpid) != 0 && fpid == (uint)pid;
     }
 
-    /// <summary>Jeda hover sebelum klik (ms).</summary>
+    /// <summary>Hover delay before clicking (ms).</summary>
     public int HoverMs { get; set; } = 80;
 
     public void ClickClient(double x, double y)
@@ -51,9 +51,9 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         if (h == 0) return;
         var p = new Point { X = (int)Math.Round(x), Y = (int)Math.Round(y) };
         if (!ClientToScreen(h, ref p)) return;
-        // Roblox baru memicu hover (MouseEnter) setelah ada gerakan mouse DI ATAS tombol; lompat langsung lalu klik
-        // sering tidak terdaftar (Byzan, 23 Okt 2026: kartu teleport baru bereaksi setelah di-hover). Jadi: lompat ke
-        // dekat target → geser kecil beberapa langkah ke target → tunggu hover → klik.
+        // Roblox only fires hover (MouseEnter) after mouse movement OVER the button; jumping straight there and clicking
+        // often doesn't register (Byzan, 23 Oct 2026: teleport cards only reacted after being hovered). So: jump
+        // near the target → nudge in a few small steps onto the target → wait for hover → click.
         MoveAbsolute(p.X - 6, p.Y - 4);
         Thread.Sleep(30);
         for (int i = 1; i <= 3; i++)
@@ -70,7 +70,7 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         MouseButton(MouseLeftUp);
     }
 
-    /// <summary>Area klien jendela Roblox di layar (piksel).</summary>
+    /// <summary>Client area of the Roblox window on screen (pixels).</summary>
     public (int X, int Y, int W, int H)? ClientScreenRect()
     {
         nint h = MainWindow();
@@ -104,7 +104,7 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         if (h == 0 || notches == 0) return;
         var p = new Point { X = (int)Math.Round(x), Y = (int)Math.Round(y) };
         if (!ClientToScreen(h, ref p)) return;
-        // Roblox men-scroll ScrollingFrame yang ada di bawah kursor → kursor harus di atas daftar dulu (dengan hover).
+        // Roblox scrolls the ScrollingFrame under the cursor → the cursor must be over the list first (with hover).
         MoveAbsolute(p.X - 4, p.Y);
         Thread.Sleep(30);
         MoveAbsolute(p.X, p.Y);
@@ -183,7 +183,7 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
 
     private static void Key(ushort vk, bool up)
     {
-        // Roblox membaca scancode (DirectInput), jadi kirim scancode + VK.
+        // Roblox reads scancodes (DirectInput), so send scancode + VK.
         var i = new Input
         {
             Type = InputKeyboard,

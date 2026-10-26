@@ -6,14 +6,14 @@ using SupaZero.Core.Settings;
 namespace SupaZero.App.Services;
 
 /// <summary>
-/// Menerapkan <see cref="ThemePalette"/> ke resource aplikasi (kunci Of* + override brush Fluent). Semua view memakai
-/// DynamicResource, jadi pergantian tema langsung terlihat tanpa restart.
+/// Applies a <see cref="ThemePalette"/> to the app resources (Of* keys + Fluent brush overrides). All views use
+/// DynamicResource, so theme changes show immediately without a restart.
 /// </summary>
 public static class ThemeService
 {
     public static ThemePalette Current { get; private set; } = ThemePalettes.BlackPalette;
 
-    /// <summary>Dipanggil setelah palet berganti (mis. jendela utama menyegarkan latar Transparent UI).</summary>
+    /// <summary>Raised after the palette changes (e.g. the main window refreshes its Transparent UI background).</summary>
     public static event Action<ThemePalette>? Changed;
 
     public static void Apply(AppSettings settings) =>
@@ -48,7 +48,7 @@ public static class ThemeService
         Set("OfInset", p.Background.Mix(p.Surface, 0.5));
         r["OfOverlayBg"] = new SolidColorBrush(ToColor(p.Background, 0xCC));
 
-        // Override brush Fluent (dicari template Fluent via DynamicResource).
+        // Fluent brush overrides (looked up by Fluent templates via DynamicResource).
         Set("ToggleSwitchFillOn", p.Accent);
         Set("ToggleSwitchFillOnPointerOver", p.AccentHover);
         Set("ToggleSwitchFillOnPressed", p.AccentPressed);

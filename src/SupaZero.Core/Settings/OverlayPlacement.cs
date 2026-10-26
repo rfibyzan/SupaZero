@@ -1,13 +1,13 @@
 namespace SupaZero.Core.Settings;
 
 /// <summary>
-/// Posisi overlay relatif (0..1) ⇄ piksel, seperti SupaFisch. Relatif dihitung terhadap ruang GERAK (area − ukuran overlay),
-/// jadi 0 = menempel kiri/atas, 1 = menempel kanan/bawah dan overlay tidak pernah keluar area. Area = klien Roblox dikurangi
-/// margin (atas di bawah topbar). Dipakai kotak preview (Settings → Overlay) dan jendela overlay.
+/// Relative overlay position (0..1) ⇄ pixels, like SupaFisch. Relative is computed against the MOVABLE space (area − overlay size),
+/// so 0 = stuck to left/top, 1 = stuck to right/bottom and the overlay never leaves the area. Area = Roblox client minus
+/// margins (top is below the topbar). Used by the preview box (Settings → Overlay) and the overlay window.
 /// </summary>
 public static class OverlayPlacement
 {
-    /// <summary>Margin (DIP) dari tepi klien Roblox; atas = di bawah topbar.</summary>
+    /// <summary>Margin (DIP) from the Roblox client edge; top = below the topbar.</summary>
     public const double Margin = 12, TopMargin = 64;
 
     public static double Clamp01(double v, double fallback = 0) =>
@@ -23,7 +23,7 @@ public static class OverlayPlacement
         return Math.Round(Clamp01(offset / free), 4);
     }
 
-    /// <summary>Posisi kiri-atas (piksel layar) overlay berukuran w×h di klien Roblox.</summary>
+    /// <summary>Top-left position (screen pixels) of a w×h overlay in the Roblox client.</summary>
     public static (int X, int Y) ToScreen((int X, int Y, int W, int H) client, double relX, double relY, int w, int h, double scale = 1)
     {
         int m = (int)Math.Round(Margin * scale), top = (int)Math.Round(TopMargin * scale);

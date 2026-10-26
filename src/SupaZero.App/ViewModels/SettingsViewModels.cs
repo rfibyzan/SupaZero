@@ -29,7 +29,7 @@ public sealed class CustomColorViewModel(string label, Func<string> get, Action<
     public void Reload() { Raise(nameof(Text)); Raise(nameof(Swatch)); }
 }
 
-/// <summary>Tab Settings: Appearance (sama dengan SupaFisch) + kalibrasi macro.</summary>
+/// <summary>Settings tab: Appearance (same as SupaFisch) + macro calibration.</summary>
 public sealed class SettingsPageViewModel : ObservableObject
 {
     private readonly MainViewModel _root;
@@ -60,16 +60,16 @@ public sealed class SettingsPageViewModel : ObservableObject
     // ── Overlay
     public bool ShowOverlay { get => S.General.ShowOverlay; set { S.General = S.General with { ShowOverlay = value }; _root.Save(); } }
 
-    // Preview monitor (seperti Running Overlay SupaFisch): layar = jendela Roblox, kotak = overlay, bisa di-drag.
-    /// <summary>Area dalam preview (Border 220×124 dikurangi border 2 px).</summary>
+    // Monitor preview (like SupaFisch's Running Overlay): screen = Roblox window, box = overlay, draggable.
+    /// <summary>Inner preview area (220×124 Border minus the 2 px border).</summary>
     public const double PreviewAreaWidth = 216, PreviewAreaHeight = 120;
-    /// <summary>Ukuran overlay asli (DIP, lebar 300, tinggi ±230) diskalakan ke jendela Roblox 1920×1009 → preview.</summary>
+    /// <summary>Real overlay size (DIP, width 300, height ~230) scaled from a 1920×1009 Roblox window → preview.</summary>
     public double PreviewBoxWidth => Math.Max(16, 300.0 / 1920 * PreviewAreaWidth);
     public double PreviewBoxHeight => Math.Max(14, 230.0 / 1009 * PreviewAreaHeight);
     public double PreviewLeft => Core.Settings.OverlayPlacement.ToOffset(S.General.OverlayX, PreviewAreaWidth, PreviewBoxWidth);
     public double PreviewTop => Core.Settings.OverlayPlacement.ToOffset(S.General.OverlayY, PreviewAreaHeight, PreviewBoxHeight);
 
-    /// <summary>Dipanggil SettingsView saat kotak di-drag (offset kiri/atas di preview).</summary>
+    /// <summary>Called by SettingsView while the box is dragged (left/top offset in the preview).</summary>
     public void MovePreviewBox(double left, double top)
     {
         S.General = S.General with
@@ -80,7 +80,7 @@ public sealed class SettingsPageViewModel : ObservableObject
         Raise(nameof(PreviewLeft)); Raise(nameof(PreviewTop));
     }
 
-    /// <summary>Drag selesai → simpan.</summary>
+    /// <summary>Drag finished → save.</summary>
     public void CommitPreview() => _root.Save();
 
     // ── Discord webhook
@@ -90,10 +90,10 @@ public sealed class SettingsPageViewModel : ObservableObject
     public bool WebhookOnDefeat { get => S.Webhook.OnDefeat; set { S.Webhook = S.Webhook with { OnDefeat = value }; _root.Save(); } }
     public bool WebhookOnStop { get => S.Webhook.OnStop; set { S.Webhook = S.Webhook with { OnStop = value }; _root.Save(); } }
     public bool WebhookOnSpin { get => S.Webhook.OnSpin; set { S.Webhook = S.Webhook with { OnSpin = value }; _root.Save(); } }
-    public string WebhookStatus => S.Webhook.Url.Length == 0 ? "Kosong = webhook mati."
-        : SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(S.Webhook.Url) ? "URL valid." : "URL tidak valid (https://discord.com/api/webhooks/...).";
-    public RelayCommand TestWebhookCommand => new(_ => _ = _root.SendWebhook(new("Tes webhook", "SupaZero terhubung ke Discord.",
-        SupaZero.Core.Notify.DiscordWebhook.Blue, [new("Stage selesai", _root.Runner.Machine.StagesCleared.ToString(), true)])));
+    public string WebhookStatus => S.Webhook.Url.Length == 0 ? "Empty = webhook off."
+        : SupaZero.Core.Notify.DiscordWebhook.IsValidUrl(S.Webhook.Url) ? "URL valid." : "Invalid URL (https://discord.com/api/webhooks/...).";
+    public RelayCommand TestWebhookCommand => new(_ => _ = _root.SendWebhook(new("Webhook test", "SupaZero is connected to Discord.",
+        SupaZero.Core.Notify.DiscordWebhook.Blue, [new("Stages cleared", _root.Runner.Machine.StagesCleared.ToString(), true)])));
 
     public bool TransparentUi
     {

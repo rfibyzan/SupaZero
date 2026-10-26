@@ -9,11 +9,11 @@
         <TextBlock Classes="h2" Text="Combat" />
         <Border Classes="sep" Margin="0,2,0,4" />
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Serangan dasar (ms)" />
+          <TextBlock Classes="label" Text="Basic attack (ms)" />
           <NumericUpDown Grid.Column="1" Value="{Binding AttackIntervalMs}" Minimum="30" Maximum="2000" Increment="10" FormatString="0" />
         </Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Shift lock otomatis saat ronde (ada musuh = selalu nyala)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoShiftLock}" /></Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Shadow Lord: auto Arise (tahan E di mayat)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoArise}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto shift lock during rounds (enemies present = always on)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoShiftLock}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Shadow Lord: auto Arise (hold E on corpses)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoArise}" /></Grid>
         <ItemsControl ItemsSource="{Binding SkillRows}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:SkillRowViewModel">
@@ -37,18 +37,18 @@
     </Border>
     <Border Grid.Column="1" Margin="8,0,0,0" Classes="card" VerticalAlignment="Top">
       <StackPanel Spacing="6">
-        <TextBlock Classes="h2" Text="Navigasi" />
+        <TextBlock Classes="h2" Text="Navigation" />
         <Border Classes="sep" Margin="0,2,0,4" />
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Jarak serang (stud)" />
+          <TextBlock Classes="label" Text="Attack range (stud)" />
           <NumericUpDown Grid.Column="1" Value="{Binding AttackRange}" Minimum="2" Maximum="150" Increment="1" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Radius sampai (stud)" />
+          <TextBlock Classes="label" Text="Arrive radius (stud)" />
           <NumericUpDown Grid.Column="1" Value="{Binding ArriveRadius}" Minimum="2" Maximum="20" Increment="1" FormatString="0" />
         </Grid>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Jarak serang: jarak yang dijaga dari musuh (± 10%, min 2 stud) sambil serang, skill, dan berputar. Radius sampai: titik area berikutnya dianggap sudah dicapai saat sedekat ini (disarankan 4–8)." />
+                   Text="Attack range: distance kept from enemies (± 10%, min 2 stud) while attacking, using skills and circling. Arrive radius: the next area point counts as reached when this close (4–8 recommended)." />
       </StackPanel>
     </Border>
   </Grid>

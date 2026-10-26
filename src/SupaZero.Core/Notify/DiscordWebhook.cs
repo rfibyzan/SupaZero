@@ -3,11 +3,11 @@ using System.Text.Json.Serialization;
 
 namespace SupaZero.Core.Notify;
 
-/// <summary>Laporan akhir ronde untuk webhook.</summary>
+/// <summary>End-of-round report for the webhook.</summary>
 public sealed record RoundReport(bool Victory, string Map, int Act, string? Difficulty, TimeSpan? Duration, int StagesCleared,
     string? ResultText, IReadOnlyList<string> Drops, bool Infinite = false);
 
-/// <summary>Kirim embed ke Discord webhook (HTTP POST dari aplikasi; tidak menyentuh Roblox).</summary>
+/// <summary>Send an embed to a Discord webhook (HTTP POST from the app; does not touch Roblox).</summary>
 public static class DiscordWebhook
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
@@ -25,12 +25,12 @@ public static class DiscordWebhook
         string stage = r.Map.Length > 0 ? $"{r.Map}{(r.Act > 0 ? $" · Act {r.Act}" : "")}" : "-";
         fields.Add(new("Stage", stage, true));
         if (r.Difficulty is { Length: > 0 } d) fields.Add(new("Difficulty", d, true));
-        if (r.Duration is { } t) fields.Add(new("Waktu", t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss"), true));
-        fields.Add(new("Stage selesai", r.StagesCleared.ToString(), true));
-        fields.Add(new("Drop", r.Drops.Count > 0 ? string.Join("\n", r.Drops.Take(25)) : "(belum terbaca)", false));
-        // Infinite tidak punya "menang": ronde selesai saat karakter mati, EndScreen menampilkan "WAVE n".
-        if (r.Infinite) return new("Infinite selesai (karakter mati)", r.ResultText, Blue, fields);
-        return new(r.Victory ? "Menang" : "Kalah", r.ResultText, r.Victory ? Green : Red, fields);
+        if (r.Duration is { } t) fields.Add(new("Time", t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss"), true));
+        fields.Add(new("Stages cleared", r.StagesCleared.ToString(), true));
+        fields.Add(new("Drop", r.Drops.Count > 0 ? string.Join("\n", r.Drops.Take(25)) : "(not read yet)", false));
+        // Infinite has no "win": the round ends when the character dies, EndScreen shows "WAVE n".
+        if (r.Infinite) return new("Infinite finished (character died)", r.ResultText, Blue, fields);
+        return new(r.Victory ? "Victory" : "Defeat", r.ResultText, r.Victory ? Green : Red, fields);
     }
 
     public const int Gold = 0xF1C40F, Purple = 0x9B59B6;
@@ -42,28 +42,28 @@ public static class DiscordWebhook
         if (r.IsTrait)
         {
             if (r.Power is { Length: > 0 } pw) f.Add(new("Power", pw, true));
-            f.Add(new("Trait", r.Result ?? "(belum terbaca)", true));
-            if (r.Chance is { Length: > 0 } c) f.Add(new("Peluang", c, true));
+            f.Add(new("Trait", r.Result ?? "(not read yet)", true));
+            if (r.Chance is { Length: > 0 } c) f.Add(new("Chance", c, true));
             if (r.Buffs.Count > 0) f.Add(new("Buff", string.Join(" ", r.Buffs), true));
-            if (r.Used is { } tu) f.Add(new("Dadu terpakai", tu.ToString(), true));
-            if (r.LeftAfter is { } tl) f.Add(new("Sisa dadu", tl.ToString(), true));
-            f.Add(new("Durasi", Dur(r.Duration), true));
+            if (r.Used is { } tu) f.Add(new("Dice used", tu.ToString(), true));
+            if (r.LeftAfter is { } tl) f.Add(new("Dice left", tl.ToString(), true));
+            f.Add(new("Duration", Dur(r.Duration), true));
             return new(r.Title, null, Purple, f);
         }
-        f.Add(new("Hasil terakhir", r.Result is null ? "(belum terbaca)" : r.Rarity is { } ra ? $"{r.Result} ({ra})" : r.Result, true));
+        f.Add(new("Last result", r.Result is null ? "(not read yet)" : r.Rarity is { } ra ? $"{r.Result} ({ra})" : r.Result, true));
         if (r.Mode is { Length: > 0 } m) f.Add(new("Mode", m, true));
-        if (r.StopAt is { Length: > 0 } st) f.Add(new("Berhenti di", st, true));
+        if (r.StopAt is { Length: > 0 } st) f.Add(new("Stop at", st, true));
         if (r.Spins is { } n) f.Add(new("Spin", n.ToString(), true));
-        if (r.Used is { } u) f.Add(new("Terpakai", u.ToString(), true));
-        if (r.LeftAfter is { } l) f.Add(new("Sisa", l.ToString(), true));
-        f.Add(new("Durasi", Dur(r.Duration), true));
+        if (r.Used is { } u) f.Add(new("Used", u.ToString(), true));
+        if (r.LeftAfter is { } l) f.Add(new("Left", l.ToString(), true));
+        f.Add(new("Duration", Dur(r.Duration), true));
         if (r.Pity.Count > 0) f.Add(new("Pity", string.Join("\n", r.Pity), false));
         return new(r.Title, null, r.StoppedOnTarget ? Gold : Blue, f);
     }
 
     public static async Task<string?> SendAsync(string url, Embed embed, string? mention = null, CancellationToken ct = default)
     {
-        if (!IsValidUrl(url)) return "URL webhook tidak valid (harus https://discord.com/api/webhooks/...).";
+        if (!IsValidUrl(url)) return "Invalid webhook URL (must be https://discord.com/api/webhooks/...).";
         var payload = new Payload(
             string.IsNullOrWhiteSpace(mention) ? null : mention.Trim(),
             "SupaZero",
@@ -71,9 +71,9 @@ public static class DiscordWebhook
         try
         {
             using var res = await Http.PostAsJsonAsync(url.Trim(), payload, ct).ConfigureAwait(false);
-            return res.IsSuccessStatusCode ? null : $"Discord menolak ({(int)res.StatusCode}).";
+            return res.IsSuccessStatusCode ? null : $"Discord rejected the request ({(int)res.StatusCode}).";
         }
-        catch (Exception ex) { return "Gagal kirim webhook: " + ex.Message; }
+        catch (Exception ex) { return "Failed to send webhook: " + ex.Message; }
     }
 
     public sealed record Payload(

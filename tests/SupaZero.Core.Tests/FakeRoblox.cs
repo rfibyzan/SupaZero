@@ -3,7 +3,7 @@ using RIE.Core.Offsets;
 
 namespace SupaZero.Core.Tests;
 
-/// <summary>Membangun pohon instance palsu sesuai layout offsets uji.</summary>
+/// <summary>Builds a fake instance tree matching the test offsets layout.</summary>
 public sealed class FakeRoblox
 {
     public const long NameOff = 0x60, ChildrenOff = 0x70, ParentOff = 0x50, DescOff = 0x18, ClassNameOff = 0x08;
@@ -37,7 +37,7 @@ public sealed class FakeRoblox
         long inst = Mem.Alloc(0x400);
         long nameStr = inst + 0x300;
         Mem.WriteStdString(nameStr, name);
-        Mem.WriteInt64(inst + NameOff, nameStr);   // Name = pointer ke std::string (ReadStringAt deref)
+        Mem.WriteInt64(inst + NameOff, nameStr);   // Name = pointer to std::string (ReadStringAt derefs)
         Mem.WriteInt64(inst + DescOff, Descriptor(className));
         long container = Mem.Alloc(0x20);
         Mem.WriteInt64(inst + ChildrenOff, container);
@@ -79,7 +79,7 @@ public sealed class FakeRoblox
 
     public void SetText(long inst, string text) => Mem.WriteStdString(inst + TextOff, text);
 
-    /// <summary>DataModel standar: game{Workspace, Players{LocalPlayer{PlayerGui}}, ReplicatedStorage}.</summary>
+    /// <summary>Standard DataModel: game{Workspace, Players{LocalPlayer{PlayerGui}}, ReplicatedStorage}.</summary>
     public (long Dm, long Ws, long Players, long Lp, long Pg, long Rs) BuildGame()
     {
         long dm = New("Game", "DataModel");

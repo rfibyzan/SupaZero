@@ -4,7 +4,7 @@ using Avalonia.Controls;
 
 namespace SupaZero.App;
 
-/// <summary>Jendela overlay: topmost, tanpa fokus, tembus klik (WS_EX_TRANSPARENT), diposisikan di pojok jendela Roblox.</summary>
+/// <summary>Overlay window: topmost, non-focusable, click-through (WS_EX_TRANSPARENT), positioned at a corner of the Roblox window.</summary>
 public partial class OverlayWindow : Window
 {
     private const int GwlExStyle = -20;
@@ -24,7 +24,7 @@ public partial class OverlayWindow : Window
         };
     }
 
-    /// <summary>Tempatkan di area klien Roblox (piksel layar) sesuai posisi relatif 0..1 (Settings → Overlay).</summary>
+    /// <summary>Place within the Roblox client area (screen pixels) at the relative 0..1 position (Settings → Overlay).</summary>
     public void PlaceAt((int X, int Y, int W, int H) client, double relX, double relY)
     {
         double scale = RenderScaling > 0 ? RenderScaling : 1;

@@ -1,10 +1,10 @@
 namespace SupaZero.Core.Game;
 
 /// <summary>
-/// v0.3.0 [V] snapshot 08:19:35 (25 Okt): Roll.CharacterSlots.Fade.List bisa KOSONG (hanya SlotTemp, menu Roll belum dibuka sejak join),
-/// sementara Roll.CharacterInfo.Title tetap mengikuti unit terpilih di SkillTree (SkillTree Slot5 terpilih, Title "Twisted Agony").
-/// Tanpa daftar Roll, slot judul tidak bisa dicocokkan langsung, jadi judul hanya diterima bila TERBUKTI berubah setelah slot SkillTree berganti
-/// (judul saat pergantian ≠ judul sekarang). Judul yang tidak pernah berubah = basi/unknown → null (tidak menebak).
+/// v0.3.0 [V] snapshot 08:19:35 (25 Oct): Roll.CharacterSlots.Fade.List can be EMPTY (only SlotTemp; the Roll menu has not been opened since joining),
+/// while Roll.CharacterInfo.Title still follows the unit selected in SkillTree (SkillTree Slot5 selected, Title "Twisted Agony").
+/// Without the Roll list, the title's slot cannot be matched directly, so a title is only accepted once it is PROVEN to have changed after the SkillTree slot switched
+/// (title at the switch ≠ current title). A title that never changed = stale/unknown → null (no guessing).
 /// </summary>
 public sealed class RollTitleTracker
 {
@@ -14,9 +14,9 @@ public sealed class RollTitleTracker
 
     public void Reset() { _st = null; _titleAtSwitch = null; _proven.Clear(); }
 
-    /// <param name="st">slot terpilih di SkillTree</param>
-    /// <param name="rollHasSlots">daftar Roll punya anak SlotN</param>
-    /// <param name="rs">slot terpilih di daftar Roll</param>
+    /// <param name="st">slot selected in SkillTree</param>
+    /// <param name="rollHasSlots">the Roll list has SlotN children</param>
+    /// <param name="rs">slot selected in the Roll list</param>
     public string? Resolve(int? st, string? title, bool rollHasSlots, int? rs)
     {
         if (rollHasSlots) { if (st is int a && rs == a && title is not null) _proven[a] = title; Track(st, title); return st is not null && rs == st ? title : null; }

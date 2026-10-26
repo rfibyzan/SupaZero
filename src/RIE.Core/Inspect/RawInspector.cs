@@ -6,7 +6,7 @@ using RIE.Core.Roblox;
 
 namespace RIE.Core.Inspect;
 
-/// <summary>Satu baris 8 byte memori instance.</summary>
+/// <summary>One 8-byte row of instance memory.</summary>
 public sealed record RawRow(int Offset, string Hex, string Ints, string Floats, string Note, bool Changed)
 {
     public string OffsetText => $"+0x{Offset:X3}";
@@ -18,8 +18,8 @@ public sealed record RawMatch(int Offset, string Kind, string Value)
 }
 
 /// <summary>
-/// Inspektor memori mentah (hanya baca) untuk mencari offset yang tidak ada di dump:
-/// tampilkan hex/int/float/pointer, tandai byte yang berubah, dan cari nilai yang dikenal.
+/// Raw memory inspector (read-only) for finding offsets missing from the dump:
+/// shows hex/int/float/pointer, marks changed bytes, and searches for known values.
 /// </summary>
 public static class RawInspector
 {
@@ -53,7 +53,7 @@ public static class RawInspector
     private static string Fmt(float f) =>
         !float.IsFinite(f) ? "-" : (f != 0 && (MathF.Abs(f) < 1e-4f || MathF.Abs(f) > 1e7f)) ? "~" : f.ToString("0.####", Inv);
 
-    /// <summary>Tebakan isi 8 byte: pointer ke instance/string, atau std::string inline.</summary>
+    /// <summary>Guess at the 8-byte contents: pointer to an instance/string, or inline std::string.</summary>
     private static string Note(IMemorySource m, InstanceReader? reader, long at, long q)
     {
         if (MemorySourceExtensions.IsValidAddress(q))
@@ -74,8 +74,8 @@ public static class RawInspector
     }
 
     /// <summary>
-    /// Cari nilai di data: angka → float (±tol), int32 tepat, double (±tol); "teks" atau teks non-angka → string UTF-8
-    /// inline maupun via pointer std::string.
+    /// Search for a value in the data: number → float (±tol), exact int32, double (±tol); "text" or non-numeric text → UTF-8 string
+    /// both inline and via std::string pointer.
     /// </summary>
     public static List<RawMatch> Find(IMemorySource m, long address, int start, byte[] data, string query, double tol = 0.01, int max = 200)
     {

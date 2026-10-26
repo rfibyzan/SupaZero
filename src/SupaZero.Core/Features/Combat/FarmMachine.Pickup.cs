@@ -6,9 +6,9 @@ namespace SupaZero.Core.Automation;
 
 public sealed partial class FarmMachine
 {
-    /// <summary>Radius pungut koin/health saat area bersih; radius health saat darah rendah; ambang darah rendah.</summary>
+    /// <summary>Coin/health pickup radius when the area is clear; health radius when HP is low; low-HP threshold.</summary>
     internal const double PickupClearRadius = 90, PickupHealthRadius = 60, PickupNearRadius = 30, ClusterRadius = 15, LowHpPickup = 0.5;
-    /// <summary>Item yang tidak terambil dalam waktu ini (terhalang/tidak terjangkau) dilewati.</summary>
+    /// <summary>Items not picked up within this time (blocked/unreachable) are skipped.</summary>
     internal const long PickupGiveUpMs = 6000;
     private readonly Dictionary<string, long> _pickupBan = new(StringComparer.Ordinal);
     private string? _pickupKey;
@@ -16,11 +16,11 @@ public sealed partial class FarmMachine
 
     private static string PickupKey(PickupInfo p) => $"{p.Kind}@{Math.Round(p.Pos.X)},{Math.Round(p.Pos.Z)}";
 
-    /// <summary>Jalan melewati item terdekat (koin/health) dalam radius. null = tidak ada item yang perlu diambil.</summary>
+    /// <summary>Walk over the nearest item (coin/health) within the radius. null = no item to pick up.</summary>
     private List<MacroAction>? Pickup(GameSnapshot s, long now, double radius, bool healthOnly, AppSettings S)
     {
         if (s.PlayerPos is not { } me || s.Pickups.Count == 0) { _pickupKey = null; return null; }
-        // Health hanya dipungut bila darah tidak penuh (pickup terbuang bila penuh).
+        // Health is only picked up when HP is not full (the pickup is wasted when full).
         bool wantHealth = s.PlayerHp is not { } hpNow || hpNow < 0.95;
         var best = s.Pickups
             .Where(p => (healthOnly ? p.IsHealth : (!p.IsHealth || wantHealth)) && !(_pickupBan.TryGetValue(PickupKey(p), out long until) && until > now))
@@ -34,14 +34,14 @@ public sealed partial class FarmMachine
         {
             _pickupBan[key] = now + 60_000;
             _pickupKey = null;
-            return [new MoveAction([], "Lewati item"), .. Note("pickup-ban", now, 4000, $"Item {best.p.Kind} tidak terambil dalam {PickupGiveUpMs / 1000} dtk, dilewati.")];
+            return [new MoveAction([], "Skip item"), .. Note("pickup-ban", now, 4000, $"Item {best.p.Kind} not picked up within {PickupGiveUpMs / 1000} s, skipped.")];
         }
-        string what = best.p.IsHealth ? "health" : "koin";
-        // Radius 2 (bukan 1): item terambil saat tersentuh; radius 1 bikin karakter maju-mundur pelan di atas item.
+        string what = best.p.IsHealth ? "health" : "coin";
+        // Radius 2 (not 1): items are picked up on touch; radius 1 makes the character slowly jitter back and forth over the item.
         var walk = WalkPath(s, best.p.Pos, 2.0, now, what, false);
         int left = s.Pickups.Count;
-        Status = $"Ambil {what} ({best.d:0} stud, {left} item)";
-        return walk.Count > 0 ? walk : [new MoveAction([], $"Di atas {what}")];
+        Status = $"Pick up {what} ({best.d:0} studs, {left} items)";
+        return walk.Count > 0 ? walk : [new MoveAction([], $"On top of {what}")];
     }
 
     // ---------- Shadow Lord: Arise (v0.2.67) ----------

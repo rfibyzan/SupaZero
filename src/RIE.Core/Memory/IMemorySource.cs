@@ -2,16 +2,16 @@ using System.Buffers.Binary;
 
 namespace RIE.Core.Memory;
 
-/// <summary>Sumber memori READ-ONLY. Tidak ada operasi tulis di seluruh solusi.</summary>
+/// <summary>READ-ONLY memory source. No write operations anywhere in the solution.</summary>
 public interface IMemorySource
 {
-    /// <summary>Baca tepat <paramref name="buffer"/>.Length byte; false bila gagal/parsial.</summary>
+    /// <summary>Reads exactly <paramref name="buffer"/>.Length bytes; false on failure/partial read.</summary>
     bool TryRead(long address, Span<byte> buffer);
 }
 
 public static class MemorySourceExtensions
 {
-    /// <summary>Rentang alamat user-mode x64 yang masuk akal.</summary>
+    /// <summary>Plausible x64 user-mode address range.</summary>
     public static bool IsValidAddress(long address) => (ulong)address > 0xFFFF && (ulong)address < 0x800000000000;
 
     public static bool TryReadInt64(this IMemorySource m, long address, out long value)

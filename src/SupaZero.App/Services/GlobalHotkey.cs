@@ -4,7 +4,7 @@ using SupaZero.Core.Input;
 
 namespace SupaZero.App.Services;
 
-/// <summary>Hotkey global (RegisterHotKey) terikat HWND jendela utama, sama seperti SupaFisch.</summary>
+/// <summary>Global hotkey (RegisterHotKey) bound to the main window HWND, same as SupaFisch.</summary>
 public sealed partial class GlobalHotkey : IDisposable
 {
     private const int HotkeyId = 0x535A; // "SZ"
@@ -39,12 +39,12 @@ public sealed partial class GlobalHotkey : IDisposable
     {
         Unregister();
         LastError = null;
-        if (!OperatingSystem.IsWindows()) { LastError = "Hotkey global hanya tersedia di Windows."; return false; }
-        if (!HotkeyMap.TryGetVirtualKey(keyName, out uint vk)) { LastError = $"Tombol '{keyName}' tidak didukung."; return false; }
+        if (!OperatingSystem.IsWindows()) { LastError = "Global hotkeys are only available on Windows."; return false; }
+        if (!HotkeyMap.TryGetVirtualKey(keyName, out uint vk)) { LastError = $"Key '{keyName}' is not supported."; return false; }
         _hwnd = _window.TryGetPlatformHandle()?.Handle ?? 0;
-        if (_hwnd == 0) { LastError = "Handle jendela belum tersedia."; return false; }
+        if (_hwnd == 0) { LastError = "Window handle is not available yet."; return false; }
         _registered = RegisterHotKey(_hwnd, HotkeyId, ModNoRepeat, vk);
-        if (!_registered) LastError = $"RegisterHotKey gagal untuk '{keyName}' (dipakai aplikasi lain?).";
+        if (!_registered) LastError = $"RegisterHotKey failed for '{keyName}' (in use by another app?).";
         return _registered;
     }
 

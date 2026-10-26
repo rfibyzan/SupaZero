@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace RIE.Core.Watch;
 
-/// <summary>Set Watch yang bisa disimpan/dimuat: path, rule, interval.</summary>
+/// <summary>Watch set that can be saved/loaded: paths, rules, interval.</summary>
 public sealed class WatchSet
 {
     public int Version { get; set; } = 1;
@@ -21,7 +21,7 @@ public sealed class WatchSet
 
     public static WatchSet FromJson(string json)
     {
-        var s = JsonSerializer.Deserialize<WatchSet>(json, Json) ?? throw new InvalidDataException("Set Watch kosong.");
+        var s = JsonSerializer.Deserialize<WatchSet>(json, Json) ?? throw new InvalidDataException("Empty watch set.");
         s.Paths = s.Paths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.StartsWith("game.", StringComparison.Ordinal) ? p[5..] : p).Distinct().ToList();
         s.IntervalMs = Math.Clamp(s.IntervalMs, 10, 60000);
         return s;
@@ -35,10 +35,10 @@ public sealed class WatchSet
     }
 }
 
-/// <summary>Ekspor log Watch ke CSV (RFC 4180, koma, UTF-8).</summary>
+/// <summary>Exports the Watch log to CSV (RFC 4180, comma, UTF-8).</summary>
 public static class WatchCsv
 {
-    public const string Header = "waktu,jenis,path,properti,lama,baru,rule,durasi_ms";
+    public const string Header = "time,kind,path,property,old,new,rule,duration_ms";
 
     public static string ToCsv(IEnumerable<WatchEvent> events)
     {

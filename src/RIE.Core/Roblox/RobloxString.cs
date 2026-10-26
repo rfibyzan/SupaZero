@@ -4,8 +4,8 @@ using RIE.Core.Memory;
 namespace RIE.Core.Roblox;
 
 /// <summary>
-/// std::string Roblox (MSVC): buffer inline 16 byte @+0, panjang @+lengthOffset (default 0x10),
-/// pointer heap @+0 bila panjang &gt; 15. Diturunkan dari OpenFisch RobloxString.
+/// Roblox std::string (MSVC): 16-byte inline buffer @+0, length @+lengthOffset (default 0x10),
+/// heap pointer @+0 when length &gt; 15. Derived from OpenFisch RobloxString.
 /// </summary>
 public static class RobloxString
 {
@@ -19,7 +19,7 @@ public static class RobloxString
         return Core(m, address, DefaultLengthOffset, allowWhitespace);
     }
 
-    /// <summary>Alamat berisi std::string, atau pointer ke std::string (satu deref).</summary>
+    /// <summary>Address holding a std::string, or a pointer to a std::string (one deref).</summary>
     public static string ReadStringAt(IMemorySource m, long address, int lengthOffset = DefaultLengthOffset, bool allowWhitespace = true)
     {
         string s = ReadStdString(m, address, lengthOffset, allowWhitespace);

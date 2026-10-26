@@ -8,8 +8,8 @@ namespace SupaZero.Core.Game;
 public sealed partial class GameReader
 {
     /// <summary>
-    /// Entri daftar Create Lobby (map/act/mode) [V]: anak GuiObject yang punya teks. Terkunci = ada turunan terlihat
-    /// bernama "*Lock*" atau teks memuat "lock". Terpilih = turunan terlihat bernama "*Select*"/"*Selected*".
+    /// Create Lobby list entries (map/act/mode) [V]: GuiObject children that have text. Locked = has a visible descendant
+    /// named "*Lock*" or text containing "lock". Selected = visible descendant named "*Select*"/"*Selected*".
     /// </summary>
     private List<LobbyEntry> ReadList(long list, long pg)
     {
@@ -20,7 +20,7 @@ public sealed partial class GameReader
         {
             string cls = reader.GetClassName(c);
             if (!PropertyReader.IsGuiObject(cls) || !IsShown(c, pg) || IsListChrome(reader.GetName(c))) continue;
-            // Kartu map terverifikasi RIE (23 Okt 2026): MapsList.List.ScrollingFrame.<Id>.<Id>.Txt = judul,
+            // Map card verified in RIE (23 Oct 2026): MapsList.List.ScrollingFrame.<Id>.<Id>.Txt = title,
             // .Holder.Lvl.Label = "Mode: ", .Holder.Lvl.Value = "Story"/"Raid"/"Tidal High Rise"/...
             long inner = reader.FindChild(c, reader.GetName(c));
             long title = inner != 0 ? reader.FindChild(inner, "Txt") : 0;
@@ -33,12 +33,12 @@ public sealed partial class GameReader
                 continue;
             }
             if (reader.GetName(c).Contains("Spacer", StringComparison.OrdinalIgnoreCase)) continue;
-            // Cadangan (daftar mode/act): judul = teks pertama.
+            // Fallback (mode/act list): title = first text.
             var texts = Texts(c, 0).ToList();
             var clean = texts.Select(t => System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim()).ToList();
             int mi = clean.FindIndex(t => t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase));
             string? mode = mi < 0 ? null : clean[mi][5..].Trim() is { Length: > 0 } inline ? inline
-                : mi + 1 < clean.Count ? clean[mi + 1] : null; // label "Mode:" dan nilainya bisa TextLabel terpisah
+                : mi + 1 < clean.Count ? clean[mi + 1] : null; // the "Mode:" label and its value can be separate TextLabels
             string name = texts.Select(t => System.Text.RegularExpressions.Regex.Replace(t, "<[^>]+>", "").Trim())
                 .FirstOrDefault(t => t.Length > 0 && !t.StartsWith("Mode:", StringComparison.OrdinalIgnoreCase) && !t.Equals("NEW!", StringComparison.OrdinalIgnoreCase))
                 ?? reader.GetName(c);
@@ -50,7 +50,7 @@ public sealed partial class GameReader
         return result;
     }
 
-    /// <summary>Rect tampak daftar (ScrollingFrame / wadah entri). Entri di luar rect ini tersembunyi dan perlu di-scroll.</summary>
+    /// <summary>Visible rect of the list (ScrollingFrame / entry container). Entries outside this rect are hidden and need scrolling.</summary>
     private GuiRect? ListView(long list)
     {
         if (list == 0) return null;
@@ -58,7 +58,7 @@ public sealed partial class GameReader
         return MenuRect(box) ?? MenuRect(list);
     }
 
-    /// <summary>Tombol difficulty terverifikasi: Container.&lt;D&gt;.&lt;D&gt;.Hit (TextButton seukuran kartu).</summary>
+    /// <summary>Verified difficulty buttons: Container.&lt;D&gt;.&lt;D&gt;.Hit (card-sized TextButton).</summary>
     private List<LobbyEntry> ReadDifficulties(long lobby, long pg)
     {
         var found = new List<LobbyEntry>();
@@ -78,8 +78,8 @@ public sealed partial class GameReader
     }
 
     /// <summary>
-    /// Kartu act terverifikasi: ActsList.List.ScrollingFrame.Act&lt;n&gt; (Frame; ada banyak "Act1" untuk tiap map, yang
-    /// Visible milik map terpilih) → .Act&lt;n&gt; ImageButton → .TxtHolder.Act ("Act 1") / .TxtHolder.Title, .Locked.
+    /// Verified act cards: ActsList.List.ScrollingFrame.Act&lt;n&gt; (Frame; there are many "Act1" nodes, one per map, the
+    /// Visible one belongs to the selected map) → .Act&lt;n&gt; ImageButton → .TxtHolder.Act ("Act 1") / .TxtHolder.Title, .Locked.
     /// </summary>
     private List<LobbyEntry> ReadActs(long lobby, long pg)
     {
@@ -103,8 +103,8 @@ public sealed partial class GameReader
     }
 
     /// <summary>
-    /// MapsList dkk. bisa berupa wadah {ScrollingBar, List}; entri map ada di dalam "List" (bug v0.2: dropdown berisi
-    /// "ScrollingBar" dan "List"). Turun ke anak List / ScrollingFrame / Container / Content selama wadah belum berisi entri.
+    /// MapsList etc. can be a container {ScrollingBar, List}; map entries live inside "List" (v0.2 bug: dropdown showed
+    /// "ScrollingBar" and "List"). Descend into a List / ScrollingFrame / Container / Content child while the container has no entries yet.
     /// </summary>
     private long EntryContainer(long list)
     {

@@ -1,26 +1,26 @@
 # SupaZero
 
-Macro **AutoFarm Anime Zero** (Roblox, place `114574503491412`): Story (lanjut stage demi stage), Infinite, Defend, Raid, Trials. Jalan sendiri ke lingkaran Create Room, pilih mode/map/act/difficulty, bertarung, jalan ke area berikutnya (serang rubble bila tersangkut), upgrade SkillTree, lalu Next/Retry. UI sama dengan SupaFisch (C# .NET 8 + Avalonia, tema Black/White/Custom).
+**AutoFarm macro for Anime Zero** (Roblox, place `114574503491412`): Story (advancing stage by stage), Infinite, Defend, Raid, Trials. Walks to the Create Room circle by itself, picks mode/map/act/difficulty, fights, walks to the next area (attacks rubble when stuck), upgrades the SkillTree, then Next/Retry. Same UI as SupaFisch (C# .NET 8 + Avalonia, Black/White/Custom themes).
 
 ![General](docs/img/general.png)
 
-## Batasan (wajib)
+## Constraints (mandatory)
 
-- Memori Roblox **hanya dibaca** (reader dari RobloxInstanceExplorer). Input lewat **SendInput** saja.
-- TANPA WriteProcessMemory, injeksi, DLL, FFlags, atau bypass anti-cheat.
-- Input hanya dikirim saat jendela Roblox di depan (alt-tab = macro otomatis menahan input).
+- Roblox memory is **read-only** (reader from RobloxInstanceExplorer). Input via **SendInput** only.
+- NO WriteProcessMemory, injection, DLLs, FFlags, or anti-cheat bypass.
+- Input is only sent while the Roblox window is in front (alt-tab = the macro automatically holds input).
 
-## Struktur
+## Structure
 
-| Folder | Isi |
+| Folder | Contents |
 |---|---|
-| `src/RIE.Core` | Salinan reader read-only RobloxInstanceExplorer v3.12 (ProcessMemory, offsets, InstanceReader, PropertyReader). |
-| `src/SupaZero.Core` | `Game/` baca keadaan game → `GameSnapshot`; `Automation/` `FarmMachine` (otak macro, murni & dites), `Navigator` (W/A/S/D ke tujuan dari posisi karakter + arah kamera), `UpgradePlanner`, `MacroRunner` (loop); `Interop/Win32Input` (SendInput); `Settings/`. |
-| `src/SupaZero.App` | UI Avalonia gaya SupaFisch: tab General, AutoFarm, Upgrade, Offsets, Settings. |
-| `tests/SupaZero.Core.Tests` | xUnit: parser HUD, FarmMachine, Navigator, planner upgrade, GameReader dengan memori palsu. |
-| `docs/` | `research.md` (hasil riset RIE fase 1), `ROADMAP.md`. |
+| `src/RIE.Core` | Copy of the read-only RobloxInstanceExplorer v3.12 reader (ProcessMemory, offsets, InstanceReader, PropertyReader). |
+| `src/SupaZero.Core` | `Game/` reads game state → `GameSnapshot`; `Automation/` `FarmMachine` (macro brain, pure & tested), `Navigator` (W/A/S/D to a target from character position + camera direction), `UpgradePlanner`, `MacroRunner` (loop); `Interop/Win32Input` (SendInput); `Settings/`. |
+| `src/SupaZero.App` | SupaFisch-style Avalonia UI: General, AutoFarm, Upgrade, Offsets, Settings tabs. |
+| `tests/SupaZero.Core.Tests` | xUnit: HUD parser, FarmMachine, Navigator, upgrade planner, GameReader with fake memory. |
+| `docs/` | `research.md` (RIE phase 1 research results), `ROADMAP.md`. |
 
-## Menjalankan (PowerShell)
+## Running (PowerShell)
 
 ```powershell
 git clone https://github.com/rfibyzan/SupaZero.git
@@ -28,18 +28,18 @@ cd SupaZero
 dotnet run --project src/SupaZero.App -c Release
 ```
 
-Tes: `dotnet test tests/SupaZero.Core.Tests`
+Tests: `dotnet test tests/SupaZero.Core.Tests`
 
-Offsets: tab **Offsets** → **Unduh terbaru** (disimpan ke `%AppData%\SupaZero\offsets.json`), atau otomatis memakai `offsets.json` milik RIE bila ada. Pengaturan di `%AppData%\SupaZero\settings.json`, log di `%AppData%\SupaZero\logs`.
+Offsets: **Offsets** tab → **Download latest** (saved to `%AppData%\SupaZero\offsets.json`), or RIE's `offsets.json` is used automatically if present. Settings in `%AppData%\SupaZero\settings.json`, logs in `%AppData%\SupaZero\logs`.
 
-## Alur macro
+## Macro flow
 
-1. **Lobby**: klik tombol **Areas** → kartu **Story** (Click to Teleport) → deteksi lingkaran "Start Here" → jalan ke sana (W/A/S/D).
-2. **Create Room**: pilih Mode → Map (berhenti bila map/act terkunci) → Act → Difficulty → Start (`StaerButton`).
+1. **Lobby**: click the **Areas** button → **Story** card (Click to Teleport) → detect the "Start Here" circle → walk there (W/A/S/D).
+2. **Create Room**: pick Mode → Map (stops if the map/act is locked) → Act → Difficulty → Start (`StaerButton`).
 3. **Start Game?** → Yes.
-4. **Ronde**: selama `Workspace.enemies` berisi musuh → klik kiri + tombol skill sesuai cooldown masing-masing.
-5. **Area bersih** → jalan ke `Workspace.World.Spawns/Areas[n+1]`; tersangkut 1,5 dtk → lompat + serang (rubble HxH).
-6. **EndScreen menang** → upgrade SkillTree (bila aktif dan terbuka) → Next (Story) / Retry (mode lain) / pilihan manual.
-7. **DEFEAT** (`ResultText`) → Retry sampai batas, lalu berhenti.
+4. **Round**: while `Workspace.enemies` contains enemies → left click + skill keys per their own cooldowns.
+5. **Area cleared** → walk to `Workspace.World.Spawns/Areas[n+1]`; stuck for 1.5 s → jump + attack (HxH rubble).
+6. **Victory EndScreen** → upgrade SkillTree (if enabled and open) → Next (Story) / Retry (other modes) / manual choice.
+7. **DEFEAT** (`ResultText`) → Retry up to the limit, then stop.
 
-Hotkey default **F1** (Start/Stop), bisa diganti di tab General.
+Default hotkey **F1** (Start/Stop), changeable on the General tab.

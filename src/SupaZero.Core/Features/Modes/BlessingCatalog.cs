@@ -4,29 +4,29 @@ using System.Text.RegularExpressions;
 
 namespace SupaZero.Core.Game;
 
-/// <summary>Jenis buff kartu Mirror Blessing (Evil Reflection), diturunkan dari teks Description/Value kartu.</summary>
+/// <summary>Buff type of a Mirror Blessing card (Evil Reflection), derived from the card's Description/Value text.</summary>
 public enum BlessingBuff { Damage, MaxHealth, Heal, ExtraLife, MoveSpeed, Splash, TwinDamage, Other }
 
-/// <summary>Data satu kartu Mirror Blessing: nama, rarity, teks game, buff.</summary>
+/// <summary>Data for one Mirror Blessing card: name, rarity, game text, buffs.</summary>
 public sealed record BlessingInfo(string Name, string Rarity, string Description, string Value)
 {
     [JsonIgnore] public IReadOnlyList<BlessingBuff> Buffs => BlessingCatalog.Classify(Description + " " + Value);
-    /// <summary>Kartu dengan efek negatif ("…, but take 20% more damage").</summary>
+    /// <summary>Card with a negative effect ("…, but take 20% more damage").</summary>
     [JsonIgnore] public bool HasDrawback => BlessingCatalog.IsDrawback(Description);
 }
 
-/// <summary>Urutan + aktif per buff (pengaturan).</summary>
+/// <summary>Order + enabled per buff (settings).</summary>
 public sealed record BuffPref(BlessingBuff Buff, bool Enabled);
 
-/// <summary>Urutan + boleh dipilih per kartu (pengaturan). Enabled=false → jangan pilih bila ada pilihan lain.</summary>
+/// <summary>Order + pickable per card (settings). Enabled=false → do not pick if there is another option.</summary>
 public sealed record BlessingPref(string Name, bool Enabled);
 
 public static class BlessingCatalog
 {
     /// <summary>
-    /// Kartu yang terbukti di game (PlayerGui.FateBlessings.Picker.Holder.List, snapshot RIE Byzan 24 Okt + 26 Okt 08:36:16/08:36:56/08:37:16).
-    /// Value adalah contoh terbaca; angka bisa berbeda per tawaran (Sharper Edge COMMON terbaca +20% dan +35%).
-    /// Kartu baru yang terbaca saat main otomatis ditambahkan ke FarmSettings.KnownBlessings.
+    /// Cards confirmed in game (PlayerGui.FateBlessings.Picker.Holder.List, Byzan RIE snapshots 24 Oct + 26 Oct 08:36:16/08:36:56/08:37:16).
+    /// Value is an example as read; numbers can differ per offer (Sharper Edge COMMON read as +20% and +35%).
+    /// New cards read during play are automatically added to FarmSettings.KnownBlessings.
     /// </summary>
     public static readonly IReadOnlyList<BlessingInfo> Seen =
     [
@@ -50,12 +50,12 @@ public static class BlessingCatalog
         BlessingBuff.Heal => "Heal / lifesteal",
         BlessingBuff.ExtraLife => "Extra life",
         BlessingBuff.MoveSpeed => "Move speed",
-        BlessingBuff.Splash => "Ledakan area (splash)",
-        BlessingBuff.TwinDamage => "Damage ke Evil Twin",
-        _ => "Lainnya",
+        BlessingBuff.Splash => "Area explosion (splash)",
+        BlessingBuff.TwinDamage => "Damage vs Evil Twin",
+        _ => "Other",
     };
 
-    /// <summary>Kata kunci dari teks kartu yang terbaca. "twin" didahulukan: Twin Breaker hanya kena twin, bukan damage umum.</summary>
+    /// <summary>Keywords from the read card text. "twin" takes precedence: Twin Breaker only affects the twin, not general damage.</summary>
     public static IReadOnlyList<BlessingBuff> Classify(string text)
     {
         string t = text.ToLowerInvariant();
@@ -64,7 +64,7 @@ public static class BlessingCatalog
         if (twin) r.Add(BlessingBuff.TwinDamage);
         if (!twin && Regex.IsMatch(t, @"\+\s*\d[\d.]*%\s*damage")) r.Add(BlessingBuff.Damage);
         if (t.Contains("max health")) r.Add(BlessingBuff.MaxHealth);
-        if (Regex.IsMatch(t, @"\bheal(s|ing|ed)?\b")) r.Add(BlessingBuff.Heal); // bukan "health"
+        if (Regex.IsMatch(t, @"\bheal(s|ing|ed)?\b")) r.Add(BlessingBuff.Heal); // not "health"
         if (Regex.IsMatch(t, @"\b(life|lives)\b")) r.Add(BlessingBuff.ExtraLife);
         if (t.Contains("move speed")) r.Add(BlessingBuff.MoveSpeed);
         if (t.Contains("explode") || t.Contains("nearby")) r.Add(BlessingBuff.Splash);
@@ -78,7 +78,7 @@ public static class BlessingCatalog
         return t.Contains("but take") || t.Contains("more damage");
     }
 
-    /// <summary>Angka pertama di Value ("+35%" → 35, "+0.6% a hit" → 0.6). null bila tidak ada.</summary>
+    /// <summary>First number in Value ("+35%" → 35, "+0.6% a hit" → 0.6). null if none.</summary>
     public static double? Number(string? value)
     {
         if (value is null) return null;
@@ -91,7 +91,7 @@ public static class BlessingCatalog
         "COMMON" => 1, "RARE" => 2, "EPIC" => 3, "LEGENDARY" => 4, "MYTHIC" => 5, _ => 0,
     };
 
-    /// <summary>Gabungan kartu bawaan + yang dipelajari (nama sama → data terbaru dari game).</summary>
+    /// <summary>Built-in cards merged with learned ones (same name → latest data from the game).</summary>
     public static List<BlessingInfo> All(IEnumerable<BlessingInfo>? learned)
     {
         var map = new Dictionary<string, BlessingInfo>(StringComparer.OrdinalIgnoreCase);
@@ -104,7 +104,7 @@ public static class BlessingCatalog
         return order.Select(n => map[n]).ToList();
     }
 
-    /// <summary>Urutan buff efektif: tersimpan + buff baru di belakang (mati).</summary>
+    /// <summary>Effective buff order: saved + new buffs appended (disabled).</summary>
     public static List<BuffPref> EffectiveBuffs(IReadOnlyList<BuffPref>? saved)
     {
         var r = (saved ?? []).GroupBy(b => b.Buff).Select(g => g.First()).ToList();
@@ -112,7 +112,7 @@ public static class BlessingCatalog
         return r;
     }
 
-    /// <summary>Urutan kartu efektif: tersimpan; bila belum ada, dari teks lama "a, b, c"; kartu lain menyusul (aktif).</summary>
+    /// <summary>Effective card order: saved; if none, from the legacy text "a, b, c"; other cards follow (enabled).</summary>
     public static List<BlessingPref> EffectiveCards(IReadOnlyList<BlessingPref>? saved, string? legacyCsv, IEnumerable<BlessingInfo> all)
     {
         var r = new List<BlessingPref>();
@@ -124,8 +124,8 @@ public static class BlessingCatalog
     }
 
     /// <summary>
-    /// Pilih kartu: (1) kartu yang dimatikan dilewati bila masih ada pilihan lain; (2) buff aktif teratas yang dimiliki kartu;
-    /// (3) urutan kartu; (4) rarity tertinggi; (5) angka Value terbesar. Selalu mengembalikan satu kartu bila ada tawaran (timer game).
+    /// Pick a card: (1) disabled cards are skipped while other options exist; (2) highest-ranked enabled buff the card has;
+    /// (3) card order; (4) highest rarity; (5) largest Value number. Always returns one card when there are offers (game timer).
     /// </summary>
     public static BlessingOffer? Choose(IReadOnlyList<BlessingOffer> offers, IReadOnlyList<BuffPref> buffs, IReadOnlyList<BlessingPref> cards, IEnumerable<BlessingInfo>? known = null)
     {

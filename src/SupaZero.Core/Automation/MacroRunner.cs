@@ -4,8 +4,8 @@ using SupaZero.Core.Settings;
 namespace SupaZero.Core.Automation;
 
 /// <summary>
-/// Loop macro di thread latar: baca snapshot → <see cref="StoryMachine"/> → kirim input. Input HANYA dikirim saat jendela
-/// Roblox di depan (alt-tab = pause otomatis). Tidak ada tulis memori.
+/// Macro loop on a background thread: read snapshot → <see cref="StoryMachine"/> → send input. Input is ONLY sent while the
+/// Roblox window is in the foreground (alt-tab = automatic pause). No memory writes.
 /// </summary>
 public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppSettings> settings) : IDisposable
 {
@@ -36,11 +36,11 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         _loop = Task.Run(() => Loop(token), token);
-        Log?.Invoke(calibrate ? "Kalibrasi aksi mulai (power → room → mode/map/act → Leave)." : "Macro mulai.");
+        Log?.Invoke(calibrate ? "Action calibration started (power → room → mode/map/act → Leave)." : "Macro started.");
         RunningChanged?.Invoke(true);
     }
 
-    /// <summary>Alasan StopAction terakhir (null = dihentikan manual).</summary>
+    /// <summary>Reason of the last StopAction (null = stopped manually).</summary>
     public string? LastStopReason { get; set; }
 
     public void Stop()
@@ -49,7 +49,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         _cts.Cancel();
         _cts = null;
         ReleaseMovement();
-        Log?.Invoke("Macro berhenti.");
+        Log?.Invoke("Macro stopped.");
         RunningChanged?.Invoke(false);
     }
 
@@ -64,28 +64,28 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
             {
                 var snap = read();
                 if (input.ClientSize() is { } cs) snap = snap with { ClientW = cs.W, ClientH = cs.H };
-                // v0.2.80 (jangan menebak): status shift lock HANYA dari geser kamera di memori; deteksi kursor-di-tengah dihapus.
+                // v0.2.80 (no guessing): shift lock state ONLY from the camera offset in memory; cursor-in-center detection removed.
                 if (snap.CameraFollowsPlayer is { } follow && follow != _camFollow)
                 {
                     _camFollow = follow;
-                    if (!follow) Log?.Invoke($"Kamera tidak mengikuti karakter (animasi/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, putar & arah kamera ditahan.");
-                    else Log?.Invoke("Kamera kembali mengikuti karakter.");
+                    if (!follow) Log?.Invoke($"Camera is not following the character (animation/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, turning & camera aim held.");
+                    else Log?.Invoke("Camera is following the character again.");
                 }
                 _camFree = snap.CameraFollowsPlayer == false;
                 var sl = snap.ShiftLockFromCamera;
                 if (sl != _shiftLockMem && sl is not null) Log?.Invoke(string.Create(System.Globalization.CultureInfo.InvariantCulture,
-                    $"Shift lock {(sl == true ? "NYALA" : "mati")} (kamera geser {snap.CameraSideOffset:0.00} stud)."));
+                    $"Shift lock {(sl == true ? "ON" : "off")} (camera offset {snap.CameraSideOffset:0.00} stud)."));
                 _shiftLockMem = sl;
                 snap = snap with { ShiftLock = sl == true };
                 LastSnapshot = snap;
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
                 bool fg = input.IsTargetForeground();
-                // v0.3.12 (Byzan 26 Okt): musuh terdeteksi di stage mana pun → shift lock WAJIB nyala (tidak tergantung toggle).
+                // v0.3.12 (Byzan 26 Oct): enemies detected in any stage → shift lock MUST be on (independent of the toggle).
                 bool mustLock = MustShiftLock(snap);
                 if (fg && (mustLock || settings().Combat.AutoShiftLock)) await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct, mustLock);
                 if (!fg && actions.Any(a => a is not NoteAction and not StopAction))
                 {
-                    if (!pausedLogged) Log?.Invoke("Roblox tidak di depan → input ditahan.");
+                    if (!pausedLogged) Log?.Invoke("Roblox is not in the foreground → input held.");
                     pausedLogged = true;
                 }
                 else pausedLogged = false;
@@ -102,22 +102,22 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         }
     }
 
-    private const ushort ShiftVk = 0xA0; // VK_LSHIFT = tombol Shift Lock bawaan Roblox
-    /// <summary>Status shift lock dari kamera: true/false pasti, null = tidak terbaca (animasi, geser kamera ragu).</summary>
+    private const ushort ShiftVk = 0xA0; // VK_LSHIFT = Roblox's default Shift Lock key
+    /// <summary>Shift lock state from the camera: true/false = certain, null = unreadable (animation, ambiguous camera offset).</summary>
     private bool? _shiftLockMem;
     private bool? _camFollow;
     private bool _camFree;
     private CancellationTokenSource? _turnCts;
 
-    // v0.2.72: shift lock otomatis. Ronde (InRound) → nyala; layar lain (vote, hasil, lobby, menu) → mati agar klik GUI kena.
-    // v0.2.80 (jangan menebak): Shift hanya ditekan bila status terbaca pasti dari kamera, dan hasilnya tidak diasumsikan:
-    // tick berikutnya membaca ulang. Bila 2,5 dtk setelah menekan status belum sesuai → dihitung gagal; 3× gagal → berhenti di layar ini.
+    // v0.2.72: automatic shift lock. Round (InRound) → on; other screens (vote, results, lobby, menu) → off so GUI clicks land.
+    // v0.2.80 (no guessing): Shift is only pressed when the state is read with certainty from the camera, and the result is not assumed:
+    // the next tick reads it again. If the state still does not match 2.5 s after pressing → counted as a failure; 3 failures → stop on this screen.
     private long _slLastPress = -10_000;
     private int _slFails;
     private bool? _slWant;
     private GameScreen _slScreen = GameScreen.Unknown;
 
-    /// <summary>v0.3.12: musuh hidup terbaca dan bukan layar lobby/menu lobby (Shift dilarang di lobby).</summary>
+    /// <summary>v0.3.12: live enemies are read and the screen is not the lobby/lobby menu (Shift is forbidden in the lobby).</summary>
     public static bool MustShiftLock(GameSnapshot s) => MustShiftLock(s.Screen, s.EnemyCount);
     public static bool MustShiftLock(GameScreen screen, int enemyCount) =>
         enemyCount > 0 && screen is not (GameScreen.Lobby or GameScreen.LobbyMenu or GameScreen.QueueWaiting or GameScreen.TrialsMenu);
@@ -127,35 +127,35 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     private async Task EnsureShiftLock(GameScreen screen, IReadOnlyList<MacroAction> actions, long now, CancellationToken ct, bool mustLock = false)
     {
         if (screen != _slScreen) { _slScreen = screen; _slFails = 0; _slWant = null; }
-        // Status shift lock hanya dari kamera (tanpa tebakan): tidak terbaca / kamera animasi → tidak menekan Shift.
+        // Shift lock state only from the camera (no guessing): unreadable / animated camera → do not press Shift.
         if ((screen == GameScreen.Unknown && !mustLock) || _camFree || _shiftLockMem is not { } cur) return;
-        // Klik GUI di tick ini: penanganan klik mematikan & menyalakan lagi shift lock sendiri.
+        // GUI click this tick: click handling turns shift lock off & back on by itself.
         bool clicking = actions.Any(a => a is ClickAction or ScrollAction);
         bool want = (mustLock || screen == GameScreen.InRound) && !clicking;
         if (cur == want) { if (_slWant == want) _slFails = 0; _slWant = null; return; }
         if (now - _slLastPress < 2500) return;
         if (_slFails >= 3)
         {
-            // Musuh ada → tidak pernah menyerah; coba lagi tiap 6 dtk. Tanpa musuh → berhenti di layar ini (perilaku lama).
+            // Enemies present → never give up; retry every 6 s. No enemies → stop on this screen (old behavior).
             if (!(mustLock && want) || now - _slLastPress < 6000) return;
-            if (now - _slGiveUpLogAt > 60_000) { _slGiveUpLogAt = now; Log?.Invoke("Shift lock belum nyala padahal ada musuh → terus dicoba tiap 6 dtk (cek Settings Roblox: Shift Lock Switch = On)."); }
+            if (now - _slGiveUpLogAt > 60_000) { _slGiveUpLogAt = now; Log?.Invoke("Shift lock still off although enemies are present → retrying every 6 s (check Roblox Settings: Shift Lock Switch = On)."); }
         }
         else if (_slWant == want && ++_slFails >= 3)
         {
-            Log?.Invoke($"Shift lock tidak berubah ke {(want ? "nyala" : "mati")} setelah 3× Shift (cek Settings Roblox: Shift Lock Switch){(mustLock && want ? " → musuh ada, tetap dicoba tiap 6 dtk." : " → berhenti mencoba di layar ini.")}");
+            Log?.Invoke($"Shift lock did not change to {(want ? "on" : "off")} after 3× Shift (check Roblox Settings: Shift Lock Switch){(mustLock && want ? " → enemies present, still retrying every 6 s." : " → stopped trying on this screen.")}");
             if (!(mustLock && want)) return;
         }
         _slWant = want;
         _slLastPress = now;
         input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
-        Log?.Invoke(want ? (mustLock ? "Musuh terdeteksi → Shift ditekan (shift lock wajib nyala, diverifikasi dari kamera)." : "Ronde berjalan → Shift ditekan (menyalakan shift lock, diverifikasi dari kamera).") : $"Di luar ronde ({screen}) → Shift ditekan (mematikan shift lock untuk klik GUI).");
+        Log?.Invoke(want ? (mustLock ? "Enemies detected → Shift pressed (shift lock must be on, verified from the camera)." : "Round running → Shift pressed (turning shift lock on, verified from the camera).") : $"Outside a round ({screen}) → Shift pressed (turning shift lock off for GUI clicks).");
         await Task.Delay(120, ct);
     }
 
-    /// <summary>Putar kamera halus: delta dipecah jadi langkah kecil tiap ~8 ms sepanjang satu tick, di latar belakang.</summary>
+    /// <summary>Smooth camera turn: the delta is split into small steps every ~8 ms over one tick, in the background.</summary>
     private long _recenterLogAt = -10_000;
 
-    /// <summary>Kursor di dalam area klien Roblox (margin 2 px) dan Roblox di depan.</summary>
+    /// <summary>Cursor is inside the Roblox client area (2 px margin) and Roblox is in the foreground.</summary>
     private bool CursorInside()
     {
         if (!input.IsTargetForeground() || input.ClientSize() is not { } sz || input.CursorClient() is not { } c) return false;
@@ -167,7 +167,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         _turnCts?.Cancel();
         if (input.IsTargetForeground() && input.ClientSize() is { } sz) input.MoveClient(sz.W / 2.0, sz.H / 2.0);
         long now = Environment.TickCount64;
-        if (now - _recenterLogAt > 5000) { _recenterLogAt = now; Log?.Invoke($"Kursor keluar jendela Roblox saat {why} → ditarik ke tengah, klik dibatalkan."); }
+        if (now - _recenterLogAt > 5000) { _recenterLogAt = now; Log?.Invoke($"Cursor left the Roblox window during {why} → pulled back to the center, click cancelled."); }
     }
 
     private void SmoothTurn(int dx, int dy, int durationMs)
@@ -183,14 +183,14 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 int tx = (int)Math.Round((double)dx * i / steps), ty = (int)Math.Round((double)dy * i / steps);
                 input.MoveRelative(tx - sx, ty - sy);
                 sx = tx; sy = ty;
-                // v0.2.76: shift lock lepas (mis. setelah Ultimate) → gerak relatif menyeret kursor keluar jendela. Berhenti & tarik balik.
-                if (!CursorInside()) { RecenterCursor("putar kamera"); break; }
+                // v0.2.76: shift lock released (e.g. after Ultimate) → relative movement drags the cursor out of the window. Stop & pull it back.
+                if (!CursorInside()) { RecenterCursor("camera turn"); break; }
                 try { await Task.Delay(8, cts.Token); } catch (OperationCanceledException) { break; }
             }
         });
     }
 
-    /// <summary>Kursor ada di titik klien (x,y) ±3 px.</summary>
+    /// <summary>Cursor is at client point (x,y) ±3 px.</summary>
     private bool CursorAt(double x, double y) => input.CursorClient() is { } c && Math.Abs(c.X - x) <= 3 && Math.Abs(c.Y - y) <= 3;
 
     private async Task ClickVerified(ClickAction c, CancellationToken ct)
@@ -201,26 +201,26 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         {
             input.MoveClient(c.X, c.Y);
             await Task.Delay(90, ct);
-            if (!input.IsTargetForeground()) { Log?.Invoke($"Klik {c.Reason} dibatalkan: Roblox tidak di depan."); break; }
+            if (!input.IsTargetForeground()) { Log?.Invoke($"Click {c.Reason} cancelled: Roblox is not in the foreground."); break; }
             if (CursorAt(c.X, c.Y))
             {
-                Log?.Invoke($"Klik {c.Reason} ({c.X:0},{c.Y:0})");
+                Log?.Invoke($"Click {c.Reason} ({c.X:0},{c.Y:0})");
                 input.ClickClient(c.X, c.Y);
                 break;
             }
             if (attempt == 1)
             {
-                Log?.Invoke($"Klik {c.Reason} dibatalkan: kursor tidak bisa ditaruh di ({c.X:0},{c.Y:0}) (tetap ditarik Roblox).");
+                Log?.Invoke($"Click {c.Reason} cancelled: cursor could not be placed at ({c.X:0},{c.Y:0}) (Roblox keeps pulling it).");
                 break;
             }
-            Log?.Invoke($"Kursor ditarik ke tengah (shift lock aktif) → Shift lalu cek ulang sebelum klik {c.Reason}.");
+            Log?.Invoke($"Cursor pulled to the center (shift lock on) → Shift, then re-check before clicking {c.Reason}.");
             input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
             toggled = true;
             await Task.Delay(150, ct);
         }
         if (toggled && c.InRound)
         {
-            // Kembalikan gaya main (shift lock nyala) di dalam stage; hasilnya dibaca ulang dari kamera tick berikutnya.
+            // Restore the play style (shift lock on) inside the stage; the result is re-read from the camera next tick.
             await Task.Delay(150, ct);
             input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
         }
@@ -253,12 +253,12 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
             case ClickAction c:
                 if (input.ClientSize() is { } size && (c.X < 0 || c.Y < 0 || c.X >= size.W || c.Y >= size.H))
                 {
-                    Log?.Invoke($"Klik {c.Reason} dibatalkan: ({c.X:0},{c.Y:0}) di luar jendela Roblox {size.W}x{size.H}.");
+                    Log?.Invoke($"Click {c.Reason} cancelled: ({c.X:0},{c.Y:0}) is outside the Roblox window {size.W}x{size.H}.");
                     break;
                 }
-                // v0.2.80 (jangan menebak): tidak bergantung pada status shift lock. Kursor dipindah ke target lalu posisinya dibaca
-                // ulang dari Windows: tetap di target = klik akan kena; ditarik Roblox ke tengah = shift lock aktif → Shift, ulangi verifikasi.
-                // Gagal 2× → klik dibatalkan.
+                // v0.2.80 (no guessing): does not depend on the shift lock state. The cursor is moved to the target, then its position is
+                // re-read from Windows: still on target = the click will land; pulled to the center by Roblox = shift lock on → Shift, verify again.
+                // 2 failures → click cancelled.
                 await ClickVerified(c, ct);
                 break;
             case ScrollAction sc:
@@ -266,8 +266,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 input.ScrollClient(sc.X, sc.Y, sc.Notches);
                 break;
             case AimAction or TurnAction when _camFree:
-                break; // v0.2.77: kamera sedang dipindah animasi → arah layar tidak valid
-            // v0.2.80: bidik kursor & drag kamera hanya bila shift lock PASTI mati; putar relatif hanya bila PASTI nyala.
+                break; // v0.2.77: camera is being moved by an animation → screen direction is invalid
+            // v0.2.80: cursor aim & camera drag only when shift lock is CERTAINLY off; relative turn only when CERTAINLY on.
             case AimAction or TurnAction { Drag: true } when _shiftLockMem != false:
                 break;
             case TurnAction { Drag: false } when _shiftLockMem != true:
@@ -277,7 +277,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                     input.MoveClient(am.X, am.Y);
                 break;
             case TurnAction { Drag: true } t:
-                // Tanpa shift lock: tahan klik kanan, geser relatif bertahap, lalu lepas (kamera Roblox ikut berputar).
+                // Without shift lock: hold right-click, move relatively in steps, then release (the Roblox camera turns along).
                 _turnCts?.Cancel();
                 input.RightDown();
                 await Task.Delay(30, ct);
@@ -293,15 +293,15 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 }
                 await Task.Delay(20, ct);
                 input.RightUp();
-                if (!CursorInside()) RecenterCursor("drag kamera");
+                if (!CursorInside()) RecenterCursor("camera drag");
                 break;
             case TurnAction t:
                 SmoothTurn(t.Dx, t.Dy, (int)(Math.Clamp(settings().General.TickMs, 30, 2000) * 0.9));
                 break;
             case AttackAction:
-                // v0.2.76: klik di posisi kursor sekarang hanya bila kursor di dalam jendela Roblox. Setelah Ultimate kursor pernah
-                // terseret ke luar dan serangan dasar mengklik browser/File Explorer (laporan Byzan 24 Okt 23:24).
-                if (!CursorInside()) { RecenterCursor("serangan"); break; }
+                // v0.2.76: click at the current cursor position only when the cursor is inside the Roblox window. After Ultimate the cursor
+                // was once dragged outside and the basic attack clicked the browser/File Explorer (Byzan's report 24 Oct 23:24).
+                if (!CursorInside()) { RecenterCursor("attack"); break; }
                 input.ClickHere();
                 break;
             case KeyAction k:

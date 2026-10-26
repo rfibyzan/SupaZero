@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SupaZero.Core.Settings;
 
-/// <summary>Semua pengaturan; disimpan di %AppData%\SupaZero\settings.json.</summary>
+/// <summary>All settings; saved to %AppData%\SupaZero\settings.json.</summary>
 public sealed class AppSettings
 {
     public GeneralSettings General { get; set; } = new();
@@ -14,7 +14,7 @@ public sealed class AppSettings
     public UpgradeSettings Upgrade { get; set; } = new();
     public WebhookSettings Webhook { get; set; } = new();
     public string? OffsetsPath { get; set; }
-    /// <summary>Nama power (id karakter → nama tampil) dan trait per power yang sudah terbaca dari game.</summary>
+    /// <summary>Power names (character id → display name) and per-power traits already read from the game.</summary>
     public Dictionary<string, string> PowerNames { get; set; } = new();
     public Dictionary<string, Game.PowerTrait> PowerTraits { get; set; } = new();
     public List<Game.EquippedPower> PowerLoadout { get; set; } = new();
@@ -37,17 +37,20 @@ public sealed class AppSettings
         {
             if (File.Exists(path) && JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), Json) is { } loaded)
             {
-                // Toggle navigasi sudah dihapus dari UI → selalu aktif; radius sampai dibatasi 2..20 stud.
+                // Navigation toggles were removed from the UI → always on; arrive radius clamped to 2..20 studs.
                 var n = loaded.Navigation;
                 loaded.Navigation = n with
                 {
                     AutoNavigate = true, AttackWhenStuck = true, ChaseEnemies = true, AimAtEnemy = true, RoamWhenSkillsCooling = true,
                     ArriveRadius = n.ArriveRadius is >= 2 and <= 20 ? n.ArriveRadius : 6,
                 };
+                // v0.3.16: English UI → legacy Indonesian skill names renamed (key, toggle and cooldown kept).
+                if (loaded.Combat.Skills is { } sk)
+                    loaded.Combat = loaded.Combat with { Skills = sk.Select(k => k.Name is "Ganti power" or "Ganti senjata" ? k with { Name = "Swap power" } : k).ToList() };
                 return loaded;
             }
         }
-        catch { /* file rusak → default */ }
+        catch { /* corrupt file → defaults */ }
         return new AppSettings();
     }
 

@@ -10,7 +10,7 @@ public partial class FarmMachineTests
     public void Vote_ClicksYes_OnlyWhenButtonRead()
     {
         var (m, _) = New();
-        // v0.2.79: tombol Yes tidak terbaca → tidak klik koordinat cadangan.
+        // v0.2.79: Yes button not read → do not click fallback coordinates.
         Assert.DoesNotContain(m.Step(new GameSnapshot { Attached = true, StartVoteVisible = true }, 0), x => x is ClickAction);
         var snap = new GameSnapshot { Attached = true, StartVoteVisible = true, StartVoteYes = new GuiRect(900, 600, 100, 40) };
         var c = Assert.Single(m.Step(snap, 100).OfType<ClickAction>());
@@ -28,10 +28,10 @@ public partial class FarmMachineTests
             Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
             StartCircles = [new Vec3(300, 0, 0)], AreasButton = new GuiRect(40, 540, 80, 80),
         };
-        Assert.Equal("Tombol Areas", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
+        Assert.Equal("Areas button", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
         var panel = hub with { TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))] };
         Assert.Equal("Teleport Story", Real(m.Step(panel, 5000)).OfType<ClickAction>().Single().Reason);
-        // Setelah teleport, lingkaran 80 stud (panel teleport masih tampil) → jalan, bukan teleport ulang.
+        // After teleport, circle at 80 studs (teleport panel still shown) → walk, do not re-teleport.
         var after = panel with { PlayerPos = new Vec3(220, 0, 0) };
         var walk = Real(m.Step(after, 7000));
         Assert.DoesNotContain(walk, x => x is ClickAction);
@@ -41,17 +41,17 @@ public partial class FarmMachineTests
     [Fact]
     public void Lobby_AfterTeleport_WalksToFarReadCircle_NoReteleport()
     {
-        // Byzan 25 Okt 10:18: sesudah teleport Story diam "Menunggu setelah teleport" lalu teleport ulang; lingkaran > 90 stud.
+        // Byzan 25 Oct 10:18: after the Story teleport it idled on "Waiting after teleport" then re-teleported; circle > 90 studs.
         var (m, _) = New();
         var hub = new GameSnapshot
         {
             Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
             StartRooms = [new StartRoom("1", new Vec3(400, 0, 0), false)], AreasButton = new GuiRect(40, 540, 80, 80),
         };
-        Assert.Equal("Tombol Areas", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
+        Assert.Equal("Areas button", Real(m.Step(hub, 0)).OfType<ClickAction>().Single().Reason);
         var panel = hub with { TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))] };
         Assert.Equal("Teleport Story", Real(m.Step(panel, 5000)).OfType<ClickAction>().Single().Reason);
-        var after = hub with { PlayerPos = new Vec3(150, 0, 0) }; // 250 stud dari lingkaran
+        var after = hub with { PlayerPos = new Vec3(150, 0, 0) }; // 250 studs from the circle
         for (long t = 6000; t <= 25_000; t += 500)
         {
             var a = Real(m.Step(after with { PlayerPos = new Vec3(150 + (t - 6000) / 100.0, 0, 0) }, t));
@@ -63,26 +63,26 @@ public partial class FarmMachineTests
     [Fact]
     public void Lobby_CardReadWhilePanelClosed_OpensAreasFirst_AndRetriesWhenNoTeleport()
     {
-        // Byzan 25 Okt 10:20: kartu Story terbaca walau panel Areas belum dibuka → dulu diklik kosong lalu "Menunggu setelah teleport".
+        // Byzan 25 Oct 10:20: Story card read although the Areas panel was not opened → previously clicked nothing, then "Waiting after teleport".
         var (m, _) = New();
         var snap = new GameSnapshot
         {
             Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), ClientW = 1920, ClientH = 1080,
-            AreasButton = new GuiRect(40, 540, 80, 80), // lingkaran belum terbaca (jauh)
+            AreasButton = new GuiRect(40, 540, 80, 80), // circle not read yet (far away)
             TeleportCards = [new LobbyEntry("Story", false, false, new GuiRect(50, 80, 390, 170))],
         };
-        Assert.Equal("Tombol Areas", Real(m.Step(snap, 0)).OfType<ClickAction>().Single().Reason);
+        Assert.Equal("Areas button", Real(m.Step(snap, 0)).OfType<ClickAction>().Single().Reason);
         Assert.Equal("Teleport Story", Real(m.Step(snap, 1000)).OfType<ClickAction>().Single().Reason);
-        // Posisi tidak berubah → bukan teleport. Sesudah 3 dtk: buka Areas lagi, bukan diam 12 dtk.
+        // Position unchanged → no teleport. After 3 s: open Areas again instead of idling 12 s.
         var clicks = new List<string>();
         for (long t = 1500; t <= 6000; t += 500) clicks.AddRange(Real(m.Step(snap, t)).OfType<ClickAction>().Select(c => c.Reason));
-        Assert.Contains("Tombol Areas", clicks);
+        Assert.Contains("Areas button", clicks);
     }
 
     [Fact]
     public void Lobby_StuckAtRing_SwitchesAfterJoinTimeoutSetting()
     {
-        // Lingkaran = pembatas: jarak berhenti di ~11 stud. Setelan "Pindah lingkaran" 2 dtk → pindah ≤ 2,5 dtk (dulu 6 dtk + ke tengah).
+        // Circle = barrier: distance stops at ~11 studs. "Switch circle" setting 2 s → switch within ≤ 2.5 s (previously 6 s + walking to the center).
         var (m, _) = New(s => s.Farm = s.Farm with { JoinTimeoutSec = 2 });
         var snap = new GameSnapshot
         {
@@ -91,7 +91,7 @@ public partial class FarmMachineTests
         };
         long switchedAt = -1;
         for (long t = 0; t <= 6000 && switchedAt < 0; t += 250)
-            if (m.Step(snap, t).OfType<NoteAction>().Any(n => n.Reason.Contains("Tidak bisa join room 1"))) switchedAt = t;
+            if (m.Step(snap, t).OfType<NoteAction>().Any(n => n.Reason.Contains("Cannot join room 1"))) switchedAt = t;
         Assert.InRange(switchedAt, 1500, 2500);
     }
 
@@ -105,7 +105,7 @@ public partial class FarmMachineTests
             StartRooms = [new StartRoom("2", new Vec3(0, 0, 0), false), new StartRoom("9", new Vec3(500, 0, 0), false)],
         };
         long t = 0;
-        for (; t <= 40_000; t += 500) m.Step(snap, t); // sampai → gagal join → room 2 di-ban
+        for (; t <= 40_000; t += 500) m.Step(snap, t); // arrive → join fails → room 2 banned
         var a = Real(m.Step(snap, t));
         Assert.DoesNotContain(a, x => x is ClickAction);
     }
@@ -116,7 +116,7 @@ public partial class FarmMachineTests
         var (m, _) = New();
         var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartCircles = [new Vec3(30, 0, 0)] };
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
-        Assert.Equal([VirtualKeys.D], move.Keys); // look -Z → kanan = +X
+        Assert.Equal([VirtualKeys.D], move.Keys); // look -Z → right = +X
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public partial class FarmMachineTests
             StartRooms = [new StartRoom("1", new Vec3(10, 0, 0), Occupied: true, 3, 4), new StartRoom("2", new Vec3(-30, 0, 0), false)],
         };
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 0))));
-        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 terisi → ke room 2 (-X = kiri)
+        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 occupied → go to room 2 (-X = left)
     }
 
     [Fact]
@@ -138,31 +138,31 @@ public partial class FarmMachineTests
         var (m, _) = New();
         var rooms = new[] { new StartRoom("1", new Vec3(1, 0, 0), false), new StartRoom("2", new Vec3(-30, 0, 0), false) };
         var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartRooms = rooms };
-        Assert.Empty(Real(m.Step(snap, 0)));      // sudah di room 1, menunggu menu
+        Assert.Empty(Real(m.Step(snap, 0)));      // already at room 1, waiting for the menu
         Assert.Empty(Real(m.Step(snap, 3000)));
         Assert.Contains(Real(m.Step(snap, 5500)), a => a is NoteAction n && n.Reason.Contains("room 1"));
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 6000))));
-        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 di-ban → ke room 2
+        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 banned → go to room 2
     }
 
     [Fact]
     public void Lobby_WalkStalledNearRoom_SwitchesRoom()
     {
-        // Screenshot Byzan 08:24 (25 Okt): status "Jalan ke lingkaran Create Room (11 stud)" terus, padahal karakter di lingkaran & menu tidak terbuka.
+        // Byzan screenshot 08:24 (25 Oct): status kept showing "Walking to Create Room circle (11 studs)" although the character was on the circle & the menu did not open.
         var (m, _) = New();
         var rooms = new[] { new StartRoom("1", new Vec3(11, 0, 0), false), new StartRoom("2", new Vec3(-30, 0, 0), false) };
         var snap = new GameSnapshot { Attached = true, PlayerPos = new Vec3(0, 0, 0), CameraLook = (0, -1), StartRooms = rooms };
         Assert.Contains(Real(m.Step(snap, 0)), a => a is MoveAction { Keys.Count: > 0 });
         Assert.DoesNotContain(Real(m.Step(snap, 4000)), a => a is NoteAction);
-        Assert.Contains(Real(m.Step(snap, 6500)), a => a is NoteAction n && n.Reason.Contains("room 1") && n.Reason.Contains("tertahan"));
+        Assert.Contains(Real(m.Step(snap, 6500)), a => a is NoteAction n && n.Reason.Contains("room 1") && n.Reason.Contains("stalled"));
         var move = Assert.IsType<MoveAction>(Assert.Single(Real(m.Step(snap, 7000))));
-        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 di-ban → ke room 2
+        Assert.Equal([VirtualKeys.A], move.Keys); // room 1 banned → go to room 2
     }
 
     [Fact]
     public void Lobby_ActMissingOnMap_Stops()
     {
-        // v0.2.80: act yang diminta tidak ada → berhenti (tidak pindah act sendiri).
+        // v0.2.80: requested act does not exist → stop (do not switch act on its own).
         var (m, _) = New(s => s.Farm = s.Farm with { Act = 5 });
         var snap = new GameSnapshot
         {
@@ -170,7 +170,7 @@ public partial class FarmMachineTests
             LobbyActs = [new LobbyEntry("Act 1 Training", false, true, Btn)], LobbyStart = Btn, ClientW = 1920, ClientH = 1080,
         };
         var a = Real(m.Step(snap, 0));
-        Assert.Contains(a, x => x is StopAction st && st.Reason.Contains("Act 5 tidak ada"));
+        Assert.Contains(a, x => x is StopAction st && st.Reason.Contains("Act 5 not found"));
         Assert.DoesNotContain(a, x => x is ClickAction);
     }
 
@@ -211,13 +211,13 @@ public partial class FarmMachineTests
         var wrong = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyActTag = "Act1", LobbyStart = Btn, ClientW = 1920, ClientH = 1080,
             LobbyDifficulties = [new LobbyEntry("Hard", false, false, hard)] };
         Assert.IsType<NoteAction>(Assert.Single(Real(m.Step(wrong, 0))));
-        // v0.2.80: difficulty terpilih tidak terbaca → tidak klik apa pun.
+        // v0.2.80: selected difficulty not read → click nothing.
         var right = wrong with { LobbyActTag = "Act2" };
         Assert.DoesNotContain(m.Step(right, 100), x => x is ClickAction);
         var easy = right with { LobbyDifficultyTag = "EASY" };
         var diff = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(easy, 200))));
         Assert.Equal(hard.CenterX, diff.X);
-        Assert.Empty(Real(m.Step(easy, 400)));                        // tunggu difficulty terdaftar
+        Assert.Empty(Real(m.Step(easy, 400)));                        // wait for the difficulty to register
         var start = Assert.IsType<ClickAction>(Assert.Single(Real(m.Step(easy with { LobbyDifficultyTag = "HARD" }, 1500))));
         Assert.Equal(Btn.CenterX, start.X);
     }
@@ -226,7 +226,7 @@ public partial class FarmMachineTests
     public void Lobby_MapBelowList_ScrollsDown_ThenClicks()
     {
         var (m, _) = New(s => s.Farm = s.Farm with { Map = "Tidal High Rise" });
-        var view = new GuiRect(200, 300, 400, 300);                  // daftar tampak y 300..600
+        var view = new GuiRect(200, 300, 400, 300);                  // visible list y 300..600
         var hidden = new LobbyEntry("Tidal High Rise", false, false, new GuiRect(220, 900, 360, 80));
         var snap = new GameSnapshot { Attached = true, LobbyMenuOpen = true, LobbyMapTag = "Hxh", LobbyMaps = [hidden], LobbyMapsView = view, ClientW = 1280, ClientH = 720 };
         var sc = Assert.IsType<ScrollAction>(Assert.Single(Real(m.Step(snap, 0))));
@@ -277,7 +277,7 @@ public partial class FarmMachineTests
     [Fact]
     public void Farm_RaidMode_TeleportsViaStoryCard()
     {
-        // Log Byzan 08:29:47: mode Raid → "Kartu teleport 'Raid' tidak ada (terbaca: Story, Arsenal, ...)". Lingkaran Create Room ada di area Story.
+        // Byzan log 08:29:47: Raid mode → "Teleport card 'Raid' not found (read: Story, Arsenal, ...)". Create Room circles are in the Story area.
         var (m, _) = New(s => s.Farm = s.Farm with { Mode = "Raid", CheckPowersInLobby = false });
         var far = new GameSnapshot
         {
@@ -289,6 +289,6 @@ public partial class FarmMachineTests
         var acts = new List<MacroAction>();
         for (long t = 0; t <= 3000; t += 500) acts.AddRange(m.Step(far, t));
         Assert.Contains(acts, a => a is ClickAction c && c.Reason == "Teleport Story");
-        Assert.DoesNotContain(acts, a => a is NoteAction n && n.Reason.Contains("tidak ada"));
+        Assert.DoesNotContain(acts, a => a is NoteAction n && n.Reason.Contains("not found"));
     }
 }

@@ -2,13 +2,13 @@ using System.Text.RegularExpressions;
 
 namespace SupaZero.Core.Game;
 
-/// <summary>Isi teks EnemyCount di RoundHUD, mis. "Easy · Area 3/5 · 8 left" atau "Story complete".</summary>
+/// <summary>EnemyCount text content in RoundHUD, e.g. "Easy · Area 3/5 · 8 left" or "Story complete".</summary>
 public sealed record HudInfo(string? Difficulty, int Area, int AreaTotal, int EnemiesLeft, bool StoryComplete, bool Enter = false)
 {
     public bool IsFinalArea => AreaTotal > 0 && Area >= AreaTotal;
     /// <summary>
-    /// Area yang harus dituju setelah bersih. "Enter area 4/5" (screenshot 24 Okt 2026, penanda "AREA 4 280 studs") = area 3 sudah
-    /// bersih dan tujuan Area 4 → <see cref="Area"/> sendiri. "Area 3/5 · 0 left" = masih di area 3 → Area + 1. 0 = tidak ada.
+    /// Area to head to after clearing. "Enter area 4/5" (screenshot 24 Oct 2026, marker "AREA 4 280 studs") = area 3 is already
+    /// clear and the target is Area 4 → <see cref="Area"/> itself. "Area 3/5 · 0 left" = still in area 3 → Area + 1. 0 = none.
     /// </summary>
     public int TargetArea => AreaTotal <= 0 ? 0 : Enter ? Area : Area < AreaTotal ? Area + 1 : 0;
 }

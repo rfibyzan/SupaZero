@@ -22,11 +22,11 @@ public static class SnapshotExport
         d.BeforeLabel, d.AfterLabel, d.BeforeAt, d.AfterAt, d.Added, d.Removed, d.Changed, d.Entries,
     }, Json);
 
-    /// <summary>Tree teks berindentasi: "Name [Class] {Prop=..., ...}".</summary>
+    /// <summary>Indented text tree: "Name [Class] {Prop=..., ...}".</summary>
     public static string ToText(InstanceSnapshot s)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"# Snapshot {s.Label} {s.RootPath} @ {s.TakenAt:yyyy-MM-dd HH:mm:ss zzz} ({s.NodeCount} node{(s.Truncated ? ", TERPOTONG" : "")}, {s.RobloxVersion})");
+        sb.AppendLine($"# Snapshot {s.Label} {s.RootPath} @ {s.TakenAt:yyyy-MM-dd HH:mm:ss zzz} ({s.NodeCount} node{(s.Truncated ? ", TRUNCATED" : "")}, {s.RobloxVersion})");
         Write(s.Root, 0);
         return sb.ToString();
 

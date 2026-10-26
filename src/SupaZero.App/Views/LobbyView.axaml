@@ -10,19 +10,19 @@
         <Border Classes="sep" Margin="0,2,0,4" />
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto create room" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCreateLobby}" /></Grid>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Otomatis: Areas → Story (teleport) → jalan ke room kosong terdekat. Gagal join → lingkaran lain." />
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Lewati room yang ada pemain lain" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding SkipOccupiedRooms}" /></Grid>
+                   Text="Automatic: Areas → Story (teleport) → walk to the nearest empty room. Join fails → another circle." />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Skip rooms with other players" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding SkipOccupiedRooms}" /></Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Pindah lingkaran jika gagal join (dtk)" />
+          <TextBlock Classes="label" Text="Switch circle if join fails (s)" />
           <NumericUpDown Grid.Column="1" Value="{Binding JoinTimeoutSec}" Minimum="2" Maximum="30" Increment="1" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto vote Start (Yes)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoVoteStart}" /></Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Retry saat DEFEAT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding RetryOnDefeat}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Retry on DEFEAT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding RetryOnDefeat}" /></Grid>
         <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Maks retry per stage" />
+          <TextBlock Classes="label" Text="Max retries per stage" />
           <NumericUpDown Grid.Column="1" Value="{Binding MaxRetries}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
         </Grid>
-        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Infinite: retry tanpa batas" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding InfiniteUnlimitedRetry}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Infinite: unlimited retries" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding InfiniteUnlimitedRetry}" /></Grid>
       </StackPanel>
     </Border>
   </Grid>

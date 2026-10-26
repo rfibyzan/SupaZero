@@ -1,21 +1,21 @@
 namespace RIE.Core.Util;
 
-/// <summary>Kategori class untuk badge berwarna di UI.</summary>
+/// <summary>Class category for coloured badges in the UI.</summary>
 public enum ClassCategory { Other, Service, Gui, Part, Model, Script, Value, Humanoid, Effect, Player }
 
 public static class UiText
 {
     /// <summary>
-    /// Potong teks panjang di tengah, mis. "game.Players.Byzan…Main.Frame.Label".
-    /// Bagian akhir (nama instance) diberi porsi lebih besar karena paling penting.
+    /// Truncates long text in the middle, e.g. "game.Players.Byzan…Main.Frame.Label".
+    /// The tail (instance name) gets a larger share because it matters most.
     /// </summary>
     public static string MiddleEllipsis(string? s, int max)
     {
         if (string.IsNullOrEmpty(s)) return string.Empty;
         if (max < 5 || s.Length <= max) return s;
-        int keep = max - 1;              // 1 karakter untuk "…"
-        int head = keep * 2 / 5;         // 40% awal
-        int tail = keep - head;          // 60% akhir
+        int keep = max - 1;              // 1 character for "…"
+        int head = keep * 2 / 5;         // first 40%
+        int tail = keep - head;          // last 60%
         return string.Concat(s.AsSpan(0, head), "…", s.AsSpan(s.Length - tail));
     }
 

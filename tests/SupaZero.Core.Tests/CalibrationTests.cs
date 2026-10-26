@@ -25,8 +25,8 @@ public class CalibrationTests
         };
         var r = Calibration.Run(s, new AppSettings());
         Assert.Contains(r, i => i.Name == "Stage" && i.State == CheckState.Ok);
-        Assert.Contains(r, i => i.Name == "Musuh" && i.Value.Contains("#7"));
-        Assert.Contains(r, i => i.Name == "Skill HUD" && i.Value.Contains("3: terkunci"));
+        Assert.Contains(r, i => i.Name == "Enemies" && i.Value.Contains("#7"));
+        Assert.Contains(r, i => i.Name == "Skill HUD" && i.Value.Contains("3: locked"));
         Assert.DoesNotContain(r, i => i.State == CheckState.Fail);
     }
 }

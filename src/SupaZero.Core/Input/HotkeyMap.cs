@@ -1,10 +1,10 @@
 namespace SupaZero.Core.Input;
 
 /// <summary>
-/// Pemetaan nama tombol hotkey (disimpan di GeneralSettings.MacroHotkey) → virtual-key Win32 untuk RegisterHotKey.
-/// Didukung: F1–F24, A–Z, 0–9, Insert/Delete/Home/End/PageUp/PageDown, Pause, ScrollLock, NumPad0–NumPad9,
+/// Maps hotkey names (stored in GeneralSettings.MacroHotkey) → Win32 virtual keys for RegisterHotKey.
+/// Supported: F1–F24, A–Z, 0–9, Insert/Delete/Home/End/PageUp/PageDown, Pause, ScrollLock, NumPad0–NumPad9,
 /// LeftAlt/RightAlt/LeftCtrl/RightCtrl/LeftShift/RightShift.
-/// Nama dibandingkan tanpa peduli huruf besar/kecil. Tidak memakai refleksi (aman NativeAOT).
+/// Names are compared case-insensitively. No reflection (NativeAOT-safe).
 /// </summary>
 public static class HotkeyMap
 {
@@ -38,8 +38,8 @@ public static class HotkeyMap
             "PAGEDOWN" => 0x22,
             "PAUSE" => 0x13,
             "SCROLLLOCK" or "SCROLL" => 0x91,
-            // Tombol modifier kiri/kanan (mis. "LeftAlt" seperti di UI referensi). [S] RegisterHotKey untuk
-            // modifier tunggal belum diverifikasi di Windows.
+            // Left/right modifier keys (e.g. "LeftAlt" as in the reference UI). [S] RegisterHotKey for
+            // a lone modifier is not yet verified on Windows.
             "LEFTALT" => 0xA4,
             "RIGHTALT" => 0xA5,
             "LEFTCTRL" => 0xA2,
@@ -51,7 +51,7 @@ public static class HotkeyMap
         return vk != 0;
     }
 
-    /// <summary>Nama kanonik untuk ditampilkan/disimpan; nama tak dikenal → null.</summary>
+    /// <summary>Canonical name for display/storage; unknown name → null.</summary>
     public static string? Normalize(string? name)
     {
         if (!TryGetVirtualKey(name, out _))

@@ -7,12 +7,12 @@ namespace RIE.Core.Inspect;
 
 public sealed record PlayerRow(long Address, string Name, string DisplayName, string Team, string Health, double Distance, bool IsLocal, long Character)
 {
-    public string DistanceText => IsLocal ? "kamu" : double.IsNaN(Distance) ? "-" : $"{Distance:0.0}";
+    public string DistanceText => IsLocal ? "you" : double.IsNaN(Distance) ? "-" : $"{Distance:0.0}";
 }
 
 public sealed record ToolRow(long Address, string Name, string Where, string Info);
 
-/// <summary>Daftar pemain (nama, tim, HP, jarak) dan isi Backpack/Tool dipegang. Hanya membaca.</summary>
+/// <summary>Player list (name, team, HP, distance) and Backpack contents/held Tool. Read-only.</summary>
 public sealed class PlayerList(InstanceReader reader, PropertyReader props)
 {
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
@@ -56,7 +56,7 @@ public sealed class PlayerList(InstanceReader reader, PropertyReader props)
     private static string Short(string v) =>
         double.TryParse(v, NumberStyles.Float, Inv, out double d) ? d.ToString("0.#", Inv) : v;
 
-    /// <summary>Tool di Backpack (hanya tereplikasi untuk pemain lokal) dan Tool yang dipegang (di Character).</summary>
+    /// <summary>Tools in the Backpack (replicated only for the local player) and the held Tool (in Character).</summary>
     public List<ToolRow> Tools(long player)
     {
         var rows = new List<ToolRow>();
@@ -64,7 +64,7 @@ public sealed class PlayerList(InstanceReader reader, PropertyReader props)
         long ch = GetCharacter(player);
         if (ch != 0)
             foreach (long c in reader.GetChildren(ch))
-                if (reader.GetClassName(c) is "Tool" or "HopperBin") rows.Add(Row(c, "Dipegang"));
+                if (reader.GetClassName(c) is "Tool" or "HopperBin") rows.Add(Row(c, "Held"));
         long bp = reader.FindChildOfClass(player, "Backpack");
         if (bp != 0)
             foreach (long c in reader.GetChildren(bp))
@@ -75,7 +75,7 @@ public sealed class PlayerList(InstanceReader reader, PropertyReader props)
     private ToolRow Row(long tool, string where)
     {
         var p = props.Read(tool, "Tool");
-        string info = string.Join("  ", new[] { p.GetValueOrDefault("ToolTip"), p.TryGetValue("Enabled", out var e) && e == "false" ? "nonaktif" : null }.Where(s => !string.IsNullOrEmpty(s)));
+        string info = string.Join("  ", new[] { p.GetValueOrDefault("ToolTip"), p.TryGetValue("Enabled", out var e) && e == "false" ? "disabled" : null }.Where(s => !string.IsNullOrEmpty(s)));
         return new ToolRow(tool, reader.GetName(tool), where, info);
     }
 }

@@ -1,6 +1,6 @@
 namespace SupaZero.Core.Game;
 
-/// <summary>Pembacaan peta navigasi (Areas, Navigation, Barriers) dengan cache per map. READ-ONLY.</summary>
+/// <summary>Reads the navigation map (Areas, Navigation, Barriers) with a per-map cache. READ-ONLY.</summary>
 public sealed partial class GameReader
 {
     private (long Key, int Count, NavMap Map)? _navCache;
@@ -8,7 +8,7 @@ public sealed partial class GameReader
 
     private NavMap? ReadNav(long ws)
     {
-        // Cek perubahan map (Border/Blocker antar-area dihapus game saat area bersih) paling sering tiap 2 dtk.
+        // Check for map changes (the game removes inter-area Border/Blocker when an area is cleared) at most every 2 s.
         long nowMs = Environment.TickCount64;
         if (_navCache is { } fast && nowMs - _navCheckedAt < 2000) return fast.Map;
         _navCheckedAt = nowMs;
@@ -24,8 +24,8 @@ public sealed partial class GameReader
         int mapKids = mapChildren.Count;
         key ^= mapF0 << 2;
         int count = areaKids.Count * 100_000_000 + mapKids * 10_000 + navKids.Count;
-        // v0.2.69: rubble hancur → Border*.Blocker hanya berganti CanCollide (jumlah anak Map tetap), jadi cache lama masih
-        // menganggapnya dinding → jalur ke area berikut "tidak tersambung" dan karakter nyangkut (log Byzan 24 Okt 22:31, Area 5).
+        // v0.2.69: rubble destroyed → Border*.Blocker only changes CanCollide (Map child count unchanged), so the old cache still
+        // treats it as a wall → path to the next area "not connected" and the character gets stuck (Byzan log 24 Oct 22:31, Area 5).
         long blockSig = 17;
         var borderDiag = new List<string>();
         foreach (long b in mapChildren)
@@ -35,9 +35,9 @@ public sealed partial class GameReader
             long blk = reader.FindChild(b, "Blocker");
             var bp = blk != 0 ? props.Read(blk) : null;
             bool solid = bp is not null && bp.TryGetValue("CanCollide", out var bc) && bc == "true";
-            // v0.3.9: Border*.Rubble (ClimbStop + mesh rubble, CanCollide) dihapus game TERPISAH dari Blocker CanCollide→false
-            // (snapshot 00:57:52 vs 01:02:03). Tanpa ini cache bisa dibangun saat Blocker sudah terbuka tapi Rubble masih ada →
-            // ±23 part rubble tetap jadi dinding di jalan timur → "Jalur ke area 5 tidak tersambung" (log Byzan 25 Okt 10:46).
+            // v0.3.9: Border*.Rubble (ClimbStop + rubble mesh, CanCollide) is removed by the game SEPARATELY from Blocker CanCollide→false
+            // (snapshot 00:57:52 vs 01:02:03). Without this the cache can be built when the Blocker is already open but Rubble still exists →
+            // ±23 rubble parts remain walls on the east road → "Path to area 5 not connected" (Byzan log 25 Oct 10:46).
             long rubNode = reader.FindChild(b, "Rubble");
             int rubKids = rubNode != 0 ? reader.GetChildren(rubNode, 256).Count : -1;
             blockSig = blockSig * 31 + b + (blk == 0 ? 0 : solid ? 2 : 1);
@@ -45,7 +45,7 @@ public sealed partial class GameReader
             string where = bp is not null && ParseVec(bp.GetValueOrDefault("Position")) is { } bpos
                 ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $" ({bpos.X:0},{bpos.Z:0})") : "";
             bool rub = blk != 0 && reader.FindChild(blk, AnimeZeroPaths.RubbleBar) != 0;
-            borderDiag.Add($"{bn} {(blk == 0 ? "tanpa Blocker" : solid ? "padat" : "terbuka")}{(rub ? " +RubbleBar" : "")}{where}");
+            borderDiag.Add($"{bn} {(blk == 0 ? "no Blocker" : solid ? "solid" : "open")}{(rub ? " +RubbleBar" : "")}{where}");
         }
         key ^= blockSig << 3;
         if (_navCache is { } c && c.Key == key && c.Count == count) return c.Map;
@@ -71,11 +71,11 @@ public sealed partial class GameReader
             foreach (long b in reader.GetChildren(f, 512))
                 if (ReadRect(b) is { } r) obstacles.Add(r);
         }
-        // Dinding/objek padat di Map (AlleyBarrier: tembus pandang, CanCollide true). Lantai/ramp disaring saat cari jalur.
+        // Walls/solid objects in Map (AlleyBarrier: see-through, CanCollide true). Floors/ramps are filtered during pathfinding.
         var solids = new List<NavRect>();
         long mapF = reader.FindChild(world, AnimeZeroPaths.WorldMap);
         if (mapF != 0) CollectSolids(mapF, 0, solids);
-        var map = new NavMap(walk, obstacles, nodes, solids) { BorderDiag = borderDiag.Count > 0 ? string.Join("; ", borderDiag) : "tidak ada Border* di World.Map" };
+        var map = new NavMap(walk, obstacles, nodes, solids) { BorderDiag = borderDiag.Count > 0 ? string.Join("; ", borderDiag) : "no Border* in World.Map" };
         _navCache = (key, count, map);
         return map;
     }

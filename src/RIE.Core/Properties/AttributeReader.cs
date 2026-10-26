@@ -8,10 +8,10 @@ using RIE.Core.Roblox;
 namespace RIE.Core.Properties;
 
 /// <summary>
-/// Tata letak Attributes (eksperimen, read-only). Mengikuti metode GetAttribute di offsets.imtheo.lol/docs/methods:
+/// Attributes layout (experimental, read-only). Follows the GetAttribute method at offsets.imtheo.lol/docs/methods:
 /// Component = [inst + ComponentMap]; vector {Start,End} stride 0x10; Entry = [Start + i]; Listing = [Entry + 0x10];
-/// per langkah Size: nama di [Listing + step + Key], nilai di Listing + step + Value.
-/// Size 0 = hanya slot Key (ukuran entri belum diketahui).
+/// per Size step: name at [Listing + step + Key], value at Listing + step + Value.
+/// Size 0 = Key slot only (entry size not yet known).
 /// </summary>
 public sealed record AttributeLayout(long ComponentMap, long Key, long Value, long Size, string Source = "")
 {
@@ -20,7 +20,7 @@ public sealed record AttributeLayout(long ComponentMap, long Key, long Value, lo
 
     public bool IsUsable => ComponentMap > 0 && Key >= 0 && Value >= 0;
 
-    /// <summary>Dari dump offsets bila tersedia (Instance.ComponentMap + Attribute.Key/Value/Size).</summary>
+    /// <summary>From the offsets dump when available (Instance.ComponentMap + Attribute.Key/Value/Size).</summary>
     public static AttributeLayout? FromOffsets(OffsetsSnapshot o)
     {
         if (!o.TryResolve("Instance.ComponentMap", out long cm) && !o.TryResolve("Instance.AttributeContainer", out cm)) return null;
@@ -37,7 +37,7 @@ public sealed record AttributeLayout(long ComponentMap, long Key, long Value, lo
             path ??= UserPath;
             if (!File.Exists(path)) return null;
             var l = JsonSerializer.Deserialize<AttributeLayout>(File.ReadAllText(path));
-            return l is null ? null : l with { Source = "hasil cari (tersimpan)" };
+            return l is null ? null : l with { Source = "search result (saved)" };
         }
         catch { return null; }
     }
@@ -49,7 +49,7 @@ public sealed record AttributeLayout(long ComponentMap, long Key, long Value, lo
         File.WriteAllText(path, JsonSerializer.Serialize(this with { Source = "" }, new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    /// <summary>Dump diprioritaskan; bila kosong, pakai hasil cari yang disimpan user.</summary>
+    /// <summary>Dump takes priority; if empty, use the search result saved by the user.</summary>
     public static AttributeLayout? Resolve(OffsetsSnapshot o) => FromOffsets(o) ?? LoadUser();
 
     public override string ToString() =>
@@ -63,7 +63,7 @@ public static class AttributeReader
     private const int MaxComponents = 64;
     private const int MaxPerListing = 32;
 
-    /// <summary>Nama di slot: pointer ke std::string (seperti docs), atau std::string inline.</summary>
+    /// <summary>Name in the slot: pointer to std::string (as in the docs), or inline std::string.</summary>
     public static string NameAt(IMemorySource m, long slot, int lenOff)
     {
         if (m.TryReadPointer(slot, out long p))
@@ -109,7 +109,7 @@ public static class AttributeReader
         return res;
     }
 
-    /// <summary>Nilai Variant tidak diketahui tipenya: string bila terbaca, selain itu tebakan angka + hex.</summary>
+    /// <summary>Variant value of unknown type: string if readable, otherwise numeric guesses + hex.</summary>
     public static string FormatValue(IMemorySource m, long addr, int lenOff)
     {
         string s = RobloxString.ReadStringAt(m, addr, lenOff, true);
@@ -127,14 +127,14 @@ public static class AttributeReader
     }
 
     /// <summary>
-    /// Cari tata letak dengan satu nama Attribute yang diketahui ada di instance ini (mis. buat di game sendiri
-    /// atau lihat di Studio). Nilai (opsional) dipakai untuk menemukan offset Value.
+    /// Finds the layout using one Attribute name known to exist on this instance (e.g. create it in your own game
+    /// or look it up in Studio). The value (optional) is used to find the Value offset.
     /// </summary>
     public static AttributeLayout? Discover(IMemorySource m, long inst, string name, string? value, out string log,
         int lenOff = RobloxString.DefaultLengthOffset, int maxComponentMap = 0x800, int maxKey = 0x800)
     {
         log = string.Empty;
-        if (string.IsNullOrWhiteSpace(name)) { log = "Isi nama Attribute."; return null; }
+        if (string.IsNullOrWhiteSpace(name)) { log = "Enter an Attribute name."; return null; }
         name = name.Trim();
         for (long cm = 0; cm < maxComponentMap; cm += 8)
         {
@@ -147,17 +147,17 @@ public static class AttributeReader
                     long key = size > 0 ? k % size : k;
                     long entryBase = listing + (k - key);
                     long valOff = FindValue(m, entryBase, key, size, value, lenOff, out bool exact);
-                    log = $"Ketemu: ComponentMap 0x{cm:X}, Key 0x{key:X}, Size {(size > 0 ? $"0x{size:X}" : "belum diketahui (cuma 1 Attribute terlihat)")}, " +
-                          $"Value 0x{valOff:X}{(exact ? "" : " (tebakan, isi nilai untuk memastikan)")}.";
-                    return new AttributeLayout(cm, key, valOff, size, "hasil cari");
+                    log = $"Found: ComponentMap 0x{cm:X}, Key 0x{key:X}, Size {(size > 0 ? $"0x{size:X}" : "unknown (only 1 Attribute visible)")}, " +
+                          $"Value 0x{valOff:X}{(exact ? "" : " (guess, enter a value to confirm)")}.";
+                    return new AttributeLayout(cm, key, valOff, size, "search result");
                 }
             }
         }
-        log = $"Nama \"{name}\" tidak ketemu di struktur ComponentMap instance ini (scan 0..0x{maxComponentMap:X}). Pastikan instance-nya benar dan Attribute ada di sisi klien.";
+        log = $"Name \"{name}\" not found in this instance's ComponentMap structure (scan 0..0x{maxComponentMap:X}). Make sure the instance is correct and the Attribute exists on the client side.";
         return null;
     }
 
-    /// <summary>Jarak terkecil S sehingga ada nama valid lain di k+S atau k-S.</summary>
+    /// <summary>Smallest distance S such that another valid name exists at k+S or k-S.</summary>
     private static long FindSize(IMemorySource m, long listing, long k, int lenOff)
     {
         for (long s = 0x18; s <= 0x200; s += 8)

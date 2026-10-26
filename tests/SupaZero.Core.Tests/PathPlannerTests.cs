@@ -6,7 +6,7 @@ namespace SupaZero.Core.Tests;
 
 public class PathPlannerTests
 {
-    // Area 100×60; dinding tengah x -30..52 (z -2..2) → jalur atas ke bawah harus memutar lewat kiri (huruf U).
+    // Area 100×60; middle wall x -30..52 (z -2..2) → a top-to-bottom path must detour via the left (U shape).
     private static NavMap UMap() => new(
         [NavRect.FromPart(new(0, 3, 0), new(100, 80, 60))],
         [NavRect.FromPart(new(11, 3, 0), new(82, 1, 4))],
@@ -25,9 +25,9 @@ public class PathPlannerTests
     public void Solids_WallBlocks_FloorAndRampIgnored()
     {
         var area = NavRect.FromPart(new(0, 3, 0), new(100, 80, 60));
-        var wall = NavRect.FromPart(new(11, 18, 0), new(82, 60, 5));            // seperti AlleyBarrier (tembus pandang, CanCollide)
-        var floor = NavRect.FromPart(new(0, -0.5, 0), new(200, 1, 200));       // Baseplate: di bawah kaki
-        var ramp = NavRect.FromPart(new(-40, 3, 0), new(10, 1, 20), 0, -0.97, 0.26); // miring
+        var wall = NavRect.FromPart(new(11, 18, 0), new(82, 60, 5));            // like AlleyBarrier (see-through, CanCollide)
+        var floor = NavRect.FromPart(new(0, -0.5, 0), new(200, 1, 200));       // Baseplate: below the feet
+        var ramp = NavRect.FromPart(new(-40, 3, 0), new(10, 1, 20), 0, -0.97, 0.26); // sloped
         var map = new NavMap([area], [], [], [wall, floor, ramp]);
         var path = new PathPlanner().Find(map, new(40, 3, -15), new(40, 3, 15));
         Assert.NotNull(path);
@@ -46,7 +46,7 @@ public class PathPlannerTests
     [Fact]
     public void RotatedObstacleRespected()
     {
-        // Dinding diputar 90° (LookVector +X): Size.Z searah X.
+        // Wall rotated 90° (LookVector +X): Size.Z along X.
         var r = NavRect.FromPart(new(0, 0, 0), new(4, 1, 40), 1, 0);
         Assert.True(r.Contains(15, 0));
         Assert.False(r.Contains(0, 15));
@@ -62,10 +62,10 @@ public class PathPlannerTests
             PlayerPos = new Vec3(40, 3, -15), CameraLook = (0, -1), NextAreaPos = new Vec3(40, 3, 15), Nav = UMap(),
         };
         var move = Assert.IsType<MoveAction>(Assert.Single(m.Step(snap, 0), a => a is MoveAction { Keys.Count: > 0 }));
-        Assert.Contains(VirtualKeys.A, move.Keys); // ke kiri (-X) dulu, bukan lurus S menabrak dinding
+        Assert.Contains(VirtualKeys.A, move.Keys); // left (-X) first, not straight S into the wall
     }
 
-    // ---------- v0.2.47: peta asli Hxh (snapshot S1 Byzan, titik nyangkut Area 4 → 5) ----------
+    // ---------- v0.2.47: real Hxh map (Byzan snapshot S1, stuck point Area 4 → 5) ----------
     private static NavMap HxhS1(bool staleBorder4Rubble = false)
     {
         var w = new List<NavRect>(); var o = new List<NavRect>(); var so = new List<NavRect>();
@@ -87,16 +87,16 @@ public class PathPlannerTests
     {
         var map = HxhS1();
         var pl = new PathPlanner();
-        var from = new Vec3(305, 4.5, -141.6);   // depan AlleyBarrier4 (11,6 stud) seperti screenshot Byzan
-        var entry = new Vec3(295, 2, -53.3);     // World.AreaEntries.5 (penanda "AREA 5 87 studs")
-        Assert.False(pl.Clear(map, from, entry)); // lurus ke utara = gang buntu (AlleyBarrier4 + celah bangunan)
+        var from = new Vec3(305, 4.5, -141.6);   // in front of AlleyBarrier4 (11.6 studs) as in Byzan's screenshot
+        var entry = new Vec3(295, 2, -53.3);     // World.AreaEntries.5 (marker "AREA 5 87 studs")
+        Assert.False(pl.Clear(map, from, entry)); // straight north = dead-end alley (AlleyBarrier4 + gap between buildings)
         var path = pl.Find(map, from, entry);
         Assert.NotNull(path);
         Assert.False(pl.Partial, pl.LastFailure);
         Assert.True(pl.UsedOutside);
-        Assert.Contains(path!, p => p.X > 560);  // memutar lewat jalan timur
+        Assert.Contains(path!, p => p.X > 560);  // detours via the east road
         Assert.Equal(entry, path![^1]);
-        // Tidak ada titik belok yang masuk gang AlleyBarrier4 (x 301..309, z -135..-96).
+        // No waypoint enters the AlleyBarrier4 alley (x 301..309, z -135..-96).
         Assert.DoesNotContain(path!, p => p.X is > 298 and < 312 && p.Z is > -135 and < -96);
     }
 
@@ -107,7 +107,7 @@ public class PathPlannerTests
     [InlineData(12)]
     public void Hxh_Area4To5_FromEastStreet_WorksWhileJumping(double y)
     {
-        // Log Byzan 24 Okt 2026 20:54 (Shadow Gate 5S, peta sama dengan Hxh): dari (535,-193) parsial ke gang buntu saat HRP di udara.
+        // Byzan log 24 Oct 2026 20:54 (Shadow Gate 5S, same map as Hxh): from (535,-193) partial path into a dead-end alley while HRP was airborne.
         var map = HxhS1(); var pl = new PathPlanner();
         var entry = new Vec3(295, 2, -53.3);
         var path = pl.Find(map, new Vec3(535, y, -193), entry);
@@ -122,21 +122,21 @@ public class PathPlannerTests
     [InlineData(289, -148)]
     public void Hxh_Area4To5_Log1046_StaleRubbleBlocksEastRoad(double x, double z)
     {
-        // Log Byzan 25 Okt 10:46: "dari (291,-148) ke (295,-53), tidak ketemu; peta 5 area, 730 rintangan", Border4 terbuka.
-        // 730 = 707 (peta S1) + 23 part CanCollide Map.Border4.Rubble (snapshot 00:57:52) yang sudah dihapus game → cache basi.
+        // Byzan log 25 Oct 10:46: "from (291,-148) to (295,-53), not found; map 5 areas, 730 obstacles", Border4 open.
+        // 730 = 707 (S1 map) + 23 CanCollide parts of Map.Border4.Rubble (snapshot 00:57:52) already removed by the game → stale cache.
         var entry = new Vec3(295, 2, -53.3);
         var stale = HxhS1(staleBorder4Rubble: true);
         Assert.Equal(730, stale.Solids!.Count);
         var pl = new PathPlanner();
         var bad = pl.Find(stale, new Vec3(x, 4.5, z), entry);
-        Assert.True(bad is null || pl.Partial); // rubble basi menutup jalan timur = gejala live
+        Assert.True(bad is null || pl.Partial); // stale rubble blocks the east road = live symptom
         var good = new PathPlanner().Find(HxhS1(), new Vec3(x, 4.5, z), entry);
         Assert.NotNull(good);
         Assert.Contains(good!, p => p.X > 560);
         Assert.Equal(entry, good![^1]);
     }
 
-    // ---------- v0.3.10: Evil Reflection spawn (snapshot World 07:43:42 Byzan 26 Okt 2026) ----------
+    // ---------- v0.3.10: Evil Reflection spawn (Byzan World snapshot 07:43:42, 26 Oct 2026) ----------
     private static NavMap Er0743()
     {
         var w = new List<NavRect>(); var so = new List<NavRect>(); var nodes = new List<Vec3>();
@@ -158,14 +158,14 @@ public class PathPlannerTests
     [InlineData(244)]
     public void Er_SpawnBelowStairs_GridFails_ButTargetIsOtherLevel(double y)
     {
-        // Log 07:43:42: "dari (72,-440) ke (62,-209), tidak ketemu: posisi karakter (72,-440) tertutup rintangan; peta 1 area, 185 rintangan".
+        // Log 07:43:42: "from (72,-440) to (62,-209), not found: character position (72,-440) blocked by obstacles; map 1 area, 185 obstacles".
         var map = Er0743();
         Assert.Equal(185, map.Solids!.Count);
         var from = new Vec3(72, y, -440);
         var target = new Vec3(61.85, 303.53, -208.55); // World.Areas.1 center
-        Assert.Null(new PathPlanner().Find(map, from, target)); // grid satu lantai memang gagal (gejala live)
-        Assert.Equal(240, PathPlanner.FootY(map, from), 0);     // Model#5.Plane.006 atas 239.98
-        Assert.True(FarmMachine.OtherLevel(map, from, target)); // → jalan lurus naik tangga, bukan diam
+        Assert.Null(new PathPlanner().Find(map, from, target)); // the single-floor grid does fail (live symptom)
+        Assert.Equal(240, PathPlanner.FootY(map, from), 0);     // Model#5.Plane.006 top 239.98
+        Assert.True(FarmMachine.OtherLevel(map, from, target)); // → walk straight up the stairs, not stand still
     }
 
     [Fact]

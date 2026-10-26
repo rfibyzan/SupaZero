@@ -1,15 +1,15 @@
 namespace SupaZero.Core.Settings;
 
-/// <summary>Pengaturan farm: Lobby (room, vote, retry) + Modes (Drop Target, Mirror Blessing, Trials) + data kalibrasi. Nama properti = kunci JSON settings.json, jangan diganti.</summary>
+/// <summary>Farm settings: Lobby (room, vote, retry) + Modes (Drop Target, Mirror Blessing, Trials) + calibration data. Property names = settings.json JSON keys, do not rename.</summary>
 public enum Difficulty { Easy, Medium, Hard, Nightmare }
 
-/// <summary>Mode bawaan sebelum label "Mode:" kartu map terbaca dari game. Mode sebenarnya diambil dari kartu (Story, Training, Raid, Tidal High Rise, Trials, Infinite, ...).</summary>
+/// <summary>Default mode before the map card's "Mode:" label is read from the game. The actual mode is taken from the card (Story, Training, Raid, Tidal High Rise, Trials, Infinite, ...).</summary>
 public enum FarmMode { Story, Infinite, Defend, Raid, Trials }
 
-/// <summary>Aksi di EndScreen setelah menang.</summary>
+/// <summary>Action on the EndScreen after a win.</summary>
 public enum AfterWin
 {
-    /// <summary>Story → Next (lanjut stage berikutnya); mode lain → Retry.</summary>
+    /// <summary>Story → Next (continue to the next stage); other modes → Retry.</summary>
     Auto,
     Next,
     Retry,
@@ -21,53 +21,53 @@ public sealed record Vec3(double X, double Y, double Z)
     public override string ToString() => $"{X:0.#}, {Y:0.#}, {Z:0.#}";
 }
 
-/// <summary>Satu map yang terbaca dari MapsList di Create Lobby (disimpan agar dropdown tetap terisi di luar lobby).</summary>
+/// <summary>One map read from MapsList in Create Lobby (saved so the dropdown stays filled outside the lobby).</summary>
 public sealed record KnownMap(string Name, bool Locked, string? Mode = null);
 
-/// <summary>Pengaturan AutoFarm. Map kosong = pakai map yang sudah terpilih di lobby.</summary>
+/// <summary>AutoFarm settings. Empty map = use the map already selected in the lobby.</summary>
 public sealed record FarmSettings(
-    /// <summary>Nama mode persis seperti label "Mode:" di kartu map (string, bukan enum, karena game menambah mode baru).</summary>
+    /// <summary>Mode name exactly as the "Mode:" label on the map card (string, not enum, because the game adds new modes).</summary>
     string Mode = "Story",
     string Map = "",
-    /// <summary>1–5 = act tetap; 0 = semua act berurutan (lanjut dari act terakhir yang tuntas per map).</summary>
+    /// <summary>1–5 = fixed act; 0 = all acts in order (continue from the last cleared act per map).</summary>
     int Act = 1,
     Difficulty Difficulty = Difficulty.Easy,
     AfterWin AfterWin = AfterWin.Auto,
     bool AutoCreateLobby = true,
-    /// <summary>Posisi lingkaran Create Room di lobby (direkam dari posisi karakter). null = belum direkam.</summary>
+    /// <summary>Position of the Create Room circle in the lobby (recorded from the character position). null = not recorded yet.</summary>
     Vec3? LobbyCircle = null,
-    /// <summary>Lewati room yang sudah dibuat pemain lain ("Join Here" / "Players x/y").</summary>
+    /// <summary>Skip rooms already created by other players ("Join Here" / "Players x/y").</summary>
     bool SkipOccupiedRooms = true,
-    /// <summary>Path RIE tombol Areas / kartu Story (opsional, menimpa deteksi teks). Contoh: PlayerGui.HUD.Left.Areas</summary>
+    /// <summary>RIE path of the Areas button / Story card (optional, overrides text detection). Example: PlayerGui.HUD.Left.Areas</summary>
     string AreasButtonPath = "",
     string StoryCardPath = "",
-    /// <summary>Sudah di lingkaran tapi menu Create Room tidak terbuka selama ini (detik) → coba lingkaran lain.</summary>
+    /// <summary>Standing in the circle but the Create Room menu has not opened for this long (seconds) → try another circle.</summary>
     int JoinTimeoutSec = 5,
     bool AutoVoteStart = true,
     bool RetryOnDefeat = true,
     int MaxRetriesPerStage = 3,
-    /// <summary>Mode Infinite: Retry tanpa batas (Maks retry per stage diabaikan).</summary>
+    /// <summary>Infinite mode: unlimited Retry (max retries per stage is ignored).</summary>
     bool InfiniteUnlimitedRetry = true,
     List<KnownMap>? KnownMaps = null,
-    /// <summary>Act terakhir yang tuntas per map (mode "Semua act").</summary>
+    /// <summary>Last cleared act per map ("All acts" mode).</summary>
     Dictionary<string, int>? ActProgress = null,
-    /// <summary>Act yang tersedia per map (terbaca dari ActsList saat map itu terpilih).</summary>
+    /// <summary>Available acts per map (read from ActsList while that map is selected).</summary>
     Dictionary<string, List<int>>? KnownActs = null,
-    /// <summary>Drop Target: nama material di panel Rewards yang ditarget (Hard x2 / Nightmare x3). Kosong = mati.</summary>
+    /// <summary>Drop Target: name of the targeted material in the Rewards panel (Hard x2 / Nightmare x3). Empty = off.</summary>
     string DropTarget = "",
-    /// <summary>Urutan pilihan kartu Mirror Blessing (nama dipisah koma). Tidak cocok → rarity tertinggi.</summary>
+    /// <summary>Mirror Blessing card pick order (comma-separated names). No match → highest rarity.</summary>
     string BlessingPriority = "Sharper Edge, Shard Snack, Big Heart, Chain Shatter, Swift Steps",
-    /// <summary>Floor Trials yang dipilih di panel (0 = biarkan pilihan game / floor berikutnya).</summary>
+    /// <summary>Trials floor to select in the panel (0 = keep the game's choice / next floor).</summary>
     int TrialsFloor = 0,
-    /// <summary>Sekali tiap Start, di lobby sebelum Create Room: buka menu Trait lalu Spin (tombol LobbyHUD) untuk membaca power + trait terpasang.</summary>
+    /// <summary>Once per Start, in the lobby before Create Room: open the Trait menu then Spin (LobbyHUD buttons) to read the equipped powers + traits.</summary>
     bool CheckPowersInLobby = true,
-    /// <summary>v0.3.4: material yang bisa ditarget per "Map|Act N" (dari Kalibrasi aksi / menu Create Room di Hard/Nightmare).</summary>
+    /// <summary>v0.3.4: targetable materials per "Map|Act N" (from action Calibration / the Create Room menu on Hard/Nightmare).</summary>
     Dictionary<string, List<string>>? KnownDrops = null,
-    /// <summary>v0.3.5: nama material yang dipelajari ("icon:…"/"key:materialNNN" → nama), disimpan antar-sesi.</summary>
+    /// <summary>v0.3.5: learned material names ("icon:…"/"key:materialNNN" → name), persisted across sessions.</summary>
     Dictionary<string, string>? KnownMaterialNames = null,
-    /// <summary>v0.3.11: urutan buff Mirror Blessing (aktif = diprioritaskan). null = semua mati.</summary>
+    /// <summary>v0.3.11: Mirror Blessing buff order (enabled = prioritized). null = all off.</summary>
     List<SupaZero.Core.Game.BuffPref>? BlessingBuffs = null,
-    /// <summary>v0.3.11: urutan kartu Mirror Blessing + boleh dipilih. null = dari BlessingPriority lama.</summary>
+    /// <summary>v0.3.11: Mirror Blessing card order + whether pickable. null = from the legacy BlessingPriority.</summary>
     List<SupaZero.Core.Game.BlessingPref>? BlessingCards = null,
-    /// <summary>v0.3.11: kartu yang terbaca di game (nama, rarity, deskripsi, value) di luar daftar bawaan.</summary>
+    /// <summary>v0.3.11: cards read in game (name, rarity, description, value) outside the built-in list.</summary>
     List<SupaZero.Core.Game.BlessingInfo>? KnownBlessings = null);

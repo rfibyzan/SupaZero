@@ -5,9 +5,9 @@ using RIE.Core.Roblox;
 namespace RIE.Core.Properties;
 
 /// <summary>
-/// Baca properti per class yang offset-nya tersedia. Semua nilai dikembalikan sebagai string invarian
-/// (stabil untuk diff). Properti yang offset-nya tidak ada di offsets.json dilewati.
-/// Attributes (eksperimen): dibaca bila <see cref="Attributes"/> diisi (dari dump atau hasil cari), dengan kunci "@Nama".
+/// Reads per-class properties whose offsets are available. All values are returned as invariant strings
+/// (stable for diffing). Properties whose offsets are missing from offsets.json are skipped.
+/// Attributes (experimental): read when <see cref="Attributes"/> is set (from the dump or a search result), with key "@Name".
 /// </summary>
 public sealed class PropertyReader(InstanceReader reader)
 {
@@ -27,7 +27,7 @@ public sealed class PropertyReader(InstanceReader reader)
         "TrussPart", "SpawnLocation", "Seat", "VehicleSeat", "SkateboardPlatform", "PartOperation",
     };
 
-    /// <summary>Tata letak Attributes; null = tidak dibaca.</summary>
+    /// <summary>Attributes layout; null = not read.</summary>
     public AttributeLayout? Attributes { get; set; }
 
     public static bool IsGuiObject(string cls) => GuiObjectClasses.Contains(cls);
@@ -122,7 +122,7 @@ public sealed class PropertyReader(InstanceReader reader)
     {
         if (!reader.Offsets.TryResolve("AbsolutePosition", out long posOff) || posOff == 0) return;
         if (TryVec2(inst + posOff, out string p)) props["AbsolutePosition"] = p;
-        // Beberapa dump menulis AbsoluteSize = 0 (tidak dikenal) → fallback pos+8 seperti OpenFisch.
+        // Some dumps write AbsoluteSize = 0 (unknown) → fall back to pos+8 like OpenFisch.
         long sizeOff = reader.Offsets.TryResolve("AbsoluteSize", out long s) && s != 0 ? s : posOff + 8;
         if (TryVec2(inst + sizeOff, out string sz)) props["AbsoluteSize"] = sz;
     }
@@ -136,7 +136,7 @@ public sealed class PropertyReader(InstanceReader reader)
             if (Off("Primitive.AssemblyLinearVelocity", out long vo) && TryVec3(prim + vo, out string vel)) props["Velocity"] = vel;
             if (Off("Primitive.Rotation", out long ro))
             {
-                long a = prim + ro; // 3x3 row-major, LookVector = -kolom Z
+                long a = prim + ro; // 3x3 row-major, LookVector = -Z column
                 if (M.TryReadFloat(a + 8, out float r02) && M.TryReadFloat(a + 20, out float r12) && M.TryReadFloat(a + 32, out float r22)
                     && Sane(r02) && Sane(r12) && Sane(r22) && MathF.Abs(r02 * r02 + r12 * r12 + r22 * r22 - 1) < 0.05f)
                     props["LookVector"] = $"{F(-r02)}, {F(-r12)}, {F(-r22)}";
@@ -185,7 +185,7 @@ public sealed class PropertyReader(InstanceReader reader)
         if (Off(key, out long mask) && mask is > 0 and < 256) props[name] = Bool((byte)(flags & mask));
     }
 
-    /// <summary>Color3 = 3 float 0..1 → "r, g, b" (0..255). Dilewati bila nilainya di luar rentang (offset meragukan).</summary>
+    /// <summary>Color3 = 3 floats 0..1 → "r, g, b" (0..255). Skipped when values are out of range (dubious offset).</summary>
     private void Color(string key, long inst, string name, IDictionary<string, string> props)
     {
         if (!Off(key, out long o) || o < 0x20) return;
@@ -197,7 +197,7 @@ public sealed class PropertyReader(InstanceReader reader)
 
     private static bool In01(float f) => float.IsFinite(f) && f >= 0 && f <= 1.0001f;
 
-    /// <summary>String inline (std::string) atau via pointer.</summary>
+    /// <summary>Inline string (std::string) or via pointer.</summary>
     private void StrProp(string key, long inst, string name, IDictionary<string, string> props)
     {
         if (!Off(key, out long o)) return;
@@ -217,7 +217,7 @@ public sealed class PropertyReader(InstanceReader reader)
         Flag("ProximityPrompt.RequiresLineOfSight", p, "RequiresLineOfSight", props);
     }
 
-    /// <summary>Nama Enum.KeyCode umum (huruf, angka, F1-F12, tombol khusus).</summary>
+    /// <summary>Common Enum.KeyCode names (letters, digits, F1-F12, special keys).</summary>
     public static string KeyName(int code) => code switch
     {
         >= 97 and <= 122 => ((char)(code - 32)).ToString(),
@@ -245,23 +245,23 @@ public sealed class PropertyReader(InstanceReader reader)
     }
 
     /// <summary>
-    /// Track aktif di Animator (bukan anak di pohon instance). Struktur ActiveAnimations tidak didokumentasikan dump,
-    /// jadi dicoba dua bentuk (vector shared_ptr dan linked list) dan hanya diterima bila tiap elemen ber-class AnimationTrack.
+    /// Active tracks on the Animator (not children in the instance tree). The ActiveAnimations structure is not documented by the dump,
+    /// so two shapes are tried (shared_ptr vector and linked list) and accepted only if every element is of class AnimationTrack.
     /// </summary>
     public List<long> GetActiveTracks(long animator, int max = 32) => GetActiveTracks(animator, max, out _);
 
     /// <summary>
-    /// Mengikuti metode resmi dump (offsets.imtheo.lol/docs/methods): Head = [animator + ActiveAnimations];
-    /// Node = [Head]; selama Node != Head: track = [Node + 0x10], Node = [Node]. Elemen tidak valid dilewati.
-    /// Track diterima bila class-nya AnimationTrack atau back-pointer AnimationTrack.Animator menunjuk animator ini.
+    /// Follows the dump's official method (offsets.imtheo.lol/docs/methods): Head = [animator + ActiveAnimations];
+    /// Node = [Head]; while Node != Head: track = [Node + 0x10], Node = [Node]. Invalid elements are skipped.
+    /// A track is accepted if its class is AnimationTrack or its AnimationTrack.Animator back-pointer points to this animator.
     /// </summary>
     public List<long> GetActiveTracks(long animator, int max, out string debug)
     {
         var result = new List<long>();
-        debug = "offset Animator.ActiveAnimations tidak ada";
+        debug = "offset Animator.ActiveAnimations missing";
         if (!Off("Animator.ActiveAnimations", out long off)) return result;
         long a = animator + off;
-        if (!M.TryReadPointer(a, out long head)) { debug = $"[+0x{off:X}] bukan pointer"; return result; }
+        if (!M.TryReadPointer(a, out long head)) { debug = $"[+0x{off:X}] not a pointer"; return result; }
         int nodes = 0, skipped = 0;
         var seen = new HashSet<long>();
         if (M.TryReadPointer(head, out long node))
@@ -273,12 +273,12 @@ public sealed class PropertyReader(InstanceReader reader)
             }
         if (result.Count == 0)
         {
-            // cadangan: std::vector<shared_ptr<AnimationTrack>> {begin, end}
+            // fallback: std::vector<shared_ptr<AnimationTrack>> {begin, end}
             if (M.TryReadPointer(a + 8, out long end) && end > head && (end - head) % 16 == 0 && (end - head) / 16 <= max)
                 for (long p = head; p < end; p += 16)
                     if (M.TryReadPointer(p, out long tr) && IsTrack(tr, animator)) result.Add(tr);
         }
-        debug = $"head 0x{head:X}, node {nodes}, dilewati {skipped}, track {result.Count}";
+        debug = $"head 0x{head:X}, node {nodes}, skipped {skipped}, track {result.Count}";
         return result;
     }
 
@@ -290,8 +290,8 @@ public sealed class PropertyReader(InstanceReader reader)
     }
 
     /// <summary>
-    /// Posisi dunia untuk proyeksi ke layar: BasePart → Position; Model → PrimaryPart; Humanoid → RootPart;
-    /// ProximityPrompt/ClickDetector/Attachment/Sound → induk BasePart.
+    /// World position for screen projection: BasePart → Position; Model → PrimaryPart; Humanoid → RootPart;
+    /// ProximityPrompt/ClickDetector/Attachment/Sound → parent BasePart.
     /// </summary>
     public bool TryGetWorldPosition(long inst, out float x, out float y, out float z, int depth = 0)
     {
@@ -322,7 +322,7 @@ public sealed class PropertyReader(InstanceReader reader)
             var t = new Dictionary<string, string>();
             ReadTrack(tracks[i], t);
             string id = t.TryGetValue("AnimationId", out var v) ? v : "?";
-            string playing = t.TryGetValue("IsPlaying", out var ip) ? (ip == "true" ? "main" : "berhenti") : "?";
+            string playing = t.TryGetValue("IsPlaying", out var ip) ? (ip == "true" ? "playing" : "stopped") : "?";
             string pos = t.TryGetValue("TimePosition", out var tp) ? tp : "?";
             props[$"Track{i + 1}"] = $"{id} | {playing} | t={pos}";
         }
@@ -365,7 +365,7 @@ public sealed class PropertyReader(InstanceReader reader)
         Vec3("Camera.Position", c, "Position", props);
         if (Off("Camera.Rotation", out long ro))
         {
-            // Matriks rotasi 3x3 row-major; LookVector = -kolom Z.
+            // 3x3 row-major rotation matrix; LookVector = -Z column.
             long a = c + ro;
             if (M.TryReadFloat(a + 8, out float r02) && M.TryReadFloat(a + 20, out float r12) && M.TryReadFloat(a + 32, out float r22)
                 && Sane(r02) && Sane(r12) && Sane(r22))

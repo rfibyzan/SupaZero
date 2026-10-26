@@ -1,10 +1,10 @@
 namespace RIE.Core.Memory;
 
 /// <summary>
-/// Cek versi Roblox secara pasif (hanya membaca path/folder; TIDAK menjalankan atau menyentuh Roblox).
-/// Prioritas: (1) versi Roblox yang SEDANG berjalan, dari path RobloxPlayerBeta.exe proses (mendukung launcher
-/// seperti Bloxstrap/Fishstrap dengan folder Versions di lokasi lain); (2) fallback folder terbaru
-/// %LocalAppData%\Roblox\Versions\version-* yang berisi RobloxPlayerBeta.exe. Dipakai tab Offsets.
+/// Passively checks the Roblox version (only reads paths/folders; does NOT launch or touch Roblox).
+/// Priority: (1) the CURRENTLY running Roblox version, from the process RobloxPlayerBeta.exe path (supports launchers
+/// like Bloxstrap/Fishstrap with the Versions folder elsewhere); (2) fallback to the newest folder
+/// %LocalAppData%\Roblox\Versions\version-* that contains RobloxPlayerBeta.exe. Used by the Offsets tab.
 /// </summary>
 public static class RobloxInstallProbe
 {
@@ -13,7 +13,7 @@ public static class RobloxInstallProbe
     public static string DefaultVersionsDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Roblox", "Versions");
 
-    /// <summary>Nama folder versi terbaru (mis. "version-9ac8595712b447a7") atau null bila tidak ada.</summary>
+    /// <summary>Newest version folder name (e.g. "version-9ac8595712b447a7") or null if none.</summary>
     public static string? FindLatestVersion(string? versionsDirectory = null)
     {
         string dir = versionsDirectory ?? DefaultVersionsDirectory;
@@ -34,8 +34,8 @@ public static class RobloxInstallProbe
     }
 
     /// <summary>
-    /// Nama folder versi dari path exe, mis. "D:\Games\Fishstrap\Versions\version-9ac8595712b447a7\RobloxPlayerBeta.exe"
-    /// → "version-9ac8595712b447a7". Null bila folder induk bukan "version-*".
+    /// Version folder name from the exe path, e.g. "D:\Games\Fishstrap\Versions\version-9ac8595712b447a7\RobloxPlayerBeta.exe"
+    /// → "version-9ac8595712b447a7". Null if the parent folder is not "version-*".
     /// </summary>
     public static string? VersionFromExePath(string? exePath)
     {
@@ -50,7 +50,7 @@ public static class RobloxInstallProbe
         return name.StartsWith("version-", StringComparison.OrdinalIgnoreCase) ? name : null;
     }
 
-    /// <summary>Versi Roblox yang sedang berjalan (path modul utama RobloxPlayerBeta), atau null bila tidak ada/tak terbaca.</summary>
+    /// <summary>The running Roblox version (RobloxPlayerBeta main module path), or null if not running/unreadable.</summary>
     public static string? FindRunningVersion()
     {
         var procs = System.Diagnostics.Process.GetProcessesByName(Path.GetFileNameWithoutExtension(PlayerExe));
@@ -77,7 +77,7 @@ public static class RobloxInstallProbe
         }
     }
 
-    /// <summary>QueryFullProcessImageName dengan akses query terbatas (hanya Windows; selain itu null).</summary>
+    /// <summary>QueryFullProcessImageName with limited query access (Windows only; otherwise null).</summary>
     private static string? ImagePath(int pid)
     {
         if (!OperatingSystem.IsWindows())
@@ -100,7 +100,7 @@ public static class RobloxInstallProbe
         }
     }
 
-    /// <summary>Versi untuk dibandingkan: yang sedang berjalan bila ada (isRunning=true), selain itu folder terbaru.</summary>
+    /// <summary>Version to compare: the running one if any (isRunning=true), otherwise the newest folder.</summary>
     public static string? ResolveVersion(out bool isRunning, string? versionsDirectory = null)
     {
         string? running = FindRunningVersion();
@@ -109,8 +109,8 @@ public static class RobloxInstallProbe
     }
 
     /// <summary>
-    /// true bila versi di offsets.json sama dengan folder terpasang (OrdinalIgnoreCase, spasi dipangkas).
-    /// Salah satu kosong/null → dianggap tidak bisa dibandingkan → true (tidak memunculkan peringatan palsu).
+    /// true if the version in offsets.json matches the installed folder (OrdinalIgnoreCase, whitespace trimmed).
+    /// Either empty/null → treated as not comparable → true (no false warning).
     /// </summary>
     public static bool VersionMatches(string? offsetsVersion, string? installedVersion)
     {

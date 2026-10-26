@@ -24,7 +24,7 @@ public sealed partial class GameReader
         return res;
     }
 
-    /// <summary>v0.2.99: diagnosa nama unit (slot SkillTree vs slot Roll + judul) untuk log bila nama tidak terbaca.</summary>
+    /// <summary>v0.2.99: unit name diagnostics (SkillTree slot vs Roll slot + title) for the log when the name is not read.</summary>
     public string? SkillUnitDebug { get; private set; }
     private readonly RollTitleTracker _rollTitle = new();
 
@@ -36,10 +36,10 @@ public sealed partial class GameReader
         long roll = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.RollRoot) : 0;
         int? rs = SelectedSlot(roll, AnimeZeroPaths.RollUnitList, AnimeZeroPaths.RollUnitSelected);
         string? title = roll != 0 ? CleanText(reader.ResolvePath(roll, AnimeZeroPaths.RollUnitTitle)) : null;
-        SkillUnitDebug = $"SkillTree slot {st?.ToString() ?? "?"}, Roll {(roll == 0 ? "tidak ada" : $"slot {rs?.ToString() ?? "?"}")}, judul Roll \"{title ?? "-"}\"";
+        SkillUnitDebug = $"SkillTree slot {st?.ToString() ?? "?"}, Roll {(roll == 0 ? "none" : $"slot {rs?.ToString() ?? "?"}")}, Roll title \"{title ?? "-"}\"";
         long rl = roll != 0 ? reader.ResolvePath(roll, AnimeZeroPaths.RollUnitList) : 0;
         bool rollHasSlots = rl != 0 && reader.GetChildren(rl, 64).Any(c => reader.GetName(c) is var nm && nm.StartsWith("Slot", StringComparison.Ordinal) && int.TryParse(nm[4..], out _));
-        if (!rollHasSlots) SkillUnitDebug += " (daftar Roll kosong → judul diterima hanya bila berubah setelah ganti slot)";
+        if (!rollHasSlots) SkillUnitDebug += " (Roll list empty → title accepted only if it changes after switching slots)";
         return _rollTitle.Resolve(st, title, rollHasSlots, rs);
     }
 
@@ -64,7 +64,7 @@ public sealed partial class GameReader
                 if (btn == 0) continue;
                 slots.Add((btn, HubRect(btn)));
             }
-            if (slots.Any(x => x.R is null)) continue; // urutan tidak pasti tanpa posisi
+            if (slots.Any(x => x.R is null)) continue; // order is uncertain without positions
             slots.Sort((a, b) => a.R!.Value.Y.CompareTo(b.R!.Value.Y));
             for (int i = 0; i < slots.Count; i++)
             {

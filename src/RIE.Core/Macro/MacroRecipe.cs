@@ -4,25 +4,25 @@ using RIE.Core.Watch;
 
 namespace RIE.Core.Macro;
 
-/// <summary>Elemen yang dipakai macro: path stabil + posisi saat direkam.</summary>
+/// <summary>Element used by the macro: stable path + position at recording time.</summary>
 public sealed class RecipeElement
 {
     public string Alias { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public string ClassName { get; set; } = string.Empty;
     public SortedDictionary<string, string> Properties { get; set; } = new(StringComparer.Ordinal);
-    /// <summary>Rect relatif area klien Roblox (piksel). Null bila bukan GUI.</summary>
+    /// <summary>Rect relative to the Roblox client area (pixels). Null if not a GUI.</summary>
     public ScreenRect? ClientRect { get; set; }
-    /// <summary>Pusat ternormalisasi 0..1 terhadap ukuran klien (tahan resize jendela untuk UI berbasis Scale).</summary>
+    /// <summary>Center normalized 0..1 to the client size (survives window resize for Scale-based UI).</summary>
     public double? NormCenterX { get; set; }
     public double? NormCenterY { get; set; }
     public string Note { get; set; } = string.Empty;
 }
 
-/// <summary>Resep macro: hasil riset yang dibaca proyek macro terpisah. App ini tidak mengeksekusinya.</summary>
+/// <summary>Macro recipe: research output read by a separate macro project. This app does not execute it.</summary>
 public sealed class MacroRecipe
 {
-    public string Name { get; set; } = "resep";
+    public string Name { get; set; } = "recipe";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
     public string RobloxVersion { get; set; } = string.Empty;
     public string PlaceId { get; set; } = string.Empty;

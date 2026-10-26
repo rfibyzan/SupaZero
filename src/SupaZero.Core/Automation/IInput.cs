@@ -1,33 +1,33 @@
 namespace SupaZero.Core.Automation;
 
-/// <summary>Kirim input ke Roblox. Implementasi nyata = SendInput (Win32Input); tes memakai rekaman palsu.</summary>
+/// <summary>Sends input to Roblox. Real implementation = SendInput (Win32Input); tests use a fake recorder.</summary>
 public interface IInput
 {
-    /// <summary>True bila jendela Roblox sedang di depan (input hanya dikirim saat ini true).</summary>
+    /// <summary>True when the Roblox window is in the foreground (input is only sent while this is true).</summary>
     bool IsTargetForeground();
 
-    /// <summary>Klik kiri di koordinat klien jendela Roblox.</summary>
+    /// <summary>Left-click at Roblox window client coordinates.</summary>
     void ClickClient(double x, double y);
 
-    /// <summary>Geser kursor ke koordinat klien lalu putar roda mouse. Notches &gt; 0 = ke atas.</summary>
+    /// <summary>Move the cursor to client coordinates, then scroll the mouse wheel. Notches &gt; 0 = up.</summary>
     void ScrollClient(double x, double y, int notches);
 
-    /// <summary>Ukuran area klien jendela Roblox (piksel), null bila tidak diketahui.</summary>
+    /// <summary>Roblox window client area size (pixels), null when unknown.</summary>
     (int W, int H)? ClientSize();
 
-    /// <summary>Geser kursor ke koordinat klien (tanpa klik).</summary>
+    /// <summary>Move the cursor to client coordinates (no click).</summary>
     void MoveClient(double x, double y);
 
-    /// <summary>Gerak mouse relatif (delta piksel), untuk memutar kamera saat shift lock.</summary>
+    /// <summary>Relative mouse movement (pixel delta), to turn the camera during shift lock.</summary>
     void MoveRelative(int dx, int dy);
 
-    /// <summary>Posisi kursor dalam koordinat klien Roblox, null bila tidak diketahui.</summary>
+    /// <summary>Cursor position in Roblox client coordinates, null when unknown.</summary>
     (double X, double Y)? CursorClient();
 
-    /// <summary>Klik kiri di posisi kursor sekarang.</summary>
+    /// <summary>Left-click at the current cursor position.</summary>
     void ClickHere();
 
-    /// <summary>Tahan / lepas klik kanan di posisi kursor sekarang.</summary>
+    /// <summary>Hold / release right-click at the current cursor position.</summary>
     void RightDown();
     void RightUp();
 

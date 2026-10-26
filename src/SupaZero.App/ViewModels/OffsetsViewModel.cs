@@ -3,7 +3,7 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.ViewModels;
 
-/// <summary>Tab Offsets (tata letak sama dengan SupaFisch): status, versi, cek cocok dengan Roblox, file manual.</summary>
+/// <summary>Offsets tab (same layout as SupaFisch): status, version, Roblox match check, manual file.</summary>
 public sealed class OffsetsViewModel : ObservableObject
 {
     public const string ProviderUrl = "https://offsets.imtheo.lol/offsets.json";
@@ -22,10 +22,10 @@ public sealed class OffsetsViewModel : ObservableObject
     private RIE.Core.Offsets.OffsetsSnapshot? O => _root.Session.Offsets;
 
     public bool Busy { get => _busy; private set { Set(ref _busy, value); Raise(nameof(UpdateText)); } }
-    public string UpdateText => Busy ? "Mengunduh..." : "Unduh terbaru";
-    public string StatusTitle => _lastError is not null ? "Gagal" : O is null ? "Offsets belum dimuat" : Mismatch ? "Offsets tidak cocok" : "Offsets siap";
+    public string UpdateText => Busy ? "Downloading..." : "Download latest";
+    public string StatusTitle => _lastError is not null ? "Failed" : O is null ? "Offsets not loaded" : Mismatch ? "Offsets mismatch" : "Offsets ready";
     public bool StatusIsError => _lastError is not null || O is null || Mismatch;
-    public string StatusDetail => _lastError ?? (O is null ? "Unduh terbaru atau pilih file offsets.json." : O.FilePath);
+    public string StatusDetail => _lastError ?? (O is null ? "Download the latest or pick an offsets.json file." : O.FilePath);
     public string Version => O?.RobloxVersion is { Length: > 0 } v ? v : "-";
     public string Updated => O is not null && File.Exists(O.FilePath) ? File.GetLastWriteTime(O.FilePath).ToString("dd MMM yyyy HH:mm") : "-";
     public string Total => O?.TotalOffsets.ToString() ?? "-";
@@ -33,14 +33,14 @@ public sealed class OffsetsViewModel : ObservableObject
     private string? Installed => RobloxInstallProbe.ResolveVersion(out _);
     private bool Mismatch => O is not null && !RobloxInstallProbe.VersionMatches(O.RobloxVersion, Installed);
     public bool HasWarning => Mismatch;
-    public string Warning => $"Versi Roblox terpasang {Installed ?? "?"} berbeda dengan offsets {Version}. Unduh terbaru setelah dumper rilis.";
+    public string Warning => $"Installed Roblox version {Installed ?? "?"} differs from offsets {Version}. Download the latest once the dumper releases.";
 
     public string Path { get => _path; set => Set(ref _path, value ?? string.Empty); }
 
     public RelayCommand LoadCommand => new(_ =>
     {
         _lastError = null;
-        if (!File.Exists(Path)) { _lastError = "File tidak ditemukan: " + Path; RaiseAll(); return; }
+        if (!File.Exists(Path)) { _lastError = "File not found: " + Path; RaiseAll(); return; }
         _root.Settings.OffsetsPath = Path;
         _root.Save();
         _root.LoadOffsets(Path);
@@ -62,7 +62,7 @@ public sealed class OffsetsViewModel : ObservableObject
             Path = path;
             _root.LoadOffsets(path);
         }
-        catch (Exception ex) { _lastError = "Unduh gagal: " + ex.Message; }
+        catch (Exception ex) { _lastError = "Download failed: " + ex.Message; }
         finally { Busy = false; RaiseAll(); }
     });
 

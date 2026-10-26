@@ -1,6 +1,6 @@
 namespace SupaZero.Core.Game;
 
-/// <summary>Kotak GUI dalam koordinat klien jendela Roblox (piksel).</summary>
+/// <summary>GUI rect in Roblox window client coordinates (pixels).</summary>
 public readonly record struct GuiRect(double X, double Y, double W, double H)
 {
     public double CenterX => X + W / 2;
@@ -14,34 +14,34 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
 
 public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting, BlessingPick, TrialsMenu }
 
-/// <summary>Status satu kotak skill di HUD: Key dari keybind.Txt; Remaining detik cooldown (null = siap); Locked = MasteryLock tampil.</summary>
-/// <summary>Musuh di Workspace.enemies: posisi HumanoidRootPart + darah Humanoid.</summary>
+/// <summary>State of one HUD skill box: Key from keybind.Txt; Remaining cooldown seconds (null = ready); Locked = MasteryLock shown.</summary>
+/// <summary>Enemy in Workspace.enemies: HumanoidRootPart position + Humanoid HP.</summary>
 public sealed record EnemyInfo(string Name, Settings.Vec3 Pos, double Health, double MaxHealth, int Highlights = 1)
 {
     public bool Alive => Health > 0;
     /// <summary>
-    /// v0.2.81: tanda boss IMMUNE dari model. Snapshot RIE Evil Reflections (Byzan, 24 Okt 23:52 vs 23:53): saat [IMMUNE] model boss
-    /// punya DUA anak Highlight bernama "Highlight" (musuh biasa satu); setelah bisa diserang, Highlight kedua hilang.
+    /// v0.2.81: boss IMMUNE flag from the model. RIE snapshot Evil Reflections (Byzan, 24 Oct 23:52 vs 23:53): while [IMMUNE] the boss model
+    /// has TWO Highlight children named "Highlight" (normal enemies have one); once attackable, the second Highlight disappears.
     /// </summary>
     public bool ImmuneMark => Highlights >= 2;
 }
 
-/// <summary>Item di lantai ronde (Workspace.PooledDrops): Kind "cash" (koin) atau "health" (plus hijau). Dipungut dengan dilewati.</summary>
+/// <summary>Item on the round floor (Workspace.PooledDrops): Kind "cash" (coin) or "health" (green plus). Picked up by walking over it.</summary>
 public sealed record PickupInfo(string Kind, Settings.Vec3 Pos)
 {
     public bool IsHealth => Kind.StartsWith("health", StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>v0.2.67: mayat yang bisa dibangkitkan (Shadow Lord): Workspace.AriseShadows.&lt;n&gt;.Arise. Hold = detik tahan E.</summary>
+/// <summary>v0.2.67: corpse that can be raised (Shadow Lord): Workspace.AriseShadows.&lt;n&gt;.Arise. Hold = seconds to hold E.</summary>
 public sealed record AriseInfo(string Name, Settings.Vec3 Pos, double Hold, double MaxDistance);
 
-/// <summary>Kamera: posisi, LookVector, FieldOfView (vertikal, derajat), ViewportSize (= area klien).</summary>
+/// <summary>Camera: position, LookVector, FieldOfView (vertical, degrees), ViewportSize (= client area).</summary>
 public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)
 {
-    /// <summary>v0.2.77: Camera.CameraSubject (path lengkap, mis. "Workspace.Astakun17.Humanoid"); null bila offset tidak ada.</summary>
+    /// <summary>v0.2.77: Camera.CameraSubject (full path, e.g. "Workspace.Astakun17.Humanoid"); null when the offset is missing.</summary>
     public string? Subject { get; init; }
 
-    /// <summary>Proyeksi titik dunia ke koordinat klien; null bila di belakang kamera. Asumsi kamera tanpa roll.</summary>
+    /// <summary>Projects a world point to client coordinates; null when behind the camera. Assumes a camera without roll.</summary>
     public (double X, double Y)? WorldToScreen(Settings.Vec3 p)
     {
         double fl = Math.Sqrt(Look.X * Look.X + Look.Y * Look.Y + Look.Z * Look.Z);
@@ -63,35 +63,35 @@ public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fo
 public sealed record SkillCooldown(string Key, double? Remaining, bool Locked)
 {
     public bool Ready => Remaining is null && !Locked;
-    /// <summary>v0.2.79: pasti sedang cooldown/terkunci (teks cd tak terbaca = NaN → bukan siap, bukan cooldown).</summary>
+    /// <summary>v0.2.79: definitely on cooldown/locked (unreadable cd text = NaN → neither ready nor on cooldown).</summary>
     public bool Cooling => Locked || Remaining is > 0;
 }
 
-/// <summary>Node SkillTree. Index 0 = paling atas (urutan beli atas → bawah). Price null = sudah dibeli / tidak terbaca.</summary>
+/// <summary>SkillTree node. Index 0 = topmost (buy order top → bottom). Price null = already bought / unreadable.</summary>
 public sealed record SkillSlot(string Column, int Index, bool CanBuy, GuiRect? Rect, int? Price = null, bool Selected = false, bool Locked = false);
 
-/// <summary>Satu entri daftar (map/act/mode) di Create Lobby.</summary>
+/// <summary>One list entry (map/act/mode) in Create Lobby.</summary>
 public sealed record LobbyEntry(string Name, bool Locked, bool Selected, GuiRect? Rect, string? Mode = null);
 
-/// <summary>Satu bacaan keadaan game (read-only) per tick macro.</summary>
-/// <summary>Satu room antrean (Workspace.Systems.QuqueRooms.&lt;n&gt;). Occupied = RoomGui menampilkan "Join Here"/"Players x/y" (sudah ada pemain lain).</summary>
+/// <summary>One read of the game state (read-only) per macro tick.</summary>
+/// <summary>One queue room (Workspace.Systems.QuqueRooms.&lt;n&gt;). Occupied = RoomGui shows "Join Here"/"Players x/y" (another player is already in it).</summary>
 public sealed record StartRoom(string Id, Settings.Vec3 Pos, bool Occupied, int? Players = null, int? MaxPlayers = null);
 
-/// <summary>Kartu reward (Create Room / Trials). Targetable = pill TARGET tampil (Hard/Nightmare); Targeted = pill bertuliskan UNTARGET.</summary>
+/// <summary>Reward card (Create Room / Trials). Targetable = TARGET pill shown (Hard/Nightmare); Targeted = pill reads UNTARGET.</summary>
 public sealed record RewardCard(string Name, bool Targetable, bool Targeted, GuiRect? Hit, string? Chance);
 
-/// <summary>Kartu Mirror Blessing (FateBlessings.Picker.Holder.List.OfferN).</summary>
+/// <summary>Mirror Blessing card (FateBlessings.Picker.Holder.List.OfferN).</summary>
 public sealed record BlessingOffer(string Name, string Rarity, string? Value, GuiRect? Pick, string? Description = null);
 
-/// <summary>Panel Trials (UI Animation (Finished).Trials.MainFrame). FloorTabOpen = tab Floor Rewards aktif.</summary>
+/// <summary>Panel Trials (UI Animation (Finished).Trials.MainFrame). FloorTabOpen = Floor Rewards tab active.</summary>
 public sealed record TrialsInfo(GuiRect? FloorTab, bool FloorTabOpen, int? SelectedFloor, int? HighestFloor,
     GuiRect? Decrease, GuiRect? Increase, GuiRect? Start, IReadOnlyList<RewardCard> Rewards, GuiRect? RewardsView)
 {
-    /// <summary>v0.3.7: Buttons.LeaveButton.LeaveButton (teks "Leave", s0819: 1617,911). Menutup panel Trials + menu room.</summary>
+    /// <summary>v0.3.7: Buttons.LeaveButton.LeaveButton (text "Leave", s0819: 1617,911). Closes the Trials panel + room menu.</summary>
     public GuiRect? Leave { get; init; }
 }
 
-/// <summary>Kotak Workspace.World.Areas.&lt;n&gt; (Part: pusat + Size).</summary>
+/// <summary>Workspace.World.Areas.&lt;n&gt; box (Part: center + Size).</summary>
 public sealed record AreaBox(Settings.Vec3 Center, Settings.Vec3 Size)
 {
     public bool Contains(Settings.Vec3 p, double margin = 0) =>
@@ -104,30 +104,30 @@ public sealed record GameSnapshot
     public long PlaceId { get; init; }
     public string LocalPlayer { get; init; } = string.Empty;
 
-    // Karakter + kamera (untuk Navigator)
+    // Character + camera (for Navigator)
     public Settings.Vec3? PlayerPos { get; init; }
-    /// <summary>Darah karakter 0..1 (Humanoid Health/MaxHealth), null bila tidak terbaca.</summary>
+    /// <summary>Character HP 0..1 (Humanoid Health/MaxHealth), null when unreadable.</summary>
     public double? PlayerHp { get; init; }
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
-    /// <summary>v0.2.67: prompt ARISE aktif (Shadow Lord), kosong bila tidak ada.</summary>
+    /// <summary>v0.2.67: active ARISE prompts (Shadow Lord), empty when none.</summary>
     public IReadOnlyList<AriseInfo> Arises { get; init; } = [];
-    /// <summary>v0.2.70: jumlah / kapasitas Shadows dari panel System (null bila tidak terbaca).</summary>
+    /// <summary>v0.2.70: Shadows count / capacity from the System panel (null when unreadable).</summary>
     public (int Count, int Max)? Shadows { get; init; }
-    /// <summary>Peta navigasi ronde (Areas + rintangan Navigation) untuk cari jalur; null di luar ronde.</summary>
+    /// <summary>Round navigation map (Areas + Navigation obstacles) for pathfinding; null outside a round.</summary>
     public NavMap? Nav { get; init; }
     public (double X, double Z)? CameraLook { get; init; }
     public CameraInfo? Camera { get; init; }
 
     /// <summary>
-    /// v0.2.75: geser samping kamera terhadap karakter (stud, + = kanan). Shift lock Roblox menggeser kamera ±1,75 stud ke kanan
-    /// karakter; tanpa shift lock kamera menatap tepat ke karakter (≈0). Ikon shift lock Anime Zero = kursor bawaan Roblox,
-    /// PlayerScripts/UserInputService/HUD.HUD.Cursor tidak berubah (snapshot Byzan 24 Okt 23:18), jadi dibaca dari geometri kamera.
+    /// v0.2.75: sideways camera offset relative to the character (studs, + = right). Roblox shift lock shifts the camera ±1.75 studs to the right of
+    /// the character; without shift lock the camera looks straight at the character (≈0). The Anime Zero shift lock icon = Roblox default cursor,
+    /// PlayerScripts/UserInputService/HUD.HUD.Cursor do not change (Byzan snapshot 24 Oct 23:18), so it is read from camera geometry.
     /// </summary>
     /// <summary>
-    /// v0.2.77: kamera benar-benar mengikuti karakter: CameraSubject = Humanoid/karakter pemain (bila terbaca) dan jarak kamera ≤ 40 stud.
-    /// false saat animasi Ultimate/cutscene memindah kamera; null bila tidak terbaca. Saat false, status shift lock dari kamera tidak dipakai.
+    /// v0.2.77: the camera really follows the character: CameraSubject = player Humanoid/character (when readable) and camera distance ≤ 40 studs.
+    /// false when an Ultimate animation/cutscene moves the camera; null when unreadable. When false, the camera-derived shift lock state is not used.
     /// </summary>
-    /// <summary>FieldOfView kamera saat bermain normal (Anime Zero/Roblox default).</summary>
+    /// <summary>Camera FieldOfView during normal play (Anime Zero/Roblox default).</summary>
     public const double NormalFov = 70;
 
     public bool? CameraFollowsPlayer
@@ -135,8 +135,8 @@ public sealed record GameSnapshot
         get
         {
             if (Camera is not { } c || PlayerPos is not { } p) return null;
-            // v0.2.78: Watch Byzan 24 Okt 23:34: selama animasi Ultimate FieldOfView melompat 11..120 (normal tepat 70) sementara kamera
-            // tetap ≤40 stud dari karakter → FOV di luar 70±1 = kamera dikendalikan skrip.
+            // v0.2.78: Byzan Watch 24 Oct 23:34: during the Ultimate animation FieldOfView jumps 11..120 (normally exactly 70) while the camera
+            // stays ≤40 studs from the character → FOV outside 70±1 = camera controlled by a script.
             if (Math.Abs(c.Fov - NormalFov) > 1.0) return false;
             if (c.Subject is { } subj && !string.IsNullOrEmpty(LocalPlayer)
                 && !(subj.EndsWith("." + LocalPlayer + ".Humanoid", StringComparison.Ordinal) || subj.EndsWith("." + LocalPlayer, StringComparison.Ordinal)
@@ -159,44 +159,44 @@ public sealed record GameSnapshot
         }
     }
 
-    /// <summary>Status shift lock dari memori: true bila geser kamera 1..2,6 stud ke kanan, false bila &lt; 0,5 stud, null bila ragu/tidak terbaca.</summary>
+    /// <summary>Shift lock state from memory: true when the camera offset is 1..2.6 studs to the right, false when &lt; 0.5 studs, null when uncertain/unreadable.</summary>
     public bool? ShiftLockFromCamera => CameraSideOffset is not { } o ? null : o is >= 1.0 and <= 2.6 ? true : Math.Abs(o) < 0.5 ? false : null;
-    /// <summary>Musuh hidup/mati di Workspace.enemies (kosong bila tidak terbaca).</summary>
+    /// <summary>Living/dead enemies in Workspace.enemies (empty when unreadable).</summary>
     public IReadOnlyList<EnemyInfo> Enemies { get; init; } = [];
-    /// <summary>Rubble yang harus dihancurkan (juga dimasukkan ke Enemies sebagai "Rubble" bila tidak ada musuh hidup).</summary>
+    /// <summary>Rubble to destroy (also added to Enemies as "Rubble" when no living enemies).</summary>
     public Settings.Vec3? RubblePos { get; init; }
-    /// <summary>v0.2.91: titik berdiri untuk memukul rubble = titik terdekat di Border*.Rubble.ClimbStop (null = tidak terbaca).</summary>
+    /// <summary>v0.2.91: standing point for hitting the rubble = nearest point on Border*.Rubble.ClimbStop (null = unreadable).</summary>
     public Settings.Vec3? RubbleStand { get; init; }
-    /// <summary>v0.3.12: rubble Adornee RubbleBar dengan Blocker masih padat, HUD belum menyebut rubble (bisa dipukul setelah wave bersih).</summary>
+    /// <summary>v0.3.12: RubbleBar Adornee rubble whose Blocker is still solid, HUD not mentioning rubble yet (can be hit once the wave is clear).</summary>
     public Settings.Vec3? RubblePending { get; init; }
-    /// <summary>Nyawa rubble 0..1 dari teks RubbleBar (null = tidak terbaca).</summary>
+    /// <summary>Rubble HP 0..1 from the RubbleBar text (null = unreadable).</summary>
     public double? RubbleHp { get; init; }
-    /// <summary>Diagnosa sumber posisi rubble (log).</summary>
+    /// <summary>Diagnostics for the rubble position source (log).</summary>
     public string? RubbleInfo { get; init; }
-    /// <summary>Posisi area berikutnya (Workspace.World.Spawns/Areas[Area+1]).</summary>
+    /// <summary>Next area position (Workspace.World.Spawns/Areas[Area+1]).</summary>
     public Settings.Vec3? NextAreaPos { get; init; }
-    /// <summary>Pusat kotak World.Areas.&lt;TargetArea&gt; (dipakai untuk terus maju bila HUD "Enter area" belum hilang).</summary>
+    /// <summary>Center of the World.Areas.&lt;TargetArea&gt; box (used to keep advancing while the HUD "Enter area" has not disappeared).</summary>
     public Settings.Vec3? NextAreaCenter { get; init; }
 
-    // Lobby hub: tombol Areas (HUD kiri) → panel MATCHES "Click to Teleport" → dekat lingkaran "Start Here".
+    // Lobby hub: Areas button (left HUD) → MATCHES panel "Click to Teleport" → near the "Start Here" circle.
     public GuiRect? AreasButton { get; init; }
-    /// <summary>Kartu teleport di panel Areas (Name = judul kartu, mis. "Story").</summary>
+    /// <summary>Teleport cards in the Areas panel (Name = card title, e.g. "Story").</summary>
     public IReadOnlyList<LobbyEntry> TeleportCards { get; init; } = [];
-    /// <summary>v0.2.49: tombol menu di LobbyHUD (Name = "Trait" / "Spin") untuk cek power + trait sebelum Create Room.</summary>
+    /// <summary>v0.2.49: menu buttons in LobbyHUD (Name = "Trait" / "Spin") for checking power + trait before Create Room.</summary>
     public IReadOnlyList<LobbyEntry> HubMenuButtons { get; init; } = [];
-    /// <summary>Layar Trait Reroll / daftar slot karakter (menu Spin) sedang tampil.</summary>
+    /// <summary>The Trait Reroll screen / character slot list (Spin menu) is showing.</summary>
     public bool TraitMenuOpen { get; init; }
-    /// <summary>v0.3.6 (RIE Trait_Reroll 25 Okt 08:54): header CharacterSwitch.CharacterName.Txt ("Shadow Lord 3/5") dan tombol ">" (CharacterSwitch.Next.Next).</summary>
+    /// <summary>v0.3.6 (RIE Trait_Reroll 25 Oct 08:54): header CharacterSwitch.CharacterName.Txt ("Shadow Lord 3/5") and the ">" button (CharacterSwitch.Next.Next).</summary>
     public string? TraitHeader { get; init; }
     public GuiRect? TraitNext { get; init; }
     public bool SpinMenuOpen { get; init; }
-    /// <summary>v0.3.12: tombol "Spinning" LobbyHUD (SummonButton) bila terlihat.</summary>
+    /// <summary>v0.3.12: LobbyHUD "Spinning" button (SummonButton) when visible.</summary>
     public GuiRect? SpinButton { get; init; }
-    /// <summary>v0.3.12: tombol keluar menu Roll (MainFrame.ExitButton.HitPad) saat terbuka.</summary>
+    /// <summary>v0.3.12: Roll menu exit button (MainFrame.ExitButton.HitPad) when open.</summary>
     public GuiRect? RollExit { get; init; }
-    /// <summary>Lingkaran Create Room terdeteksi: part yang memuat teks "Start Here" di Workspace.</summary>
+    /// <summary>Create Room circle detected: the part holding the "Start Here" text in Workspace.</summary>
     public IReadOnlyList<Settings.Vec3> StartCircles { get; init; } = [];
-    /// <summary>Room dari QuqueRooms.*.JoinHitbox + status terisi (dibaca ulang tiap tick).</summary>
+    /// <summary>Rooms from QuqueRooms.*.JoinHitbox + occupied state (re-read every tick).</summary>
     public IReadOnlyList<StartRoom> StartRooms { get; init; } = [];
 
     // Lobby
@@ -206,62 +206,62 @@ public sealed record GameSnapshot
     public IReadOnlyList<LobbyEntry> LobbyActs { get; init; } = [];
     public string? LobbyMapTag { get; init; }
     public string? LobbyActTag { get; init; }
-    /// <summary>Difficulty terpilih dari MapLine.Tag ("[HARD]" → "Hard"), null bila tidak terbaca.</summary>
+    /// <summary>Selected difficulty from MapLine.Tag ("[HARD]" → "Hard"), null when unreadable.</summary>
     public string? LobbyDifficultyTag { get; init; }
-    /// <summary>Tombol "Skip Waiting" di layar tunggu room (Quque.StartNow), null bila tidak tampil.</summary>
+    /// <summary>"Skip Waiting" button on the room waiting screen (Quque.StartNow), null when not shown.</summary>
     public GuiRect? QueueSkip { get; init; }
-    /// <summary>Label "Uses 1 Crystal" di tombol Skip Waiting tampil → skip berbayar.</summary>
+    /// <summary>"Uses 1 Crystal" label shown on the Skip Waiting button → paid skip.</summary>
     public bool QueueSkipCosts { get; init; }
     public GuiRect? LobbyStart { get; init; }
-    /// <summary>Tombol Leave menu Create Room (MainFrame) = batalkan room.</summary>
+    /// <summary>Create Room menu Leave button (MainFrame) = cancel the room.</summary>
     public GuiRect? LobbyLeave { get; init; }
-    /// <summary>Diagnosa kalibrasi: nama anak LobbyHUD.LeftSideButtons (untuk mencari tombol Trait/Spin yang sebenarnya).</summary>
+    /// <summary>Calibration diagnostics: child names of LobbyHUD.LeftSideButtons (to find the actual Trait/Spin buttons).</summary>
     public IReadOnlyList<string> HubButtonNames { get; init; } = [];
-    /// <summary>Area tampak panel Areas (Content.Clipping) untuk scroll ke kartu yang tersembunyi.</summary>
+    /// <summary>Visible area of the Areas panel (Content.Clipping) for scrolling to hidden cards.</summary>
     public GuiRect? AreasView { get; init; }
-    /// <summary>Titik berdiri panel Trait Reroll (GuideSpots.Enchants) dan titik keluar (AreasTeleportLocation.Traits).</summary>
+    /// <summary>Trait Reroll panel standing point (GuideSpots.Enchants) and exit point (AreasTeleportLocation.Traits).</summary>
     public Settings.Vec3? TraitSpot { get; init; }
     public Settings.Vec3? TraitExit { get; init; }
-    /// <summary>Area tampak ScrollingFrame daftar map/act/mode (untuk cek apakah entri perlu di-scroll dulu).</summary>
+    /// <summary>Visible area of the map/act/mode list ScrollingFrame (to check whether an entry must be scrolled to first).</summary>
     public GuiRect? LobbyMapsView { get; init; }
     public GuiRect? LobbyActsView { get; init; }
     public GuiRect? LobbyModesView { get; init; }
-    /// <summary>Tombol difficulty yang terbaca dari teks Easy/Medium/Hard/Nightmare di menu Create Room.</summary>
+    /// <summary>Difficulty buttons read from the Easy/Medium/Hard/Nightmare text in the Create Room menu.</summary>
     public IReadOnlyList<LobbyEntry> LobbyDifficulties { get; init; } = [];
 
-    /// <summary>Ukuran area klien jendela Roblox (diisi MacroRunner). 0 = tidak diketahui.</summary>
+    /// <summary>Roblox window client area size (filled in by MacroRunner). 0 = unknown.</summary>
     public int ClientW { get; init; }
-    /// <summary>v0.2.79: ViewportSize kamera sama dengan area klien jendela Roblox (±2 px). false bila salah satu tak terbaca.</summary>
+    /// <summary>v0.2.79: Camera ViewportSize equals the Roblox window client area (±2 px). false when either is unreadable.</summary>
     public bool ViewportMatchesClient => Camera is { } c && ClientW > 0 && ClientH > 0
         && Math.Abs(c.ViewW - ClientW) <= 2 && Math.Abs(c.ViewH - ClientH) <= 2;
-    /// <summary>Shift lock terdeteksi otomatis (kursor selalu kembali ke tengah jendela setelah digeser).</summary>
+    /// <summary>Shift lock detected automatically (the cursor always returns to the window center after being moved).</summary>
     public bool ShiftLock { get; init; }
     public int ClientH { get; init; }
 
-    // Ronde
+    // Round
     public bool StartVoteVisible { get; init; }
     public GuiRect? StartVoteYes { get; init; }
     public string? HudRaw { get; init; }
     public HudInfo? Hud { get; init; }
-    /// <summary>Jumlah anak Workspace.enemies; -1 = folder tidak ada.</summary>
+    /// <summary>Child count of Workspace.enemies; -1 = folder missing.</summary>
     public int EnemyCount { get; init; } = -1;
     public bool BossBarVisible { get; init; }
 
-    // Layar akhir
+    // End screen
     public bool EndScreenVisible { get; init; }
     public string? ResultText { get; init; }
     public GuiRect? NextButton { get; init; }
-    /// <summary>Drop di layar hasil ("Coins $14,746", "Magic Pendant x1"), dari EndScreen RewardsFrame.</summary>
+    /// <summary>Drops on the result screen ("Coins $14,746", "Magic Pendant x1"), from EndScreen RewardsFrame.</summary>
     public IReadOnlyList<string> Drops { get; init; } = [];
     public GuiRect? RetryButton { get; init; }
     public GuiRect? LeaveButton { get; init; }
 
-    /// <summary>Kotak skill HUD (HUD.HUD.BottomLeftHolder.main.skills.skillBox), kosong bila tidak terbaca.</summary>
+    /// <summary>HUD skill boxes (HUD.HUD.BottomLeftHolder.main.skills.skillBox), empty when unreadable.</summary>
     public IReadOnlyList<SkillCooldown> SkillCooldowns { get; init; } = [];
-    /// <summary>v0.2.65: Ultimate siap (HUD UltimateFrame tampil, ikon Locked tidak). Null = HUD tidak terbaca / tak ada penanda siap (v0.2.66).</summary>
+    /// <summary>v0.2.65: Ultimate ready (HUD UltimateFrame shown, Locked icon not). Null = HUD unreadable / no ready indicator (v0.2.66).</summary>
     public bool? UltReady { get; init; }
-    /// <summary>Dash sedang cooldown (HUD buttons.Dash.Progress tampil).</summary>
-    /// <summary>v0.2.79: null = tombol Dash tidak terbaca → Dash tidak ditekan.</summary>
+    /// <summary>Dash on cooldown (HUD buttons.Dash.Progress shown).</summary>
+    /// <summary>v0.2.79: null = Dash button unreadable → Dash not pressed.</summary>
     public bool? DashCooling { get; init; }
 
     // Upgrade
@@ -269,29 +269,29 @@ public sealed record GameSnapshot
     public int? Tokens { get; init; }
     public IReadOnlyList<SkillSlot> Slots { get; init; } = [];
     public GuiRect? BuyButton { get; init; }
-    /// <summary>Nomor slot unit terpilih di SkillTree (Slot5 → 5), null = tidak terbaca.</summary>
+    /// <summary>Slot number of the selected unit in SkillTree (Slot5 → 5), null = unreadable.</summary>
     public int? SkillUnitSlot { get; init; }
-    /// <summary>Nama unit SkillTree (dari Roll.CharacterInfo bila slot terpilih Roll = slot SkillTree), null = tidak pasti.</summary>
+    /// <summary>SkillTree unit name (from Roll.CharacterInfo when the Roll selected slot = SkillTree slot), null = uncertain.</summary>
     public string? SkillUnitName { get; init; }
-    /// <summary>v0.2.97: daftar unit di bawah SkillTree (Name = "SlotN", Locked = slot kosong tanpa level, Rect = MainButton).</summary>
+    /// <summary>v0.2.97: unit list at the bottom of SkillTree (Name = "SlotN", Locked = empty slot without a level, Rect = MainButton).</summary>
     public IReadOnlyList<LobbyEntry> SkillUnits { get; init; } = [];
     public string? SkillUnitDebug { get; init; }
-    /// <summary>Area tampak daftar unit SkillTree (CharacterSlots.Fade.List, ScrollingFrame horizontal).</summary>
+    /// <summary>Visible area of the SkillTree unit list (CharacterSlots.Fade.List, horizontal ScrollingFrame).</summary>
     public GuiRect? SkillUnitView { get; init; }
-    /// <summary>Tombol X SkillTree (Header.ExitButton).</summary>
+    /// <summary>SkillTree X button (Header.ExitButton).</summary>
     public GuiRect? SkillTreeExit { get; init; }
-    /// <summary>Tombol Units di LobbyHUD (pembuka SkillTree).</summary>
+    /// <summary>Units button in LobbyHUD (opens SkillTree).</summary>
     public GuiRect? UnitsButton { get; init; }
 
-    // Power di loadout (lobby; di stage memakai hasil lobby terakhir)
+    // Power in the loadout (lobby; in a stage uses the last lobby reading)
     public IReadOnlyList<EquippedPower> Equipped { get; init; } = [];
-    /// <summary>Power yang sedang dipakai (nama tampil), dari animasi karakter. null = belum terbaca.</summary>
+    /// <summary>Power currently equipped (display name), from the character animation. null = not read yet.</summary>
     public string? ActivePower { get; init; }
 
-    // Mode non-Story
+    // Non-Story modes
     public IReadOnlyList<RewardCard> LobbyRewards { get; init; } = [];
     public GuiRect? LobbyRewardsView { get; init; }
-    /// <summary>Teks tip Drop Target yang tampil ("... x3 drop chance ..."), null = difficulty tanpa bonus.</summary>
+    /// <summary>Drop Target tip text shown ("... x3 drop chance ..."), null = difficulty without bonus.</summary>
     public string? LobbyTargetTip { get; init; }
     public IReadOnlyList<BlessingOffer> Blessings { get; init; } = [];
     public TrialsInfo? Trials { get; init; }
@@ -299,7 +299,7 @@ public sealed record GameSnapshot
     public string? RunWave { get; init; }
     public int? RunAlive { get; init; }
     public string? BossName { get; init; }
-    /// <summary>"IMMUNE" / "BOSS" dari BossBar.</summary>
+    /// <summary>"IMMUNE" / "BOSS" from BossBar.</summary>
     public string? BossTag { get; init; }
     public bool BossImmune => BossTag?.Contains("IMMUNE", StringComparison.OrdinalIgnoreCase) == true;
     public Settings.Vec3? BossSpawn { get; init; }
@@ -311,8 +311,8 @@ public sealed record GameSnapshot
     public bool IsDefeat => ResultText?.Contains("DEFEAT", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>
-    /// Klasifikasi layar. Catatan riset: saat kalah EnemyCount tetap "Story complete", jadi menang hanya dari EndScreen
-    /// tanpa ResultText DEFEAT.
+    /// Screen classification. Research note: on a loss EnemyCount still says "Story complete", so a win is only from EndScreen
+    /// without ResultText DEFEAT.
     /// </summary>
     public GameScreen Screen
     {
@@ -320,9 +320,9 @@ public sealed record GameSnapshot
         {
             if (!Attached) return GameScreen.Unknown;
             if (EndScreenVisible || IsDefeat) return IsDefeat ? GameScreen.Defeat : GameScreen.Victory;
-            // Vote hanya sebelum musuh muncul; ada musuh hidup = ronde berjalan (vote basi tidak boleh menahan Fight).
-            // v0.2.71: Workspace.Enemies bisa berisi sisa model tanpa HRP/HP (mayat, shadow) → EnemyCount > 0 tapi daftar musuh kosong,
-            // dulu vote tidak pernah diklik (screenshot Byzan 24 Okt 22:42, "Get ready" 0/1 votes). Cukup: tidak ada musuh hidup terbaca.
+            // Vote only before enemies spawn; living enemies = round in progress (a stale vote must not block Fight).
+            // v0.2.71: Workspace.Enemies can contain leftover models without HRP/HP (corpses, shadows) → EnemyCount > 0 but the enemy list is empty,
+            // previously the vote was never clicked (Byzan screenshot 24 Oct 22:42, "Get ready" 0/1 votes). Enough: no living enemy read.
             if (StartVoteVisible && !Enemies.Any(e => e.Alive && e.Name != AnimeZeroPaths.RubbleName) && (EnemyCount <= 0 || Enemies.Count > 0 || HudRaw?.Contains("ready", StringComparison.OrdinalIgnoreCase) == true)) return GameScreen.StartVote;
             if (Blessings.Count > 0) return GameScreen.BlessingPick;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;

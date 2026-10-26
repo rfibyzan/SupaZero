@@ -3,8 +3,8 @@ using System.Runtime.InteropServices;
 namespace RIE.Core.Memory;
 
 /// <summary>
-/// P/Invoke minimal. Sengaja HANYA OpenProcess (VM_READ | QUERY_LIMITED_INFORMATION), ReadProcessMemory, CloseHandle.
-/// Jangan menambah WriteProcessMemory / VirtualAllocEx / CreateRemoteThread.
+/// Minimal P/Invoke. Deliberately ONLY OpenProcess (VM_READ | QUERY_LIMITED_INFORMATION), ReadProcessMemory, CloseHandle.
+/// Do not add WriteProcessMemory / VirtualAllocEx / CreateRemoteThread.
 /// </summary>
 internal static partial class NativeMethods
 {

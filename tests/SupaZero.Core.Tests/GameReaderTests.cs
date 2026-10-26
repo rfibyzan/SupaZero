@@ -33,7 +33,7 @@ public class GameReaderTests
         Assert.Equal(2, snap.EnemyCount);
         Assert.Equal(GameScreen.InRound, snap.Screen);
 
-        // EndScreen terlihat dengan ResultText DEFEAT
+        // EndScreen visible with ResultText DEFEAT
         long endGui = f.New("EndGui", "ScreenGui", pg);
         long end = f.New("EndScreen", "Frame", endGui);
         long res = f.New("ResultText", "TextLabel", end);
@@ -42,7 +42,7 @@ public class GameReaderTests
         f.SetText(res, "DEFEAT");
         Assert.Equal(GameScreen.Defeat, game.Read(roots).Screen);
 
-        // Disembunyikan → bukan layar akhir lagi
+        // Hidden → no longer the end screen
         f.Mem.WriteByte(end + FakeRoblox.VisibleOff, 0);
         Assert.Equal(GameScreen.InRound, game.Read(roots).Screen);
     }
@@ -62,7 +62,7 @@ public class ShiftLockCameraTests
     private static SupaZero.Core.Game.GameSnapshot Snap(double camX, double camZ) => new()
     {
         PlayerPos = new SupaZero.Core.Settings.Vec3(0, 3, 0),
-        // kamera menghadap -Z (utara); kanan = +X
+        // camera facing -Z (north); right = +X
         Camera = new SupaZero.Core.Game.CameraInfo(new SupaZero.Core.Settings.Vec3(camX, 8, camZ), new SupaZero.Core.Settings.Vec3(0, -0.3, -1), 70, 1920, 1009),
     };
 
@@ -90,7 +90,7 @@ public class ShiftLockCameraTests
     [Fact]
     public void UltimateFov_NotFollowing()
     {
-        // Watch 24 Okt 23:34: kamera ult 6 stud dari karakter, FOV 43.9
+        // Watch 24 Oct 23:34: ult camera 6 studs from the character, FOV 43.9
         var s = Snap(1.75, 12);
         s = s with { Camera = s.Camera! with { Fov = 43.9 } };
         Assert.False(s.CameraFollowsPlayer);

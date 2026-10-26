@@ -11,8 +11,8 @@ public sealed partial class GameReader
     {
         long ult = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudUltimate) : 0;
         if (ult == 0 || !IsShown(ult, pg)) return null;
-        // v0.2.68: Locked tampil → belum bisa. Aktif (Progress tampil / tombol bukan "G", mis. "KAISEL") → G lagi = naga.
-        // Penuh → ≥ 3 anak "ImageLabel" (kilau). Selain itu kosong/mengisi.
+        // v0.2.68: Locked shown → not available yet. Active (Progress shown / key not "G", e.g. "KAISEL") → G again = dragon.
+        // Full → ≥ 3 "ImageLabel" children (sparkle). Otherwise empty/filling.
         long lk = reader.FindChild(ult, AnimeZeroPaths.HudUltimateLock);
         if (lk != 0 && IsShown(lk, pg)) return false;
         long prog = reader.FindChild(ult, AnimeZeroPaths.HudUltimateProgress);
@@ -25,7 +25,7 @@ public sealed partial class GameReader
         return sparkles >= 3;
     }
 
-    /// <summary>v0.2.79: true = Dash.Progress tampil (cooldown), false = tombol Dash terbaca tanpa Progress, null = tombol tidak terbaca.</summary>
+    /// <summary>v0.2.79: true = Dash.Progress shown (cooldown), false = Dash button read without Progress, null = button unreadable.</summary>
     private bool? ReadDashCooling(long pg)
     {
         long dash = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.HudDash) : 0;
@@ -34,7 +34,7 @@ public sealed partial class GameReader
         return prog != 0 && IsShown(prog, pg);
     }
 
-    /// <summary>Cooldown skill dari HUD: tiap skillBox → (tombol, sisa detik atau null bila siap, terkunci).</summary>
+    /// <summary>Skill cooldowns from the HUD: each skillBox → (key, seconds left or null when ready, locked).</summary>
     private List<SkillCooldown> ReadSkillCooldowns(long pg)
     {
         var list = new List<SkillCooldown>();
@@ -54,7 +54,7 @@ public sealed partial class GameReader
         return list;
     }
 
-    /// <summary>"" → null (siap); "1.7"/"2" → detik; v0.2.79: teks lain = NaN (status tidak diketahui → skill tidak ditekan).</summary>
+    /// <summary>"" → null (ready); "1.7"/"2" → seconds; v0.2.79: other text = NaN (unknown state → skill not pressed).</summary>
     public static double? ParseCooldown(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
@@ -63,10 +63,10 @@ public sealed partial class GameReader
             ? (v <= 0 ? null : v) : double.NaN;
     }
 
-    /// <summary>Musuh: Workspace.enemies.&lt;angka&gt; (Model) → HumanoidRootPart posisi, Humanoid Health/MaxHealth.</summary>
+    /// <summary>Enemies: Workspace.enemies.&lt;number&gt; (Model) → HumanoidRootPart position, Humanoid Health/MaxHealth.</summary>
     /// <summary>
-    /// Posisi rubble yang harus dihancurkan. Aktif bila teks HUD menyebut "rubble" atau RubbleBossBar Enabled.
-    /// Posisi = Adornee BillboardGui PlayerGui.RubbleBar (offset Misc.Adornee), cadangan: parent BillboardGui bila di Workspace.
+    /// Position of the rubble to destroy. Active when the HUD text mentions "rubble" or RubbleBossBar is Enabled.
+    /// Position = Adornee of BillboardGui PlayerGui.RubbleBar (offset Misc.Adornee), fallback: the BillboardGui parent when in Workspace.
     /// </summary>
     private string? _rubbleInfo;
     private double? _rubbleHp;

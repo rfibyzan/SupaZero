@@ -7,7 +7,7 @@
         Background="{DynamicResource OfBg}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="44">
-  <!-- Tata letak sama dengan SupaFisch: judul + badge, strip tab atas, strip koneksi, header halaman + Stopped/Running. -->
+  <!-- Same layout as SupaFisch: title + badge, top tab strip, connection strip, page header + Stopped/Running. -->
   <Grid RowDefinitions="44,Auto,Auto,Auto,*">
     <StackPanel Orientation="Horizontal" Spacing="10" Margin="14,0" VerticalAlignment="Center" IsHitTestVisible="False">
       <Border Width="26" Height="26" CornerRadius="6" ClipToBounds="True">

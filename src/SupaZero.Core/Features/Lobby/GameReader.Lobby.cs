@@ -11,15 +11,15 @@ public sealed partial class GameReader
     private long _circlesWs, _circlesAt;
     private IReadOnlyList<Settings.Vec3> _circles = [];
 
-    /// <summary>Path RIE manual (opsional) untuk tombol Areas / kartu Story; menimpa deteksi teks. Boleh "game.Players.X.PlayerGui...." atau relatif PlayerGui.</summary>
+    /// <summary>Manual RIE path (optional) for the Areas button / Story card; overrides text detection. May be "game.Players.X.PlayerGui...." or relative to PlayerGui.</summary>
     public string? AreasButtonPath { get; set; }
     public string? StoryCardPath { get; set; }
 
-    /// <summary>Path (relatif PlayerGui) node yang terakhir dipilih sebagai tombol Areas / kartu teleport, untuk log & dicocokkan di RIE.</summary>
+    /// <summary>Path (relative to PlayerGui) of the node last picked as the Areas button / teleport card, for logging & matching in RIE.</summary>
     public string? LastAreasPick { get; private set; }
     public string? LastCardPick { get; private set; }
 
-    /// <summary>Tombol "Areas" + kartu "Click to Teleport" di PlayerGui (scan teks terlihat, maks tiap 700 ms).</summary>
+    /// <summary>"Areas" button + "Click to Teleport" cards in PlayerGui (scan of visible text, at most every 700 ms).</summary>
     private (GuiRect?, IReadOnlyList<LobbyEntry>) ScanHub(long pg)
     {
         long now = Environment.TickCount64;
@@ -28,7 +28,7 @@ public sealed partial class GameReader
         GuiRect? areas = null;
         var cards = new List<LobbyEntry>();
 
-        // 1) path manual dari Settings, 2) path terverifikasi RIE, 3) scan teks.
+        // 1) manual path from Settings, 2) RIE-verified path, 3) text scan.
         bool manualA = !string.IsNullOrWhiteSpace(AreasButtonPath);
         long manualAreas = ResolveGuiPath(pg, manualA ? AreasButtonPath : AnimeZeroPaths.AreasButtonPath);
         if (manualAreas != 0 && IsShown(manualAreas, pg)) { areas = HubRect(manualAreas); LastAreasPick = GuiPath(manualAreas, pg) + (manualA ? " (manual)" : " (path)"); }
@@ -42,7 +42,7 @@ public sealed partial class GameReader
         else manualStory = 0;
 
         bool haveStory = manualStory != 0;
-        bool areasPathExists = manualAreas != 0; // tombol ada (mungkin tertutup panel Areas yang sedang terbuka)
+        bool areasPathExists = manualAreas != 0; // button exists (may be covered by the currently open Areas panel)
         foreach (var (node, text) in (haveStory || areasPathExists) ? [] : VisibleTexts(pg, 5000))
         {
             if (areas is null && text.Trim().Equals(AnimeZeroPaths.AreasButtonText, StringComparison.OrdinalIgnoreCase))
@@ -61,7 +61,7 @@ public sealed partial class GameReader
                 if (title.Contains("Story", StringComparison.OrdinalIgnoreCase)) LastCardPick = GuiPath(card, pg);
             }
         }
-        // v0.2.85: kartu lain di panel Areas (mis. "Traits" untuk kalibrasi power) → scan teks hanya di dalam Container panel.
+        // v0.2.85: other cards in the Areas panel (e.g. "Traits" for power calibration) → text scan only inside the panel's Container.
         long clip = ResolveGuiPath(pg, AnimeZeroPaths.AreasClipping);
         long cont = clip != 0 ? reader.FindChild(clip, "Container") : 0;
         _areasView = clip != 0 && IsShown(clip, pg) ? HubRect(clip) : null;
@@ -81,8 +81,8 @@ public sealed partial class GameReader
     private IReadOnlyList<LobbyEntry> _menuButtons = [];
 
     /// <summary>
-    /// Tombol menu Trait / Spin di PlayerGui.LobbyHUD (nama node atau teks terlihat mengandung "trait" / "spin" / "roll").
-    /// Hanya LobbyHUD (tombol navigasi kiri), tidak pernah isi menu Spin/Trait (tombol roll di sana memakai Spins/Rerolls).
+    /// Trait / Spin menu buttons in PlayerGui.LobbyHUD (node name or visible text contains "trait" / "spin" / "roll").
+    /// Only LobbyHUD (left navigation buttons), never the contents of the Spin/Trait menu (the roll buttons there use Spins/Rerolls).
     /// </summary>
     private IReadOnlyList<LobbyEntry> ScanMenuButtons(long pg)
     {
@@ -145,9 +145,9 @@ public sealed partial class GameReader
         x >= r.X - pad && x <= r.X + r.W + pad && y >= r.Y - pad && y <= r.Y + r.H + pad;
 
     /// <summary>
-    /// Tombol untuk sebuah label teks. Urutan: label itu sendiri bila tombol → ancestor tombol (maks 4 level) yang
-    /// menutupi label dan tidak kebesaran → tombol terdekat di sekitar label (saudara / sepupu, mis. ikon di atas teks)
-    /// → rect label itu sendiri. TIDAK pernah memakai frame wadah (dulu bisa jatuh ke tengah sidebar = tombol lain).
+    /// Button for a text label. Order: the label itself if it is a button → button ancestor (max 4 levels) that
+    /// covers the label and is not oversized → nearest button around the label (sibling / cousin, e.g. icon above the text)
+    /// → the label's own rect. NEVER uses a container frame (previously could land in the middle of the sidebar = another button).
     /// </summary>
     private long ButtonFor(long label)
     {
@@ -164,7 +164,7 @@ public sealed partial class GameReader
             if (Rect(cur) is { } r && Contains(r, cx, cy, 4) && r.W * r.H <= maxArea) return cur;
         }
 
-        // Tombol di sekitar: cek keturunan induk & kakek (maks 2 level ke bawah), ambil yang paling dekat.
+        // Nearby buttons: check descendants of parent & grandparent (max 2 levels down), take the closest.
         long best = 0;
         double bestD = Math.Max(lr.Value.H * 2.5, 40);
         long scope = reader.GetParent(label);
@@ -191,7 +191,7 @@ public sealed partial class GameReader
         }
     }
 
-    /// <summary>Judul kartu teleport: teks lain di kartu yang sama (cari di induk lalu kakek).</summary>
+    /// <summary>Teleport card title: other text on the same card (search the parent, then grandparent).</summary>
     private string? CardTitle(long hint)
     {
         long scope = reader.GetParent(hint);
@@ -200,7 +200,7 @@ public sealed partial class GameReader
         return null;
     }
 
-    /// <summary>BFS PlayerGui yang melewati ScreenGui mati / GuiObject tak terlihat; hasil = (node teks, isi teks).</summary>
+    /// <summary>PlayerGui BFS that skips disabled ScreenGuis / invisible GuiObjects; result = (text node, text content).</summary>
     private IEnumerable<(long Node, string Text)> VisibleTexts(long root, int maxNodes)
     {
         if (root == 0) yield break;
@@ -221,7 +221,7 @@ public sealed partial class GameReader
         }
     }
 
-    /// <summary>Naik maks 4 level ke ImageButton/TextButton; tidak ada → induk langsung (kartu) atau node itu.</summary>
+    /// <summary>Climb up to 4 levels to an ImageButton/TextButton; none → direct parent (card) or the node itself.</summary>
     private long ClickableAncestor(long node)
     {
         long cur = node;
@@ -235,7 +235,7 @@ public sealed partial class GameReader
         return parent != 0 && PropertyReader.IsGuiObject(reader.GetClassName(parent)) ? parent : node;
     }
 
-    /// <summary>Teks lain di bawah induk yang sama (judul kartu, mis. "Story").</summary>
+    /// <summary>Other text under the same parent (card title, e.g. "Story").</summary>
     private string? SiblingTitle(long parent, long except)
     {
         if (parent == 0) return null;
@@ -248,16 +248,16 @@ public sealed partial class GameReader
     }
 
     /// <summary>
-    /// Lingkaran Create Room: Workspace.Systems.QuqueRooms.*.JoinHitbox; cadangan: cari teks "Start Here" (BillboardGui/SurfaceGui) di Workspace lalu ambil posisi part
-    /// induknya (Adornee bila diisi). Statis per server lobby → cache; kosong → scan ulang tiap 3 dtk.
+    /// Create Room circles: Workspace.Systems.QuqueRooms.*.JoinHitbox; fallback: find "Start Here" text (BillboardGui/SurfaceGui) in Workspace and take the position of its
+    /// parent part (Adornee if set). Static per lobby server → cached; empty → rescan every 3 s.
     /// </summary>
     private long _roomsWs, _roomsAt;
     private List<(string Id, long Gui, Settings.Vec3 Pos)> _rooms = [];
     private static readonly System.Text.RegularExpressions.Regex PlayersRx = new(@"Players\s*(\d+)\s*/\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     /// <summary>
-    /// Room antrean: posisi JoinHitbox di-cache per Workspace; status RoomGui dibaca ulang tiap tick.
-    /// "Start Here" = kosong; "Join Here" / "Players x/y" = sudah ada pemain lain.
+    /// Queue rooms: JoinHitbox positions cached per Workspace; RoomGui status re-read every tick.
+    /// "Start Here" = empty; "Join Here" / "Players x/y" = other players already present.
     /// </summary>
     private IReadOnlyList<StartRoom> ReadRooms(long ws)
     {
@@ -305,9 +305,9 @@ public sealed partial class GameReader
         var found = new List<Settings.Vec3>();
         if (ws == 0) return _circles = found;
 
-        if (_rooms.Count > 0) return _circles = found; // room utama sudah terbaca (ReadRooms)
+        if (_rooms.Count > 0) return _circles = found; // main rooms already read (ReadRooms)
 
-        // Cadangan: teks "Start Here" di Workspace.
+        // Fallback: "Start Here" text in Workspace.
         var q = new Queue<(long Node, int Depth)>();
         q.Enqueue((ws, 0));
         int seen = 0;
@@ -343,10 +343,10 @@ public sealed partial class GameReader
     }
 
     /// <summary>
-    /// v0.2.92 [V] snapshot RIE 25 Okt 2026: Content.Row ×4 → judul kolom dari teks Hitbox.Title (bukan nama node), node =
-    /// Hitbox.Clipping.ScrollingFrame.Slot ×5 diurutkan Y naik (atas → bawah = urutan beli). Node di luar kotak Clipping tidak diberi Rect.
+    /// v0.2.92 [V] RIE snapshot 25 Oct 2026: Content.Row ×4 → column title from Hitbox.Title text (not the node name), nodes =
+    /// Hitbox.Clipping.ScrollingFrame.Slot ×5 sorted by ascending Y (top → bottom = buy order). Nodes outside the Clipping box get no Rect.
     /// </summary>
-    /// <summary>Nomor dari nama "SlotN" yang SelectedFrame-nya Visible (cek properti sendiri, bukan leluhur: daftar Roll tersembunyi).</summary>
+    /// <summary>Number from the "SlotN" name whose SelectedFrame is Visible (checks its own property, not ancestors: the Roll list is hidden).</summary>
     private int? SelectedSlot(long root, string list, string selPath)
     {
         long l = root != 0 ? reader.ResolvePath(root, list) : 0;

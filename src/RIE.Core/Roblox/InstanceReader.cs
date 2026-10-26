@@ -4,8 +4,8 @@ using RIE.Core.Offsets;
 namespace RIE.Core.Roblox;
 
 /// <summary>
-/// Baca struktur Instance: Name, ClassName, Parent, Children. Toleran: offset hilang / alamat tak valid → kosong/0.
-/// Jalur diturunkan dari OpenFisch RobloxMemoryReader (children = vektor slot 16 byte, kandidat fallback nama/kelas).
+/// Reads Instance structure: Name, ClassName, Parent, Children. Tolerant: missing offset / invalid address → empty/0.
+/// Logic derived from OpenFisch RobloxMemoryReader (children = vector of 16-byte slots, fallback name/class candidates).
 /// </summary>
 public sealed class InstanceReader(IMemorySource memory, OffsetsSnapshot offsets)
 {
@@ -72,7 +72,7 @@ public sealed class InstanceReader(IMemorySource memory, OffsetsSnapshot offsets
         return memory.TryReadPointer(instance + off, out long p) ? p : 0;
     }
 
-    /// <summary>[inst+ChildrenStart] → {begin@0, end@ChildrenEnd}, slot 16 byte (shared_ptr).</summary>
+    /// <summary>[inst+ChildrenStart] → {begin@0, end@ChildrenEnd}, 16-byte slots (shared_ptr).</summary>
     public List<long> GetChildren(long instance, int max = DefaultMaxChildren)
     {
         var result = new List<long>();
@@ -105,7 +105,7 @@ public sealed class InstanceReader(IMemorySource memory, OffsetsSnapshot offsets
         return 0;
     }
 
-    /// <summary>Path lengkap "game.Players.Foo.PlayerGui.Main" lewat rantai Parent (maks 128 level).</summary>
+    /// <summary>Full path "game.Players.Foo.PlayerGui.Main" via the Parent chain (max 128 levels).</summary>
     public string GetFullPath(long instance, long dataModel = 0)
     {
         var parts = new List<string>();
@@ -121,7 +121,7 @@ public sealed class InstanceReader(IMemorySource memory, OffsetsSnapshot offsets
         return string.Join('.', parts);
     }
 
-    /// <summary>Resolve path bertitik relatif ke <paramref name="root"/> ("Players.LocalPlayer.PlayerGui" tidak didukung; pakai nama).</summary>
+    /// <summary>Resolve a dotted path relative to <paramref name="root"/> ("Players.LocalPlayer.PlayerGui" is not supported; use names).</summary>
     public long ResolvePath(long root, string path)
     {
         long cur = root;
