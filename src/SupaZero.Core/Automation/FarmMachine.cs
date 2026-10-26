@@ -362,7 +362,8 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     // ---------- Cek power + trait (sekali tiap Start) ----------
     private int _pcStep;          // 0 = Trait, 1 = Spin, 2 = selesai
     private long? _pcStepAt, _pcOpenAt;
-    public const int PowerMenuReadMs = 3000, PowerMenuTimeoutMs = 15000;
+    private int _pcCloseTries;
+    public const int PowerMenuReadMs = 1500, PowerMenuTimeoutMs = 15000; // v0.3.13: 3000→1500 (slot Roll dibaca tiap 1 dtk)
 
     /// <summary>
     /// Lobby, sebelum Create Room: klik tombol Trait di LobbyHUD → tunggu layar Trait terbaca (3 dtk) → klik lagi (tutup) →
@@ -391,10 +392,33 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             var acts = new List<MacroAction> { stand };
             // v0.3.12: Roll menutupi tombol LobbyHUD (SummonButton bergeser keluar layar) → tutup lewat ExitButton.
             var close = _pcStep == 1 ? s.RollExit ?? btn : btn;
+            if (_pcStep == 1)
+            {
+                // v0.3.12b: Roll baru dianggap selesai setelah benar-benar tertutup; Exit diklik ulang tiap 1,5 dtk (maks 4×).
+                if (_pcCloseTries >= 4)
+                {
+                    _pcCloseTries = 0; Next();
+                    return [stand, .. Note("pc-close-fail", now, 1000, "Menu Spinning tidak tertutup setelah 4× klik Exit → lanjut (cek posisi tombol Exit).")];
+                }
+                if (_pcCloseTries == 0 && Calibrating) _calNotes.Add(s.Equipped.Count == 0 ? "Spinning dibuka, power terpasang belum terbaca."
+                    : "Power: " + string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p => $"slot {p.Loadout} {p.Name}")));
+                if (close is { } c1 && InWindow(s, c1.CenterX, c1.CenterY) && Ready("pc-exit", now, 1500))
+                {
+                    _pcCloseTries++;
+                    Status = "Cek power: tutup Spinning (Exit).";
+                    acts.Add(new ClickAction(c1.CenterX, c1.CenterY, $"Exit Spinning ({_pcCloseTries})"));
+                }
+                else if (close is null) acts.AddRange(Note("pc-noexit", now, 5000, "Spinning terbuka tapi tombol Exit tidak terbaca."));
+                if (_pcCloseTries == 1 && acts.Count > 1 && acts[^1] is ClickAction)
+                {
+                    string eq1 = s.Equipped.Count == 0 ? "belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
+                        $"slot {p.Loadout} {p.Name}{(p.Level is { } lv1 ? $" Lv.{lv1}" : "")}{(p.Trait is { } t1 ? $" ({t1.Name})" : "")}"));
+                    acts.AddRange(Note("pc-" + key, now, 1000, $"Cek power ({key}): {eq1}."));
+                }
+                return acts;
+            }
             if (close is { } b && InWindow(s, b.CenterX, b.CenterY)) acts.Add(new ClickAction(b.CenterX, b.CenterY, $"Tutup menu {key}"));
-            if (_pcStep == 1 && Calibrating) _calNotes.Add(s.Equipped.Count == 0 ? "Spinning dibuka, power terpasang belum terbaca."
-                : "Power: " + string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p => $"slot {p.Loadout} {p.Name}")));
-            if (_pcStep == 1 || s.Equipped.Count > 0)
+            if (s.Equipped.Count > 0)
             {
                 string eq = s.Equipped.Count == 0 ? "belum terbaca" : string.Join(" · ", s.Equipped.OrderBy(p => p.Loadout).Select(p =>
                     $"slot {p.Loadout} {p.Name}{(p.Level is { } lv ? $" Lv.{lv}" : "")}{(p.Trait is { } t ? $" ({t.Name})" : "")}"));
@@ -403,6 +427,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             Next();
             return acts;
         }
+        if (_pcStep == 1 && _pcCloseTries > 0) { _pcCloseTries = 0; Next(); return PowerCheck(s, now); } // Roll tertutup setelah Exit
         if (now - _pcStepAt.Value > PowerMenuTimeoutMs)
         {
             Next();

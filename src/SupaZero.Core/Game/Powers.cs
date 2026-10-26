@@ -128,7 +128,12 @@ public sealed partial class GameReader
     /// <summary>Loadout + trait, dibaca paling sering tiap 2 detik (tanpa input apa pun).</summary>
     public IReadOnlyList<EquippedPower> ReadPowers(DataModelRoots roots)
     {
-        if (DateTime.UtcNow - _powersAt < TimeSpan.FromSeconds(1)) return _equipped; // v0.3.7: 2→1 dtk (kalibrasi trait lebih cepat)
+        if (DateTime.UtcNow - _powersAt < TimeSpan.FromSeconds(1))
+        {
+            // v0.3.13: layar Trait dibaca tiap tick (bukan tiap 1 dtk) → kalibrasi trait tidak perlu menunggu 1,5 dtk per unit.
+            try { if (roots.PlayerGui != 0) LearnFromTraitScreen(roots.PlayerGui); } catch { }
+            return _equipped;
+        }
         _powersAt = DateTime.UtcNow;
         try
         {

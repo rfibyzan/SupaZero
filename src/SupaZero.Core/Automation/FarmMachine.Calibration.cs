@@ -68,7 +68,7 @@ public sealed partial class FarmMachine
     private long _trHeaderAt;
     private long? _trClickAt;
     private readonly HashSet<int> _trSeen = [];
-    public const int TraitNextTimeoutMs = 3000, TraitReadMs = 1500; // v0.3.7: 3000→1500 (Powers dibaca tiap 1 dtk)
+    public const int TraitNextTimeoutMs = 2500, TraitReadMs = 400; // v0.3.13: 1500→400 (layar Trait dibaca tiap tick)
 
     /// <summary>"Shadow Lord 3/5" → (3, 5); tanpa counter → (0, 0).</summary>
     public static (int Cur, int Total) TraitCounter(string? header)

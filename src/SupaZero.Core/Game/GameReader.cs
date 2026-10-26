@@ -30,6 +30,28 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
         return t.Length == 0 ? null : t;
     }
 
+    /// <summary>
+    /// v0.3.12b (snapshot PlayerGui 26 Okt 08:58:42/08:58:55): Roll.SurfaceGui.MainFrame memakai koordinat SurfaceGui (origin 0,0),
+    /// sedangkan ScreenGui Roll berada di AbsolutePosition 0,58 → tombol Exit (HitPad Y 864) di layar ada di Y 922. Tanpa geseran ini
+    /// klik Exit kena 58 px terlalu tinggi. Bila MainFrame langsung di ScreenGui, geser 0.
+    /// </summary>
+    private double SurfaceShiftY(long frame)
+    {
+        long sg = reader.GetParent(frame);
+        if (sg == 0 || reader.GetClassName(sg) != "SurfaceGui") return 0;
+        long scr = reader.GetParent(sg);
+        return AbsY(scr) is { } a && AbsY(sg) is { } b ? a - b : 0;
+    }
+
+    private double? AbsY(long node)
+    {
+        if (node == 0 || !props.Read(node).TryGetValue("AbsolutePosition", out var v) || v is null) return null;
+        var parts = v.Split(',');
+        return parts.Length >= 2 && double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double y) ? y : null;
+    }
+
+    public static double SurfaceToScreenY(double surfaceY, double screenGuiAbsY, double surfaceGuiAbsY) => surfaceY + (screenGuiAbsY - surfaceGuiAbsY);
+
     private GuiRect? HubRect(long node) =>
         Rect(node) is { } r ? r with { Y = r.Y + (LobbyInsetY - GuiInsetY) * GuiScale } : null;
 
@@ -182,7 +204,8 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
                 && CleanText(reader.ResolvePath(tn, "Txt(Shadow).Txt"))?.Trim() == ">" ? HubRect(tn) : null,
             SpinMenuOpen = (invList != 0 && IsShown(invList, pg)) || (rollFrame != 0 && IsShown(rollFrame, pg)),
             SpinButton = reader.ResolvePath(pg, AnimeZeroPaths.SpinButtonPath) is var sb and not 0 && IsShown(sb, pg) && HubRect(sb) is { W: > 4, H: > 4 } sbr ? sbr : null,
-            RollExit = rollFrame != 0 && IsShown(rollFrame, pg) && reader.ResolvePath(rollFrame, AnimeZeroPaths.RollExit) is var rx and not 0 && IsShown(rx, pg) ? HubRect(rx) : null,
+            RollExit = rollFrame != 0 && IsShown(rollFrame, pg) && reader.ResolvePath(rollFrame, AnimeZeroPaths.RollExit) is var rx and not 0 && IsShown(rx, pg)
+                && HubRect(rx) is { } rxr ? rxr with { Y = rxr.Y + SurfaceShiftY(rollFrame) * GuiScale } : null,
         };
     }
 
