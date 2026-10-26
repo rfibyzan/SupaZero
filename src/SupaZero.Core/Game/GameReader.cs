@@ -136,6 +136,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             RubbleInfo = _rubbleHp is { } rh ? $"{_rubbleInfo}; HP {rh:P0}" : _rubbleInfo,
             Pickups = ReadPickups(ws),
             Arises = ReadArises(ws),
+            Lift = ReadLift(ws),
             Shadows = ParseShadows(pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.ShadowsValue) is var sv and not 0 ? Text(sv) : null),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,

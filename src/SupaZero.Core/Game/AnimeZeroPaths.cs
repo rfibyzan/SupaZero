@@ -16,6 +16,10 @@ public static class AnimeZeroPaths
     /// <summary>v0.2.70: Shadows capacity, PlayerGui.SystemSideLive.Container.Shadows.Value = "2/3" (snapshot 24 Oct).</summary>
     public const string ShadowsValue = "SystemSideLive.Container.Shadows.Value";
     public const string ArisePrompt = "Arise";
+    /// <summary>v0.3.18 (Trials, snapshot World 09:31:14): Workspace.World.Markers.Lift (Part at the arena center, -50,-84.1,33)
+    /// .ProximityPrompt ActionText "Ascend", ObjectText "Lift", KeyCode E, HoldDuration 0, MaxActivationDistance 14, Enabled false while the floor runs.</summary>
+    public const string LiftPath = "Markers.Lift";
+    public const string LiftPrompt = "ProximityPrompt";
     public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; parked at Y=-5000, active = on the floor. Picked up by walking over it.
     public const double PooledDropParkedY = -1000;
     public const string Enemies = "enemies";            // Workspace.enemies: numerically named Models (HRP + Humanoid); dead = Model removed

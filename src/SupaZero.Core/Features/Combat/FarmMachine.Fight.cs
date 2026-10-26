@@ -33,6 +33,7 @@ public sealed partial class FarmMachine
             // Area clear: pick up nearby coins/health first (just walk over them), then move on to the next area.
             if (S.Combat.AutoArise && Arise(s, now, S) is { } clearRise) return clearRise;
             if (Pickup(s, now, PickupClearRadius, healthOnly: false, S) is { } pick) return pick;
+            if (s.Lift is { } lift) return TrialsLift(s, lift, now, S);
             if (!S.Navigation.AutoNavigate) { Status = $"{area} clear (auto navigation off)."; return []; }
             if (s.NextAreaPos is null && s.CurrentArea is { } cur && s.PlayerPos is { } pIn && !cur.Contains(pIn, 10))
             {

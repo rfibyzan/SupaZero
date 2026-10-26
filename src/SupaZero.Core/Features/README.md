@@ -12,7 +12,7 @@ Each feature folder holds pieces of both + its supporting classes. Namespaces do
 | `Features/Combat` | `FarmMachine.Fight.cs`, `.Pickup.cs`, `.Arise.cs`, `GameReader.CombatHud.cs` (skill/ult/dash) |
 | `Features/Navigation` | `FarmMachine.Walk.cs`, `Navigator`, `PathPlanner`, `NavMap`, `NavReader` |
 | `Features/Rubble` | `GameReader.Rubble.cs` (RubblePending, attack points) |
-| `Features/Modes` | `FarmMachine.Modes.cs` (Blessing, Trials, Drop Target), `ModeReader`, `BlessingCatalog` |
+| `Features/Modes` | `FarmMachine.Modes.cs` (Blessing, Trials, Drop Target), `FarmMachine.TrialsLift.cs` (Trials Lift "Ascend"), `ModeReader`, `BlessingCatalog` |
 | `Features/Power` | `FarmMachine.PowerCheck.cs` (Trait/Spinning check), `Powers`, `SpinWatch`, `RollTitleTracker` |
 | `Features/Upgrade` | `FarmMachine.Upgrade.cs`, `GameReader.SkillTree.cs`, `UpgradePlanner` |
 | `Features/EndScreen` | `FarmMachine.EndScreen.cs` (Victory/Defeat) |

@@ -72,6 +72,20 @@ public sealed partial class GameReader
         return list;
     }
 
+    /// <summary>v0.3.18: Trials Lift (World.Markers.Lift.ProximityPrompt). null = not in a Trials arena or unreadable.</summary>
+    private LiftInfo? ReadLift(long ws)
+    {
+        long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;
+        long part = world != 0 ? reader.ResolvePath(world, AnimeZeroPaths.LiftPath) : 0;
+        long pr = part != 0 ? reader.FindChild(part, AnimeZeroPaths.LiftPrompt) : 0;
+        if (pr == 0 || reader.GetClassName(pr) != "ProximityPrompt" || !props.TryGetWorldPosition(part, out float x, out float y, out float z)) return null;
+        var p = props.Read(pr, "ProximityPrompt");
+        if (!p.TryGetValue("Enabled", out var en)) return null; // unknown = do nothing
+        double max = p.TryGetValue("MaxActivationDistance", out var md) ? Num(md, 10) : 10;
+        string act = p.TryGetValue("ActionText", out var at) && !string.IsNullOrWhiteSpace(at) ? at : "Lift";
+        return new LiftInfo(new(x, y, z), en.Equals("true", StringComparison.OrdinalIgnoreCase), max is > 1 and < 100 ? max : 10, act);
+    }
+
     /// <summary>Character HP (Character.Humanoid Health/MaxHealth) 0..1.</summary>
     private double? ReadPlayerHp(long localPlayer)
     {

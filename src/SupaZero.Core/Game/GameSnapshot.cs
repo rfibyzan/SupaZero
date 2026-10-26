@@ -34,6 +34,8 @@ public sealed record PickupInfo(string Kind, Settings.Vec3 Pos)
 
 /// <summary>v0.2.67: corpse that can be raised (Shadow Lord): Workspace.AriseShadows.&lt;n&gt;.Arise. Hold = seconds to hold E.</summary>
 public sealed record AriseInfo(string Name, Settings.Vec3 Pos, double Hold, double MaxDistance);
+/// <summary>v0.3.18 Trials Lift (World.Markers.Lift ProximityPrompt "Ascend"). Enabled = the game turned the prompt on.</summary>
+public sealed record LiftInfo(Settings.Vec3 Pos, bool Enabled, double MaxDistance, string Action);
 
 /// <summary>Camera: position, LookVector, FieldOfView (vertical, degrees), ViewportSize (= client area).</summary>
 public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)
@@ -111,6 +113,7 @@ public sealed record GameSnapshot
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
     /// <summary>v0.2.67: active ARISE prompts (Shadow Lord), empty when none.</summary>
     public IReadOnlyList<AriseInfo> Arises { get; init; } = [];
+    public LiftInfo? Lift { get; init; }
     /// <summary>v0.2.70: Shadows count / capacity from the System panel (null when unreadable).</summary>
     public (int Count, int Max)? Shadows { get; init; }
     /// <summary>Round navigation map (Areas + Navigation obstacles) for pathfinding; null outside a round.</summary>
