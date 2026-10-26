@@ -91,7 +91,7 @@ public sealed partial class GameReader
             string? heading = TextAt(body, "TextHolder.Heading");
             if (heading is null) continue;
             list.Add(new BlessingOffer(heading, TextAt(body, "Rarity.Txt") ?? "", TextAt(body, "TextHolder.Value"),
-                ShownClientRect(reader.FindChild(body, "PickButton"), pg) ?? ClientRect(offer)));
+                ShownClientRect(reader.FindChild(body, "PickButton"), pg) ?? ClientRect(offer), TextAt(body, "TextHolder.Description")));
         }
         return list;
     }

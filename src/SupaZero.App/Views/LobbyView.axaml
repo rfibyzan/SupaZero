@@ -34,10 +34,43 @@
           <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding DropChoices}" SelectedItem="{Binding SelectedDrop}" />
         </Grid>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
-        <TextBlock Classes="label" Text="Urutan kartu Mirror Blessing" Margin="0,6,0,0" />
-        <TextBox Text="{Binding BlessingPriority}" TextWrapping="Wrap" />
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
-                   Text="Nama dipisah koma. Tidak ada yang cocok → rarity tertinggi." />
+        <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+          <TextBlock Classes="label" Text="Mirror Blessing (Evil Reflection)" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Content="Reset" Command="{Binding ResetBlessingCommand}" Padding="8,2" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" Text="Prioritas buff (centang = diprioritaskan, atas = paling penting)" />
+        <ItemsControl ItemsSource="{Binding BlessingBuffRows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:BlessingBuffRowViewModel">
+              <Grid ColumnDefinitions="24,Auto,*,Auto,Auto" Margin="0,1">
+                <TextBlock Classes="muted" Text="{Binding Rank}" VerticalAlignment="Center" />
+                <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" Content="{Binding Label}" />
+                <TextBlock Grid.Column="2" Classes="muted" FontSize="11" Text="{Binding CardsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0" />
+                <Button Grid.Column="3" Content="▲" Command="{Binding UpCommand}" Padding="6,0" />
+                <Button Grid.Column="4" Content="▼" Command="{Binding DownCommand}" Padding="6,0" Margin="2,0,0,0" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="muted" FontSize="11" Text="Kartu (centang = boleh dipilih, urutan = cadangan bila buff sama)" Margin="0,6,0,0" />
+        <ItemsControl ItemsSource="{Binding BlessingCardRows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:BlessingCardRowViewModel">
+              <Grid ColumnDefinitions="24,Auto,*,Auto,Auto" Margin="0,2">
+                <TextBlock Classes="muted" Text="{Binding Rank}" VerticalAlignment="Top" Margin="0,6,0,0" />
+                <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" VerticalAlignment="Top" />
+                <StackPanel Grid.Column="2" Margin="4,0">
+                  <TextBlock><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Rarity}" FontSize="11" /></TextBlock>
+                  <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding Detail}" />
+                  <TextBlock Classes="muted" FontSize="11" Text="{Binding BuffText}" />
+                </StackPanel>
+                <Button Grid.Column="3" Content="▲" Command="{Binding UpCommand}" Padding="6,0" VerticalAlignment="Top" />
+                <Button Grid.Column="4" Content="▼" Command="{Binding DownCommand}" Padding="6,0" Margin="2,0,0,0" VerticalAlignment="Top" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding BlessingPreview}" />
         <Grid ColumnDefinitions="*,150" MinHeight="34" Margin="0,6,0,0">
           <TextBlock Classes="label" Text="Floor Trials (0 = floor berikutnya)" />
           <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />

@@ -91,7 +91,13 @@ public sealed record FarmSettings(
     /// <summary>v0.3.4: material yang bisa ditarget per "Map|Act N" (dari Kalibrasi aksi / menu Create Room di Hard/Nightmare).</summary>
     Dictionary<string, List<string>>? KnownDrops = null,
     /// <summary>v0.3.5: nama material yang dipelajari ("icon:…"/"key:materialNNN" → nama), disimpan antar-sesi.</summary>
-    Dictionary<string, string>? KnownMaterialNames = null);
+    Dictionary<string, string>? KnownMaterialNames = null,
+    /// <summary>v0.3.11: urutan buff Mirror Blessing (aktif = diprioritaskan). null = semua mati.</summary>
+    List<SupaZero.Core.Game.BuffPref>? BlessingBuffs = null,
+    /// <summary>v0.3.11: urutan kartu Mirror Blessing + boleh dipilih. null = dari BlessingPriority lama.</summary>
+    List<SupaZero.Core.Game.BlessingPref>? BlessingCards = null,
+    /// <summary>v0.3.11: kartu yang terbaca di game (nama, rarity, deskripsi, value) di luar daftar bawaan.</summary>
+    List<SupaZero.Core.Game.BlessingInfo>? KnownBlessings = null);
 
 /// <summary>Satu tombol skill: tombol (nama HotkeyMap, mis. "1", "Q"), aktif, jeda antar-tekan.</summary>
 /// <summary>Discord webhook: notifikasi menang/kalah (dengan drop) dan macro berhenti.</summary>

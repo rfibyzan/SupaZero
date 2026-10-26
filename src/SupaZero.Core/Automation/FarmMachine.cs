@@ -1158,25 +1158,19 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     private List<MacroAction> PickBlessing(GameSnapshot s, AppSettings S, long now)
     {
         Phase = MacroPhase.Fighting;
-        var prio = S.Farm.BlessingPriority.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var pick = ChooseBlessing(s.Blessings, prio);
+        var f = S.Farm;
+        var all = BlessingCatalog.All(f.KnownBlessings);
+        var pick = BlessingCatalog.Choose(s.Blessings, BlessingCatalog.EffectiveBuffs(f.BlessingBuffs),
+            BlessingCatalog.EffectiveCards(f.BlessingCards, f.BlessingPriority, all), f.KnownBlessings);
         if (pick?.Pick is not { } r) return Note("bless-none", now, 5000, "Kartu Mirror Blessing terbaca tapi tombol PICK tidak.");
-        Status = $"Mirror Blessing: {pick.Name} ({pick.Rarity}) dari {string.Join(" / ", s.Blessings.Select(b => b.Name))}";
+        Status = $"Mirror Blessing: {pick.Name} ({pick.Rarity}, {string.Join("/", BlessingCatalog.BuffsOf(pick).Select(BlessingCatalog.Label))}) dari {string.Join(" / ", s.Blessings.Select(b => b.Name))}";
         if (!InWindow(s, r.CenterX, r.CenterY)) return Note("bless-out", now, 5000, $"Tombol PICK {pick.Name} di luar jendela.");
         return Ready("bless-pick", now, 1500) ? [new MoveAction([], "Pilih kartu"), new ClickAction(r.CenterX, r.CenterY, $"PICK {pick.Name}")] : [];
     }
 
-    public static BlessingOffer? ChooseBlessing(IReadOnlyList<BlessingOffer> offers, IReadOnlyList<string> priority)
-    {
-        foreach (var want in priority)
-            if (offers.FirstOrDefault(o => Matches(o.Name, want)) is { } hit) return hit;
-        return offers.OrderByDescending(o => RarityRank(o.Rarity)).FirstOrDefault();
-    }
-
-    private static int RarityRank(string r) => r.ToUpperInvariant() switch
-    {
-        "COMMON" => 1, "RARE" => 2, "EPIC" => 3, "LEGENDARY" => 4, "MYTHIC" => 5, _ => 0,
-    };
+    /// <summary>Urutan nama saja (kompatibel lama): tanpa buff, tidak cocok → rarity tertinggi.</summary>
+    public static BlessingOffer? ChooseBlessing(IReadOnlyList<BlessingOffer> offers, IReadOnlyList<string> priority) =>
+        BlessingCatalog.Choose(offers, [], priority.Select(n => new BlessingPref(n, true)).ToList());
 
     /// <summary>Panel Trials: buka tab Floor Rewards → atur floor (bila diset) → Drop Target → Start. Skip floor berbayar tidak pernah diklik.</summary>
     private List<MacroAction> TrialsMenu(GameSnapshot s, AppSettings S, long now)

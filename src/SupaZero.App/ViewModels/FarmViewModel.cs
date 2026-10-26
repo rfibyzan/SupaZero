@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using SupaZero.Core.Game;
 using SupaZero.Core.Input;
 using SupaZero.Core.Settings;
 
@@ -32,6 +33,40 @@ public sealed class SkillRowViewModel(FarmViewModel owner, int index) : Observab
     });
 }
 
+/// <summary>v0.3.11: satu baris prioritas buff Mirror Blessing (urutan ▲▼ + aktif).</summary>
+public sealed class BlessingBuffRowViewModel(FarmViewModel owner, int index) : ObservableObject
+{
+    private BuffPref P => owner.BlessingBuffList[index];
+    public string Rank => $"{index + 1}.";
+    public string Label => BlessingCatalog.Label(P.Buff);
+    public string CardsText
+    {
+        get
+        {
+            var names = owner.BlessingAll.Where(b => b.Buffs.Contains(P.Buff)).Select(b => b.Name).ToList();
+            return names.Count > 0 ? string.Join(", ", names) : "belum ada kartu terbaca";
+        }
+    }
+    public bool Enabled { get => P.Enabled; set => owner.SetBuff(index, P with { Enabled = value }); }
+    public RelayCommand UpCommand => new(_ => owner.MoveBuff(index, -1));
+    public RelayCommand DownCommand => new(_ => owner.MoveBuff(index, 1));
+}
+
+/// <summary>v0.3.11: satu baris kartu Mirror Blessing (data kartu + urutan ▲▼ + boleh dipilih).</summary>
+public sealed class BlessingCardRowViewModel(FarmViewModel owner, int index) : ObservableObject
+{
+    private BlessingPref P => owner.BlessingCardList[index];
+    private BlessingInfo? I => owner.BlessingAll.FirstOrDefault(b => b.Name.Equals(P.Name, StringComparison.OrdinalIgnoreCase));
+    public string Rank => $"{index + 1}.";
+    public string Name => P.Name;
+    public string Rarity => I?.Rarity ?? "?";
+    public string Detail => I is { } i ? (i.Description.Length > 0 ? i.Description : i.Value) : "belum terbaca";
+    public string BuffText => I is { } i ? string.Join(" · ", i.Buffs.Select(BlessingCatalog.Label)) + (i.HasDrawback ? " · ⚠ efek negatif" : "") : "";
+    public bool Enabled { get => P.Enabled; set => owner.SetCard(index, P with { Enabled = value }); }
+    public RelayCommand UpCommand => new(_ => owner.MoveCard(index, -1));
+    public RelayCommand DownCommand => new(_ => owner.MoveCard(index, 1));
+}
+
 public sealed class FarmViewModel : ObservableObject
 {
     private const string CurrentMapLabel = "(otomatis sesuai mode)";
@@ -44,6 +79,7 @@ public sealed class FarmViewModel : ObservableObject
         S.Combat = S.Combat with { Skills = skills };
         for (int i = 0; i < skills.Count; i++) SkillRows.Add(new SkillRowViewModel(this, i));
         RebuildMaps();
+        RebuildBlessings();
     }
 
     public MainViewModel Root => _root;
@@ -202,7 +238,82 @@ public sealed class FarmViewModel : ObservableObject
             return $"Material yang bisa ditarget di {S.Farm.Map} {act}. Hanya berlaku di Hard (x2) / Nightmare (x3).{stale}";
         }
     }
-    public string BlessingPriority { get => S.Farm.BlessingPriority; set => Farm(f => f with { BlessingPriority = value ?? "" }); }
+    // ---- v0.3.11 Mirror Blessing: data kartu + prioritas buff + urutan kartu (bukan teks dipisah koma) ----
+    public ObservableCollection<BlessingBuffRowViewModel> BlessingBuffRows { get; } = [];
+    public ObservableCollection<BlessingCardRowViewModel> BlessingCardRows { get; } = [];
+    public List<BlessingInfo> BlessingAll => BlessingCatalog.All(S.Farm.KnownBlessings);
+    public List<BuffPref> BlessingBuffList => BlessingCatalog.EffectiveBuffs(S.Farm.BlessingBuffs);
+    public List<BlessingPref> BlessingCardList => BlessingCatalog.EffectiveCards(S.Farm.BlessingCards, S.Farm.BlessingPriority, BlessingAll);
+
+    private void RebuildBlessings()
+    {
+        int nb = BlessingBuffList.Count, nc = BlessingCardList.Count;
+        BlessingBuffRows.Clear();
+        for (int i = 0; i < nb; i++) BlessingBuffRows.Add(new BlessingBuffRowViewModel(this, i));
+        BlessingCardRows.Clear();
+        for (int i = 0; i < nc; i++) BlessingCardRows.Add(new BlessingCardRowViewModel(this, i));
+        Raise(nameof(BlessingPreview));
+    }
+
+    public void SetBuff(int i, BuffPref p) { var l = BlessingBuffList; l[i] = p; Farm(f => f with { BlessingBuffs = l }); Raise(nameof(BlessingPreview)); }
+    public void SetCard(int i, BlessingPref p) { var l = BlessingCardList; l[i] = p; Farm(f => f with { BlessingCards = l }); Raise(nameof(BlessingPreview)); }
+    public void MoveBuff(int i, int d)
+    {
+        var l = BlessingBuffList; int j = i + d;
+        if (j < 0 || j >= l.Count) return;
+        (l[i], l[j]) = (l[j], l[i]);
+        Farm(f => f with { BlessingBuffs = l });
+        RebuildBlessings();
+    }
+    public void MoveCard(int i, int d)
+    {
+        var l = BlessingCardList; int j = i + d;
+        if (j < 0 || j >= l.Count) return;
+        (l[i], l[j]) = (l[j], l[i]);
+        Farm(f => f with { BlessingCards = l });
+        RebuildBlessings();
+    }
+    public RelayCommand ResetBlessingCommand => new(_ => { Farm(f => f with { BlessingBuffs = null, BlessingCards = null }); RebuildBlessings(); });
+
+    /// <summary>Tawaran yang sedang tampil di game → kartu yang akan dipilih dengan pengaturan sekarang.</summary>
+    public string BlessingPreview
+    {
+        get
+        {
+            var offers = _root.Snapshot.Blessings;
+            if (offers.Count == 0) return "Aturan: buff aktif teratas → urutan kartu → rarity tertinggi → angka terbesar. Kartu yang dimatikan hanya dipilih bila semua tawaran mati.";
+            var pick = BlessingCatalog.Choose(offers, BlessingBuffList, BlessingCardList, S.Farm.KnownBlessings);
+            return $"Tawaran sekarang: {string.Join(" / ", offers.Select(o => $"{o.Name} {o.Value}"))} → pilih {pick?.Name}.";
+        }
+    }
+
+    private string? _blessSig;
+    /// <summary>Kartu yang terbaca di layar pilihan disimpan (nama, rarity, deskripsi, value); kartu baru masuk urutan paling bawah.</summary>
+    private void LearnBlessings(IReadOnlyList<BlessingOffer> offers)
+    {
+        if (offers.Count == 0) return;
+        string sig = string.Join("|", offers.Select(o => $"{o.Name}:{o.Rarity}:{o.Description}:{o.Value}"));
+        if (sig == _blessSig) return;
+        _blessSig = sig;
+        var known = new List<BlessingInfo>(S.Farm.KnownBlessings ?? []);
+        bool changed = false;
+        foreach (var o in offers)
+        {
+            var info = new BlessingInfo(o.Name.Trim(), o.Rarity.Trim(), o.Description?.Trim() ?? "", o.Value?.Trim() ?? "");
+            if (info.Name.Length == 0) continue;
+            int k = known.FindIndex(b => b.Name.Equals(info.Name, StringComparison.OrdinalIgnoreCase));
+            var seen = BlessingCatalog.Seen.FirstOrDefault(b => b.Name.Equals(info.Name, StringComparison.OrdinalIgnoreCase));
+            if (k >= 0) { if (known[k] != info) { known[k] = info; changed = true; } }
+            else if (seen != info) { known.Add(info); changed = true; }
+        }
+        if (changed)
+        {
+            bool newName = offers.Any(o => !BlessingCardList.Any(c => c.Name.Equals(o.Name.Trim(), StringComparison.OrdinalIgnoreCase)));
+            Farm(f => f with { KnownBlessings = known });
+            if (newName) _root.AddLog("Mirror Blessing: kartu baru tersimpan → " + string.Join(", ", offers.Select(o => o.Name)));
+            RebuildBlessings();
+        }
+    }
     public decimal TrialsFloor { get => S.Farm.TrialsFloor; set => Farm(f => f with { TrialsFloor = (int)value }); }
     public string CircleText => S.Farm.LobbyCircle is { } c ? "Cadangan: " + c : "Cadangan manual: belum direkam";
     public string DetectedText => _root.Snapshot.StartRooms is { Count: > 0 } r
@@ -255,6 +366,8 @@ public sealed class FarmViewModel : ObservableObject
         Raise(nameof(DetectedText));
         Raise(nameof(HubPickText));
         var snap = _root.Snapshot;
+        LearnBlessings(snap.Blessings);
+        if (snap.Blessings.Count > 0) Raise(nameof(BlessingPreview));
         // v0.2.82: ActsList berganti bertahap setelah map diklik → act baru disimpan bila (map, daftar act) sama ≥ 1 dtk.
         string actSig = $"{snap.LobbyMapTag}|{string.Join(",", snap.LobbyActs.Select(a => a.Name))}";
         if (actSig != _actSig) { _actSig = actSig; _actSigAt = DateTime.UtcNow; }

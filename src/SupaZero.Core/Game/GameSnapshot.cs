@@ -81,7 +81,7 @@ public sealed record StartRoom(string Id, Settings.Vec3 Pos, bool Occupied, int?
 public sealed record RewardCard(string Name, bool Targetable, bool Targeted, GuiRect? Hit, string? Chance);
 
 /// <summary>Kartu Mirror Blessing (FateBlessings.Picker.Holder.List.OfferN).</summary>
-public sealed record BlessingOffer(string Name, string Rarity, string? Value, GuiRect? Pick);
+public sealed record BlessingOffer(string Name, string Rarity, string? Value, GuiRect? Pick, string? Description = null);
 
 /// <summary>Panel Trials (UI Animation (Finished).Trials.MainFrame). FloorTabOpen = tab Floor Rewards aktif.</summary>
 public sealed record TrialsInfo(GuiRect? FloorTab, bool FloorTabOpen, int? SelectedFloor, int? HighestFloor,
