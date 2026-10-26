@@ -4,63 +4,75 @@
              x:Class="SupaZero.App.Views.ModesView"
              x:DataType="vm:ModesPageViewModel">
   <!-- v0.3.14: per-mode settings (Drop Target, Trials, Evil Reflection) split out of the Lobby tab. -->
-  <Grid ColumnDefinitions="*,*" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
-    <Border Margin="0,0,8,0" Classes="card" VerticalAlignment="Top">
+  <!-- v0.3.17: balanced layout. Drop Target & Trials = one full-width row on top; Mirror Blessing below
+       with Buffs and Cards side by side, so neither column leaves a large empty area. -->
+  <StackPanel Spacing="12" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
+    <Border Classes="card">
       <StackPanel Spacing="6">
         <TextBlock Classes="h2" Text="Drop Target &amp; Trials" />
         <Border Classes="sep" Margin="0,2,0,4" />
-        <Grid ColumnDefinitions="*,180" MinHeight="34">
-          <TextBlock Classes="label" Text="Drop Target" />
-          <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding DropChoices}" SelectedItem="{Binding SelectedDrop}" />
-        </Grid>
-        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
-        <Grid ColumnDefinitions="*,150" MinHeight="34">
-          <TextBlock Classes="label" Text="Trials floor (0 = next floor)" />
-          <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />
+        <Grid ColumnDefinitions="*,24,*">
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,200" MinHeight="34">
+              <TextBlock Classes="label" Text="Drop Target" />
+              <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding DropChoices}" SelectedItem="{Binding SelectedDrop}" />
+            </Grid>
+            <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
+          </StackPanel>
+          <Grid Grid.Column="2" ColumnDefinitions="*,150" MinHeight="34" VerticalAlignment="Top">
+            <TextBlock Classes="label" Text="Trials floor (0 = next floor)" />
+            <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />
+          </Grid>
         </Grid>
       </StackPanel>
     </Border>
-    <Border Grid.Column="1" Margin="8,0,0,0" Classes="card" VerticalAlignment="Top">
+    <Border Classes="card">
       <StackPanel Spacing="6">
         <Grid ColumnDefinitions="*,Auto">
           <TextBlock Classes="h2" Text="Mirror Blessing (Evil Reflection)" VerticalAlignment="Center" />
           <Button Grid.Column="1" Content="Reset" Command="{Binding ResetBlessingCommand}" Padding="8,2" />
         </Grid>
         <Border Classes="sep" Margin="0,2,0,4" />
-        <TextBlock Classes="muted" FontSize="11" Text="Buff priority (checked = prioritized, top = most important)" />
-        <ItemsControl ItemsSource="{Binding BlessingBuffRows}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:BlessingBuffRowViewModel">
-              <Grid ColumnDefinitions="24,Auto,*,Auto,Auto" Margin="0,1">
-                <TextBlock Classes="muted" Text="{Binding Rank}" VerticalAlignment="Center" />
-                <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" Content="{Binding Label}" />
-                <TextBlock Grid.Column="2" Classes="muted" FontSize="11" Text="{Binding CardsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0" />
-                <Button Grid.Column="3" Content="▲" Command="{Binding UpCommand}" Padding="6,0" />
-                <Button Grid.Column="4" Content="▼" Command="{Binding DownCommand}" Padding="6,0" Margin="2,0,0,0" />
-              </Grid>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock Classes="muted" FontSize="11" Text="Cards (checked = may be picked, order = tiebreak when buffs are equal)" Margin="0,6,0,0" />
-        <ItemsControl ItemsSource="{Binding BlessingCardRows}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:BlessingCardRowViewModel">
-              <Grid ColumnDefinitions="24,Auto,*,Auto,Auto" Margin="0,2">
-                <TextBlock Classes="muted" Text="{Binding Rank}" VerticalAlignment="Top" Margin="0,6,0,0" />
-                <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" VerticalAlignment="Top" />
-                <StackPanel Grid.Column="2" Margin="4,0">
-                  <TextBlock><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Rarity}" FontSize="11" /></TextBlock>
-                  <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding Detail}" />
-                  <TextBlock Classes="muted" FontSize="11" Text="{Binding BuffText}" />
-                </StackPanel>
-                <Button Grid.Column="3" Content="▲" Command="{Binding UpCommand}" Padding="6,0" VerticalAlignment="Top" />
-                <Button Grid.Column="4" Content="▼" Command="{Binding DownCommand}" Padding="6,0" Margin="2,0,0,0" VerticalAlignment="Top" />
-              </Grid>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <Grid ColumnDefinitions="*,24,*">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="Buff priority (checked = prioritized, top = most important)" />
+            <ItemsControl ItemsSource="{Binding BlessingBuffRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:BlessingBuffRowViewModel">
+                  <Grid ColumnDefinitions="24,Auto,*,Auto,Auto" Margin="0,1">
+                    <TextBlock Classes="muted" Text="{Binding Rank}" VerticalAlignment="Center" />
+                    <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" Content="{Binding Label}" />
+                    <TextBlock Grid.Column="2" Classes="muted" FontSize="11" Text="{Binding CardsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0" />
+                    <Button Grid.Column="3" Content="▲" Command="{Binding UpCommand}" Padding="6,0" />
+                    <Button Grid.Column="4" Content="▼" Command="{Binding DownCommand}" Padding="6,0" Margin="2,0,0,0" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6">
+            <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="Cards (checked = may be picked, order = tiebreak when buffs are equal)" />
+            <ItemsControl ItemsSource="{Binding BlessingCardRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:BlessingCardRowViewModel">
+                  <Grid ColumnDefinitions="24,Auto,*,Auto,Auto" Margin="0,2">
+                    <TextBlock Classes="muted" Text="{Binding Rank}" VerticalAlignment="Top" Margin="0,6,0,0" />
+                    <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="2" Margin="4,0">
+                      <TextBlock><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Rarity}" FontSize="11" /></TextBlock>
+                      <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding Detail}" />
+                      <TextBlock Classes="muted" FontSize="11" Text="{Binding BuffText}" />
+                    </StackPanel>
+                    <Button Grid.Column="3" Content="▲" Command="{Binding UpCommand}" Padding="6,0" VerticalAlignment="Top" />
+                    <Button Grid.Column="4" Content="▼" Command="{Binding DownCommand}" Padding="6,0" Margin="2,0,0,0" VerticalAlignment="Top" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Grid>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding BlessingPreview}" />
       </StackPanel>
     </Border>
-  </Grid>
+  </StackPanel>
 </UserControl>
