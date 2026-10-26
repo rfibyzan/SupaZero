@@ -135,4 +135,43 @@ public class PathPlannerTests
         Assert.Contains(good!, p => p.X > 560);
         Assert.Equal(entry, good![^1]);
     }
+
+    // ---------- v0.3.10: Evil Reflection spawn (snapshot World 07:43:42 Byzan 26 Okt 2026) ----------
+    private static NavMap Er0743()
+    {
+        var w = new List<NavRect>(); var so = new List<NavRect>(); var nodes = new List<Vec3>();
+        foreach (var line in File.ReadLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "er_0743_world.txt")))
+        {
+            if (line.StartsWith('#') || line.Length < 3) continue;
+            var f = line.Split(' ');
+            double D(int i) => double.Parse(f[i], System.Globalization.CultureInfo.InvariantCulture);
+            if (f[0] == "N") { nodes.Add(new(D(1), D(2), D(3))); continue; }
+            var r = NavRect.FromPart(new(D(1), D(2), D(3)), new(D(4), D(5), D(6)), D(7), D(9), D(8));
+            (f[0] == "W" ? w : so).Add(r);
+        }
+        return new NavMap(w, [], nodes, so);
+    }
+
+    [Theory]
+    [InlineData(242.5)]
+    [InlineData(243)]
+    [InlineData(244)]
+    public void Er_SpawnBelowStairs_GridFails_ButTargetIsOtherLevel(double y)
+    {
+        // Log 07:43:42: "dari (72,-440) ke (62,-209), tidak ketemu: posisi karakter (72,-440) tertutup rintangan; peta 1 area, 185 rintangan".
+        var map = Er0743();
+        Assert.Equal(185, map.Solids!.Count);
+        var from = new Vec3(72, y, -440);
+        var target = new Vec3(61.85, 303.53, -208.55); // World.Areas.1 center
+        Assert.Null(new PathPlanner().Find(map, from, target)); // grid satu lantai memang gagal (gejala live)
+        Assert.Equal(240, PathPlanner.FootY(map, from), 0);     // Model#5.Plane.006 atas 239.98
+        Assert.True(FarmMachine.OtherLevel(map, from, target)); // → jalan lurus naik tangga, bukan diam
+    }
+
+    [Fact]
+    public void Hxh_EntryIsSameLevel_NoStraightFallback()
+    {
+        var map = HxhS1();
+        Assert.False(FarmMachine.OtherLevel(map, new Vec3(291, 4.5, -148), new Vec3(295, 2, -53.3)));
+    }
 }

@@ -1053,6 +1053,14 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
                 $"Jalur ke {label}: dari ({p.X:0},{p.Z:0}) ke ({target.X:0},{target.Z:0}), {(clear ? "lurus" : _path is null ? "tidak ketemu" : $"{_path.Count} titik{(_planner.UsedOutside ? ", lewat luar Areas" : "")}{(_planner.Partial ? ", parsial" : "")}")}; peta {nav.Walkable.Count} area, {nav.Solids?.Count ?? 0} rintangan.")));
             if (_path is null || _planner.Partial)
                 _pending.AddRange(Note("border-diag", now, 15000, $"Border/Blocker: {nav.BorderDiag ?? "?"}. HUD: \"{s.HudRaw ?? "-"}\"."));
+            if (_path is null && OtherLevel(nav, p, target))
+            {
+                // v0.3.10 (ER, snapshot World 07:43:42): grid A* satu lantai. Spawn ER di lantai Y≈240, arena Areas.1 di Y≈278
+                // lewat tangga (StairCollision miring); dari lantai bawah mesh tangga/silinder arena = "dinding" → jalur selalu gagal.
+                // Tujuan beda lantai → jalan lurus seperti sebelum v0.3.9 (rute ER memang lurus naik tangga).
+                return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-level", now, 8000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                    $"Jalur ke {label}: tujuan beda lantai (kaki Y {PathPlanner.FootY(nav, p):0}, tujuan Y {target.Y:0}) → jalan lurus (naik tangga)."))];
+            }
             if (_path is null)
             {
                 // v0.3.9 (Byzan 25 Okt 10:46): dulu "Jalan lurus" = menabrak gedung yang sudah terbaca sebagai rintangan. Kini diam & cari ulang.
@@ -1069,12 +1077,16 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         var walk = WalkTo(s, wp, last ? radius : 1.5, now, last ? label : $"{label} (belok {_path.Count - 1})", attackWhenStuck);
         // Jalur parsial sudah sampai ujung: sisanya jalan lurus (mis. hancurkan rubble/Blocker dengan serang saat tersangkut).
         // v0.3.9: ujung jalur parsial → tidak jalan lurus ke gedung/Blocker (rubble punya pendekatan sendiri); cari ulang.
+        if (walk.Count == 0 && last && _planner.Partial && OtherLevel(nav, p, target)) return WalkTo(s, target, radius, now, label, attackWhenStuck);
         if (walk.Count == 0 && last && _planner.Partial) { _path = null; Status = $"Ujung jalur parsial ke {label}, cari ulang…"; return [new MoveAction([], "Tunggu jalur")]; }
         if (_pathNote is { } pn) { _pathNote = null; walk = [.. walk, .. Note("path-partial", now, 8000, pn)]; }
         if (walk.Count == 0 && !last) { _path.RemoveAt(0); return WalkPath(s, target, radius, now, label, attackWhenStuck); }
         if (walk.Count == 0) _path = null;
         return walk;
     }
+
+    /// <summary>v0.3.10: tujuan ≥ 8 stud di atas/bawah lantai kaki (mis. arena ER di atas tangga spawn). Hxh: entry Y≈2, kaki Y≈3.</summary>
+    internal static bool OtherLevel(NavMap nav, Vec3 p, Vec3 target) => Math.Abs(target.Y - PathPlanner.FootY(nav, p)) >= 8;
 
     private List<MacroAction> WalkTo(GameSnapshot s, Vec3 target, double radius, long now, string label, bool attackWhenStuck)
     {
