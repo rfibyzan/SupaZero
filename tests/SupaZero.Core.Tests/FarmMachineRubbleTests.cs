@@ -53,6 +53,23 @@ public partial class FarmMachineTests
     }
 
     [Fact]
+    public void Rubble_StuckAgainstDebris_AttacksFromThere()
+    {
+        // v0.3.31: West City rubble 41 studs away behind debris; character cannot get closer → after 1.5 s stuck it attacks.
+        var (m, _) = New();
+        var s = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Break the rubble to continue!"), PlayerPos = new(0, 3, 0), CameraLook = (0, -1),
+            Enemies = [new EnemyInfo("Rubble", new Vec3(0, 3, -41), 1, 1)], RubblePos = new Vec3(0, 3, -41),
+        };
+        m.Step(s, 10_000);
+        Assert.DoesNotContain("against the debris", m.Status);
+        m.Step(s, 11_000);
+        m.Step(s, 12_000);
+        Assert.Contains("against the debris", m.Status);
+    }
+
+    [Fact]
     public void Rubble_IsTreatedAsEnemyTarget()
     {
         var s = new GameSnapshot { Attached = true, EnemyCount = 1, Enemies = [new EnemyInfo("Rubble", new Vec3(5, 0, 5), 1, 1)], RubblePos = new Vec3(5, 0, 5) };

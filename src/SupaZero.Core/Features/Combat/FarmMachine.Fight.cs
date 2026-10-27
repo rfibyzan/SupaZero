@@ -122,6 +122,13 @@ public sealed partial class FarmMachine
                     dGoal = Navigator.Distance2D(me.X, me.Z, stand.X, stand.Z);
                 }
                 approaching = lootWalk is null && dGoal > range + (isRubble ? 2 : RangeTolerance(S.Navigation.AttackRange));
+                // v0.3.31: pressed against the rubble debris (stuck ≥ 1.5 s, ≤ 60 studs) = as close as it gets → attack with everything.
+                if (isRubble && approaching && dGoal <= RubbleStraightRange && _stuckRef is { } sr && now - _stuckSince >= 1500
+                    && Navigator.Distance2D(me.X, me.Z, sr.X, sr.Z) <= 1.5)
+                {
+                    approaching = false;
+                    Status += " · against the debris";
+                }
                 if (isRubble) Status += $" · rubble {target.Health:P0}";
                 if (lootWalk is not null) { actions.AddRange(lootWalk); Status += $" · {lootStatus}"; }
                 var walk = lootWalk is not null ? [] : approaching ? WalkPath(s, goal, range, now, isRubble ? "rubble" : $"enemy #{target.Name}", isRubble) : [];

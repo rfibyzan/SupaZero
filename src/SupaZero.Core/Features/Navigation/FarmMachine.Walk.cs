@@ -85,6 +85,9 @@ public sealed partial class FarmMachine
                 return [.. WalkTo(s, target, radius, now, label, attackWhenStuck), .. Note("path-level", now, 8000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
                     $"Path to {label}: destination on another floor (feet Y {PathPlanner.FootY(nav, p):0}, destination Y {target.Y:0}) → walking straight (up the stairs)."))];
             }
+            if (_path is null && RubbleStraight(label, p, target))
+                return [.. WalkTo(s, target, radius, now, label, true), .. Note("path-rubble", now, 8000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                    $"Path to rubble not found ({_planner.LastFailure ?? "?"}), rubble {Navigator.Distance2D(p.X, p.Z, target.X, target.Z):0} studs away → walking straight into the debris, attacking when stuck."))];
             if (_path is null)
             {
                 // v0.3.9 (Byzan 25 Oct 10:46): previously "walk straight" = bumping into buildings already read as obstacles. Now stand still & re-plan.
@@ -102,12 +105,23 @@ public sealed partial class FarmMachine
         // Partial path reached its end: the rest is walked straight (e.g. destroy rubble/Blocker by attacking while stuck).
         // v0.3.9: end of a partial path → do not walk straight into buildings/Blocker (rubble has its own approach); re-plan.
         if (walk.Count == 0 && last && _planner.Partial && OtherLevel(nav, p, target)) return WalkTo(s, target, radius, now, label, attackWhenStuck);
+        if (walk.Count == 0 && last && _planner.Partial && RubbleStraight(label, p, target)) return WalkTo(s, target, radius, now, label, true);
         if (walk.Count == 0 && last && _planner.Partial) { _path = null; Status = $"End of partial path to {label}, re-planning…"; return [new MoveAction([], "Waiting for path")]; }
         if (_pathNote is { } pn) { _pathNote = null; walk = [.. walk, .. Note("path-partial", now, 8000, pn)]; }
         if (walk.Count == 0 && !last) { _path.RemoveAt(0); return WalkPath(s, target, radius, now, label, attackWhenStuck); }
         if (walk.Count == 0) _path = null;
         return walk;
     }
+
+    /// <summary>
+    /// v0.3.31 (Byzan 27 Oct 23:23, West City Act 1 "Break the rubble to continue!", rubble 41 studs, character standing still): West City
+    /// Border*.Rubble has no ClimbStop, only debris meshes (BLD_DEBRIS/DIRT_MOUND, RIE World 23:14:02) around the Blocker, so A* finds no
+    /// cell near the rubble ("Path to rubble not found: no reachable cell", log 23:08:43) and the macro waited forever. Rubble ≤ 60 studs:
+    /// walk straight into the debris; stuck = jump + attack (and Fight treats a stuck rubble approach as in range).
+    /// </summary>
+    public const double RubbleStraightRange = 60;
+    private static bool RubbleStraight(string label, Vec3 p, Vec3 target) =>
+        label == "rubble" && Navigator.Distance2D(p.X, p.Z, target.X, target.Z) <= RubbleStraightRange;
 
     /// <summary>v0.3.10: destination ≥ 8 studs above/below the foot floor (e.g. the ER arena above the spawn stairs). Hxh: entry Y≈2, feet Y≈3.</summary>
     internal static bool OtherLevel(NavMap nav, Vec3 p, Vec3 target) => Math.Abs(target.Y - PathPlanner.FootY(nav, p)) >= 8;
