@@ -283,7 +283,7 @@ public sealed partial class FarmMachine
                 var e = s.LobbyMaps.FirstOrDefault(x => x.Name == map);
                 if (e is null || CalTimedOut(now)) { _calMapIdx++; return CalSkip($"map {map} cannot be selected → its acts not read.", 4, now); }
                 Status = $"Calibration: selecting map {map}.";
-                return [stand, .. ClickEntry(s, e, s.LobbyMapsView, "cal-map", $"Map {map}", now) ?? []];
+                return [stand, .. ClickEntry(s, e, s.LobbyMapsView, $"cal-map-{map}", $"Map {map}", now) ?? []];
             }
         }
 
@@ -335,6 +335,10 @@ public sealed partial class FarmMachine
             }
         }
 
+        // v0.3.36 (Byzan 27 Oct 23:52 "keep reading saved drops, just faster"): log 14:20 showed act clicks exactly 2.5 s apart
+        // (14:20:14.879 → 17.405 → 19.919) although each act's Rewards were read ~1.2 s after its click: the 2.5 s click cooldown
+        // was shared by every act/map ("cal-act"/"cal-map"). The cooldown key is now per map/act, so the next act is clicked as soon as
+        // the previous one is read; a repeated click on the SAME entry still waits 2.5 s.
         if (_calStage == 8)
         {
             string map = _calMaps[_calMapIdx];
@@ -345,7 +349,7 @@ public sealed partial class FarmMachine
                 var e = s.LobbyActs.FirstOrDefault(a => ActNumber(a.Name) == act && !a.Locked);
                 if (e is null || now - _calStepAt > CalActTimeoutMs) { _calDropIdx++; return CalSkip($"{map} Act {act} cannot be selected → drops not read.", 8, now); }
                 Status = $"Drop calibration: selecting {map} Act {act}.";
-                return [stand, .. ClickEntry(s, e, s.LobbyActsView, "cal-act", $"Act {act} (drop calibration)", now) ?? []];
+                return [stand, .. ClickEntry(s, e, s.LobbyActsView, $"cal-act-{map}-{act}", $"Act {act} (drop calibration)", now) ?? []];
             }
             Status = $"Drop calibration: reading Rewards for {map} Act {act}.";
             string sig = $"{s.LobbyActTag}|{s.LobbyDifficultyTag}|{string.Join(",", s.LobbyRewards.Select(r => $"{r.Name}:{r.Targetable}"))}";
