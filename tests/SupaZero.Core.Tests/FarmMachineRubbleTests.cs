@@ -88,6 +88,8 @@ public class WalkableMoundTests
     [InlineData("DES_BLD_INT", "DES_BUILD_1", false)]
     [InlineData("DES_ROAD", "MAP", true)]
     [InlineData("INT_ROAD_1", "MAP", true)]
+    [InlineData("Cube.105", "S-bathhouse_STAIRS", true)]
+    [InlineData("Cube.277", "S-bathhouse_Shelve", false)]
     public void DirtMound_OutsideRubble_IsWalkable(string name, string parent, bool walkable) =>
         Assert.Equal(walkable, SupaZero.Core.Game.GameReader.IsWalkableMound(name, parent));
 

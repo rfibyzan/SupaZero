@@ -104,7 +104,11 @@ public sealed partial class GameReader
     // cell"; RIE World 23:14:02): MAP.ROCK_PATCH_A/B are scattered-rock patch meshes whose bounding boxes are 139-275 studs wide with tops
     // 17-24 studs while the road through them is clear (screenshot). Same treatment as DIRT_MOUND: floor, never a wall. A real rock the
     // character bumps into is still handled by the stuck marker (Block) + re-plan.
+    // v0.3.44 (Byzan 28 Oct 00:52, Spirit's Bathtub floor 2 "Path to stairs not found"; RIE World 00:45:04): Map.S-bathhouse_STAIRS holds
+    // the spiral stair mesh Cube.105 (67x73x72 bounding box over the whole hall) and Cube.107 (203x110x441) → the hall was one big wall.
+    // Meshes directly under a *_STAIRS model are floor, never walls (the stair route itself is recorded in ElevatorRoutes).
     internal static bool IsWalkableMound(string name, string parentName) =>
+        parentName.EndsWith("_STAIRS", StringComparison.OrdinalIgnoreCase) ||
         (name.StartsWith("DIRT_MOUND", StringComparison.Ordinal) || name.StartsWith("ROCK_PATCH", StringComparison.Ordinal) || name.EndsWith("_ROAD", StringComparison.Ordinal) || name.Contains("_ROAD_", StringComparison.Ordinal))
         && parentName != AnimeZeroPaths.RubbleName;
 
