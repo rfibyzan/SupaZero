@@ -52,7 +52,6 @@
 
   <Application.DataTemplates>
     <DataTemplate DataType="vm:GeneralViewModel"><views:GeneralView /></DataTemplate>
-    <DataTemplate DataType="vm:CombatPageViewModel"><views:CombatView /></DataTemplate>
     <DataTemplate DataType="vm:CarryPageViewModel"><views:CarryView /></DataTemplate>
     <DataTemplate DataType="vm:ModesPageViewModel"><views:ModesView /></DataTemplate>
     <DataTemplate DataType="vm:OffsetsViewModel"><views:OffsetsView /></DataTemplate>

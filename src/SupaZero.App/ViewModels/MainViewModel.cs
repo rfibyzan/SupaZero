@@ -8,9 +8,22 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.ViewModels;
 
-/// <summary>Tab pages that share the FarmViewModel (Combat, Modes).</summary>
-public sealed class CombatPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
-public sealed class ModesPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
+/// <summary>Modes tab (shares the FarmViewModel). v0.3.51: compact rows, each opened on its own page.</summary>
+public sealed class ModesPageViewModel
+{
+    public ModesPageViewModel(FarmViewModel farm)
+    {
+        Farm = farm;
+        DropTrials = Nav.Add("Drop Target & Trials", "Item to farm and the Trials floor.");
+        Lobby = Nav.Add("Lobby", "Auto create room, codes, vote, retries.");
+        Blessing = Nav.Add("Mirror Blessing", "Evil Reflection buff and card priority.");
+    }
+    public FarmViewModel Farm { get; }
+    public SectionNav Nav { get; } = new();
+    public SectionItem DropTrials { get; }
+    public SectionItem Lobby { get; }
+    public SectionItem Blessing { get; }
+}
 /// <summary>v0.3.32: Carry tab, only shown in Carry app mode (damage target + carry windows).</summary>
 public sealed class CarryPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 
@@ -94,7 +107,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Tabs =
         [
             new TabViewModel("General", General),
-            new TabViewModel("Combat", new CombatPageViewModel(Farm)),
             new TabViewModel("Modes", new ModesPageViewModel(Farm)),
             new TabViewModel("Upgrade", Upgrade),
             new TabViewModel("Offsets", Offsets),
@@ -398,7 +410,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public async Task SendWebhook(SupaZero.Core.Notify.DiscordWebhook.Embed embed)
     {
         // v0.3.50: name the Roblox account (LocalPlayer) so notifications from several accounts can be told apart.
-        string? account = Runner.LastSnapshot.LocalPlayer is { Length: > 0 } lp ? lp : Snapshot?.LocalPlayer is { Length: > 0 } sp ? sp : _lastAccount;
+        string? account = Runner.LastSnapshot?.LocalPlayer is { Length: > 0 } lp ? lp : Snapshot.LocalPlayer is { Length: > 0 } sp ? sp : _lastAccount;
         if (account is { Length: > 0 }) _lastAccount = account;
         var err = await SupaZero.Core.Notify.DiscordWebhook.SendAsync(Settings.Webhook.Url, embed, Settings.Webhook.Mention, account);
         Dispatcher.UIThread.Post(() => AddLog(err is null ? $"Webhook sent: {embed.Title}." : err));

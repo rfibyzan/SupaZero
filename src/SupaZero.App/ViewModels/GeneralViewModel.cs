@@ -9,6 +9,11 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
     private string _hotkeyStatus = string.Empty;
 
     public MainViewModel Root => root;
+    /// <summary>v0.3.51 (Byzan 28 Oct): the Combat tab moved into General as compact rows (Open → own page).</summary>
+    public SectionNav Nav { get; } = new();
+    public SectionItem CombatSection => _combat ??= Nav.Add("Combat", "Basic attack, shift lock, Ultimate, Arise, skill keys.");
+    public SectionItem NavigationSection => _navigation ??= Nav.Add("Navigation", "Attack range and arrive radius.");
+    private SectionItem? _combat, _navigation;
     public string HotkeyText => _isRebinding ? "..." : root.Settings.General.MacroHotkey;
     public string RebindText => _isRebinding ? "Press a key" : "Rebind";
     public bool IsRebinding => _isRebinding;

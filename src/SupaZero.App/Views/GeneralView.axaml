@@ -3,8 +3,10 @@
              xmlns:vm="using:SupaZero.App.ViewModels"
              x:Class="SupaZero.App.Views.GeneralView"
              x:DataType="vm:GeneralViewModel">
-  <!-- General: left hotkey + farm target, right macro + powers + compact calibration, bottom Log. -->
-  <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto">
+  <!-- General: left hotkey + farm target + compact Combat/Navigation rows, right overlay + powers + calibration, bottom Log.
+       v0.3.51 (Byzan 28 Oct): the Combat tab moved here as compact rows; Open shows that section alone with a back arrow. -->
+  <Panel>
+  <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto" IsVisible="{Binding Nav.IsList}">
     <StackPanel Spacing="8" Margin="0,0,8,0">
       <Border Classes="card" Padding="0">
         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -52,6 +54,24 @@
           </Grid>
         </StackPanel>
       </Border>
+        <Border Classes="card" Padding="14,10">
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Classes="label" FontWeight="SemiBold" Text="{Binding CombatSection.Title}" />
+              <TextBlock Classes="muted" FontSize="11" Text="{Binding CombatSection.Summary}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="2" Content="Open" Command="{Binding CombatSection.OpenCommand}" Padding="12,3" Margin="10,0,0,0" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+        <Border Classes="card" Padding="14,10">
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Classes="label" FontWeight="SemiBold" Text="{Binding NavigationSection.Title}" />
+              <TextBlock Classes="muted" FontSize="11" Text="{Binding NavigationSection.Summary}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="2" Content="Open" Command="{Binding NavigationSection.OpenCommand}" Padding="12,3" Margin="10,0,0,0" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
     </StackPanel>
 
     <StackPanel Grid.Column="1" Spacing="8" Margin="8,0,0,0">
@@ -144,4 +164,57 @@
       </StackPanel>
     </Border>
   </Grid>
+
+  <!-- Detail page of the open section. -->
+  <StackPanel Spacing="10" IsVisible="{Binding Nav.IsDetail}">
+    <Grid ColumnDefinitions="Auto,*">
+      <Button Classes="back" Content="←" Command="{Binding Nav.BackCommand}" ToolTip.Tip="Back" />
+      <TextBlock Grid.Column="1" Classes="h1" Text="{Binding Nav.CurrentTitle}" VerticalAlignment="Center" Margin="12,0,0,0" />
+    </Grid>
+    <Border Classes="card" IsVisible="{Binding CombatSection.IsOpen}">
+      <StackPanel Spacing="6" DataContext="{Binding Root.Farm}" x:DataType="vm:FarmViewModel">
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Basic attack (ms)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding AttackIntervalMs}" Minimum="30" Maximum="2000" Increment="10" FormatString="0" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto shift lock during rounds (enemies present = always on)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoShiftLock}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Ultimate (G) only on bosses (boss bar shown, not IMMUNE)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding UltBossOnly}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Shadow Lord: auto Arise on Shadow Gate (hold E on corpses)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoArise}" /></Grid>
+        <ItemsControl ItemsSource="{Binding SkillRows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:SkillRowViewModel">
+              <Border Classes="card" Padding="0" Margin="0,0,0,6">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                  <Border Background="{DynamicResource OfAccentDim}" CornerRadius="8,0,0,8" MinWidth="48" Padding="10,8"
+                          BorderBrush="{DynamicResource OfBorder}" BorderThickness="0,0,1,0">
+                    <TextBlock Text="{Binding KeyText}" Classes="accent" FontSize="15" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Grid.Column="1" Classes="label" Text="{Binding Name}" Margin="10,0" />
+                  <Button Grid.Column="2" Content="{Binding RebindText}" Command="{Binding RebindCommand}" Padding="10,4" MinWidth="78"
+                          HorizontalContentAlignment="Center" VerticalAlignment="Center" />
+                  <ToggleSwitch Grid.Column="3" IsChecked="{Binding Enabled}" Margin="8,0,4,0" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+    <Border Classes="card" IsVisible="{Binding NavigationSection.IsOpen}">
+      <StackPanel Spacing="6" DataContext="{Binding Root.Farm}" x:DataType="vm:FarmViewModel">
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Attack range (stud)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding AttackRange}" Minimum="2" Maximum="150" Increment="1" FormatString="0" />
+        </Grid>
+        <Grid ColumnDefinitions="*,150" MinHeight="34">
+          <TextBlock Classes="label" Text="Arrive radius (stud)" />
+          <NumericUpDown Grid.Column="1" Value="{Binding ArriveRadius}" Minimum="2" Maximum="20" Increment="1" FormatString="0" />
+        </Grid>
+        <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                   Text="Attack range: distance kept from enemies (± 10%, min 2 stud) while attacking, using skills and circling. Arrive radius: the next area point counts as reached when this close (4–8 recommended)." />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+  </Panel>
 </UserControl>

@@ -3,16 +3,48 @@
              xmlns:vm="using:SupaZero.App.ViewModels"
              x:Class="SupaZero.App.Views.ModesView"
              x:DataType="vm:ModesPageViewModel">
-  <!-- v0.3.14: per-mode settings (Drop Target, Trials, Evil Reflection) split out of the Lobby tab. -->
-  <!-- v0.3.17: balanced layout. Drop Target & Trials = one full-width row on top; Mirror Blessing below
-       with Buffs and Cards side by side, so neither column leaves a large empty area. -->
-  <StackPanel Spacing="12" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
-    <!-- v0.3.39 (Byzan 28 Oct): the Lobby tab was merged here; Drop Target & Trials left, Lobby right. -->
-    <Grid ColumnDefinitions="*,*">
-      <Border Margin="0,0,6,0" Classes="card" VerticalAlignment="Top">
-        <StackPanel Spacing="6">
-          <TextBlock Classes="h2" Text="Drop Target &amp; Trials" />
-          <Border Classes="sep" Margin="0,2,0,4" />
+  <!-- v0.3.14: per-mode settings (Drop Target, Trials, Evil Reflection); v0.3.39 Lobby merged here.
+       v0.3.51 (Byzan 28 Oct): compact rows (name, toggle, Open); Open shows that section alone with a back arrow. -->
+  <Panel>
+    <StackPanel Spacing="8" IsVisible="{Binding Nav.IsList}">
+      <Border Classes="card" Padding="14,10">
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Classes="label" FontWeight="SemiBold" Text="{Binding DropTrials.Title}" />
+            <TextBlock Classes="muted" FontSize="11" Text="{Binding DropTrials.Summary}" TextWrapping="Wrap" />
+          </StackPanel>
+          <Button Grid.Column="2" Content="Open" Command="{Binding DropTrials.OpenCommand}" Padding="12,3" Margin="10,0,0,0" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+      <Border Classes="card" Padding="14,10">
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Classes="label" FontWeight="SemiBold" Text="{Binding Lobby.Title}" />
+            <TextBlock Classes="muted" FontSize="11" Text="{Binding Lobby.Summary}" TextWrapping="Wrap" />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" IsChecked="{Binding Farm.AutoCreateLobby}" VerticalAlignment="Center" ToolTip.Tip="Auto create room" />
+          <Button Grid.Column="2" Content="Open" Command="{Binding Lobby.OpenCommand}" Padding="12,3" Margin="10,0,0,0" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+      <Border Classes="card" Padding="14,10">
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Classes="label" FontWeight="SemiBold" Text="{Binding Blessing.Title}" />
+            <TextBlock Classes="muted" FontSize="11" Text="{Binding Blessing.Summary}" TextWrapping="Wrap" />
+          </StackPanel>
+          <Button Grid.Column="2" Content="Open" Command="{Binding Blessing.OpenCommand}" Padding="12,3" Margin="10,0,0,0" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+    </StackPanel>
+
+    <StackPanel Spacing="10" IsVisible="{Binding Nav.IsDetail}">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button Classes="back" Content="←" Command="{Binding Nav.BackCommand}" ToolTip.Tip="Back" />
+        <TextBlock Grid.Column="1" Classes="h1" Text="{Binding Nav.CurrentTitle}" VerticalAlignment="Center" Margin="12,0,0,0" />
+        <ToggleSwitch Grid.Column="2" IsVisible="{Binding Lobby.IsOpen}" IsChecked="{Binding Farm.AutoCreateLobby}" VerticalAlignment="Center" ToolTip.Tip="Auto create room" />
+      </Grid>
+      <Border Classes="card" IsVisible="{Binding DropTrials.IsOpen}">
+        <StackPanel DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
           <StackPanel Spacing="8">
             <StackPanel Spacing="4">
               <Grid ColumnDefinitions="*,200" MinHeight="34">
@@ -28,10 +60,8 @@
           </StackPanel>
         </StackPanel>
       </Border>
-      <Border Grid.Column="1" Margin="6,0,0,0" Classes="card" VerticalAlignment="Top">
-        <StackPanel Spacing="6">
-          <TextBlock Classes="h2" Text="Lobby" />
-          <Border Classes="sep" Margin="0,2,0,4" />
+      <Border Classes="card" IsVisible="{Binding Lobby.IsOpen}">
+        <StackPanel Spacing="6" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
           <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto create room" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCreateLobby}" /></Grid>
           <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
                      Text="Automatic: Areas → Story (teleport) → walk to the nearest empty room. Join fails → another circle." />
@@ -52,15 +82,13 @@
           <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Infinite: unlimited retries" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding InfiniteUnlimitedRetry}" /></Grid>
         </StackPanel>
       </Border>
-    </Grid>
-    <Border Classes="card">
-      <StackPanel Spacing="6">
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Classes="h2" Text="Mirror Blessing (Evil Reflection)" VerticalAlignment="Center" />
-          <Button Grid.Column="1" Content="Reset" Command="{Binding ResetBlessingCommand}" Padding="8,2" />
-        </Grid>
-        <Border Classes="sep" Margin="0,2,0,4" />
-        <Grid ColumnDefinitions="*,24,*">
+      <Border Classes="card" IsVisible="{Binding Blessing.IsOpen}">
+        <StackPanel Spacing="6" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="muted" FontSize="11" Text="Evil Reflection" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="Reset" Command="{Binding ResetBlessingCommand}" Padding="8,2" />
+          </Grid>
+          <Grid ColumnDefinitions="*,24,*">
           <StackPanel Spacing="6">
             <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="Buff priority (checked = prioritized, top = most important)" />
             <ItemsControl ItemsSource="{Binding BlessingBuffRows}">
@@ -99,7 +127,8 @@
           </StackPanel>
         </Grid>
         <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding BlessingPreview}" />
-      </StackPanel>
-    </Border>
-  </StackPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </Panel>
 </UserControl>
