@@ -145,7 +145,7 @@ public sealed class FarmViewModel : ObservableObject
     public string ActProgressText => S.Farm.ActProgress is { Count: > 0 } p
         ? "Cleared: " + string.Join(", ", p.Select(kv => $"{kv.Key} Act {kv.Value}"))
         : ActNumbers().Count == 0 && S.Farm.Map.Length > 0
-            ? "Acts for this map not read yet → run Action calibration (General tab)."
+            ? "Acts for this map not read yet → run Calibrate (General tab)."
             : "All acts: starts at Act 1, advances automatically after each win. An act the map does not have → macro stops.";
     public RelayCommand ResetActProgressCommand => new(_ => { Farm(f => f with { ActProgress = null }); Raise(nameof(ActProgressText)); });
     public int DifficultyIndex { get => (int)S.Farm.Difficulty; set => Farm(f => f with { Difficulty = (Difficulty)Math.Clamp(value, 0, 3) }); }
@@ -235,7 +235,7 @@ public sealed class FarmViewModel : ObservableObject
         get
         {
             if (S.Farm.Map.Length == 0) return "Pick a map (and act) on the General tab first; the drop list follows the map/act.";
-            if (!DropsKnown()) return $"Drop {S.Farm.Map} {(S.Farm.Act > 0 ? "Act " + S.Farm.Act : "")} not read yet → run Action calibration (or open Create Room on Hard/Nightmare for this act).";
+            if (!DropsKnown()) return $"Drop {S.Farm.Map} {(S.Farm.Act > 0 ? "Act " + S.Farm.Act : "")} not read yet → run Calibrate (or open Create Room on Hard/Nightmare for this act).";
             string act = S.Farm.Act > 0 ? $"Act {S.Farm.Act}" : "all acts (combined)";
             string stale = S.Farm.DropTarget.Length > 0 && !DropsForSelection().Contains(S.Farm.DropTarget, StringComparer.OrdinalIgnoreCase)
                 ? $" Old target \"{S.Farm.DropTarget}\" is not here → not used, pick again." : "";
@@ -449,6 +449,8 @@ public sealed class FarmViewModel : ObservableObject
         RebuildDrops();
         _root.AddLog($"Action calibration saved: {scan.Maps.Count} map(s), acts for {scan.Acts.Count} map(s), drops for {scan.Drops.Count} act(s)." +
             (scan.Notes.Count > 0 ? " Notes: " + string.Join(" ", scan.Notes) : ""));
+        // v0.3.38 (Byzan 28 Oct 00:04): the separate Check button was removed; its memory-only summary now runs after Calibrate.
+        _root.General.CalibrateCommand.Execute(null);
     }
 
     private void RebuildMaps()
