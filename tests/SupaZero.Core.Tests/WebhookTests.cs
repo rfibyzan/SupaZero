@@ -23,4 +23,16 @@ public class WebhookTests
         Assert.Contains("\"embeds\"", JsonSerializer.Serialize(new DiscordWebhook.Payload(null, "SupaZero", [e])));
         Assert.Equal(DiscordWebhook.Green, e.Color);
     }
+
+    [Fact]
+    public void Stamp_AddsAccountName()
+    {
+        var e = DiscordWebhook.Stamp(new DiscordWebhook.Embed("Victory", "VICTORY!", DiscordWebhook.Green, []), "rfibyzan");
+        Assert.Equal("Account: rfibyzan", e.Author?.Name);
+        Assert.Equal("SupaZero · Anime Zero · rfibyzan", e.Footer?.Text);
+        Assert.Contains("\"author\":{\"name\":\"Account: rfibyzan\"}", JsonSerializer.Serialize(e));
+        var none = DiscordWebhook.Stamp(new DiscordWebhook.Embed("Victory", null, DiscordWebhook.Green, []), "");
+        Assert.Null(none.Author);
+        Assert.Equal("SupaZero · Anime Zero", none.Footer?.Text);
+    }
 }

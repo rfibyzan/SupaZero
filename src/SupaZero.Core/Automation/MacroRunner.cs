@@ -91,7 +91,8 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 if (snap.CameraFollowsPlayer is { } follow && follow != _camFollow)
                 {
                     _camFollow = follow;
-                    if (!follow) Emit($"Camera is not following the character (animation/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, turning & camera aim held.");
+                    if (!follow && snap.CameraZoomedOut) Emit($"Camera zoomed out too far ({snap.CameraDistance:0} studs) → shift lock not readable until zoomed in.");
+                    else if (!follow) Emit($"Camera is not following the character (animation/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, turning & camera aim held.");
                     else Emit("Camera is following the character again.");
                 }
                 _camFree = snap.CameraFollowsPlayer == false;
@@ -116,7 +117,11 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 bool fg = !Hold && input.IsTargetForeground();
                 // v0.3.12 (Byzan 26 Oct): enemies detected in any stage → shift lock MUST be on (independent of the toggle).
                 bool mustLock = MustShiftLock(snap);
-                if (fg && (mustLock || settings().Combat.AutoShiftLock)) await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct, mustLock);
+                if (fg && (mustLock || settings().Combat.AutoShiftLock))
+                {
+                    await ZoomInIfTooFar(snap, actions, clock.ElapsedMilliseconds, mustLock, ct);
+                    await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct, mustLock);
+                }
                 if (!fg && actions.Any(a => a is not NoteAction and not StopAction))
                 {
                     if (!pausedLogged) Emit("Roblox is not in the foreground → input held.");
@@ -159,6 +164,27 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         enemyCount > 0 && screen is not (GameScreen.Lobby or GameScreen.LobbyMenu or GameScreen.QueueWaiting or GameScreen.TrialsMenu or GameScreen.CodesMenu);
 
     private long _slGiveUpLogAt = -60_000;
+    private long _zoomAt = -10_000, _zoomLogAt = -60_000;
+
+    /// <summary>v0.3.50 (Byzan 28 Oct): zoomed far out, the camera is &gt; 40 studs away and the shift lock offset is not read (state
+    /// unknown → Shift never pressed). In a round / with enemies, scroll the wheel up at the window center (Roblox zoom in) a few notches
+    /// per 300 ms until the camera is back in range; the next tick reads the distance again (no assumption).</summary>
+    private async Task ZoomInIfTooFar(GameSnapshot snap, IReadOnlyList<MacroAction> actions, long now, bool mustLock, CancellationToken ct)
+    {
+        if (!snap.CameraZoomedOut || !(mustLock || snap.Screen == GameScreen.InRound)) return;
+        if (actions.Any(a => a is ClickAction or ScrollAction) || now - _zoomAt < 300 || input.ClientSize() is not { } sz) return;
+        _zoomAt = now;
+        double d = snap.CameraDistance ?? 0;
+        int notches = d > 90 ? 5 : d > 60 ? 3 : 2;
+        if (now - _zoomLogAt > 5000)
+        {
+            _zoomLogAt = now;
+            Emit(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"Camera zoomed out ({d:0} studs > 40) → shift lock not readable, zooming in (wheel up x{notches})."));
+        }
+        input.ScrollClient(sz.W / 2.0, sz.H / 2.0, notches);
+        await Task.Delay(60, ct);
+    }
 
     private async Task EnsureShiftLock(GameScreen screen, IReadOnlyList<MacroAction> actions, long now, CancellationToken ct, bool mustLock = false)
     {

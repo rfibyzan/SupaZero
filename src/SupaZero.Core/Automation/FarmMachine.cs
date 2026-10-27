@@ -82,7 +82,12 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
             OnScreenChanged(_lastScreen, screen);
             if (screen is GameScreen.Victory or GameScreen.Defeat)
             {
-                RoundEnded?.Invoke(new Notify.RoundReport(screen == GameScreen.Victory, _selectedMap, actBefore, _lastHud?.Difficulty,
+                // v0.3.50 (Byzan 28 Oct, Raid webhook "Stage -"): _selectedMap is only set when SupaZero picked the map in the lobby;
+                // a macro started inside a round falls back to the Farm card's mode/map, marked as coming from the settings.
+                string stageName = _selectedMap.Length > 0 ? _selectedMap
+                    : S.Farm.Map.Trim() is { Length: > 0 } fm ? $"{S.Farm.Mode} · {fm} (from settings)"
+                    : S.Farm.Mode is { Length: > 0 } md ? $"{md} (from settings)" : "";
+                RoundEnded?.Invoke(new Notify.RoundReport(screen == GameScreen.Victory, stageName, _selectedMap.Length > 0 ? actBefore : 0, _lastHud?.Difficulty,
                     _roundStart is long rs ? TimeSpan.FromMilliseconds(nowMs - rs) : null, StagesCleared, s.ResultText, s.Drops,
                     Matches(S.Farm.Mode, nameof(FarmMode.Infinite))));
                 Diagnostic?.Invoke($"EndScreen: '{s.ResultText ?? "?"}' · last HP {(_lastHp is double lh ? lh.ToString("P0") : "?")} · " +

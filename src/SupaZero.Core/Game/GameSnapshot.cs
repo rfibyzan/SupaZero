@@ -167,6 +167,17 @@ public sealed record GameSnapshot
         }
     }
 
+    /// <summary>Camera distance to the character (studs), null when unreadable.</summary>
+    public double? CameraDistance => Camera is { } c && PlayerPos is { } p
+        ? Math.Sqrt((c.Pos.X - p.X) * (c.Pos.X - p.X) + (c.Pos.Y - p.Y) * (c.Pos.Y - p.Y) + (c.Pos.Z - p.Z) * (c.Pos.Z - p.Z)) : null;
+
+    /// <summary>v0.3.50 (Byzan 28 Oct): normal FOV, subject = this player, but the camera is zoomed out past the 40-stud follow limit,
+    /// so the shift lock offset cannot be measured → the runner zooms in (mouse wheel) until it is readable again.</summary>
+    public bool CameraZoomedOut => Camera is { } c && Math.Abs(c.Fov - NormalFov) <= 1.0 && CameraDistance is > 40 and <= 140
+        && (c.Subject is not { } subj ? true : !string.IsNullOrEmpty(LocalPlayer)
+        && (subj.EndsWith("." + LocalPlayer + ".Humanoid", StringComparison.Ordinal) || subj.EndsWith("." + LocalPlayer, StringComparison.Ordinal)
+            || subj.EndsWith("." + LocalPlayer + ".HumanoidRootPart", StringComparison.Ordinal)));
+
     public double? CameraSideOffset
     {
         get

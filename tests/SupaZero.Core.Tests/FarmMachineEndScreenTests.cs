@@ -15,6 +15,17 @@ public partial class FarmMachineTests
     }
 
     [Fact]
+    public void RoundReport_StartedInRound_UsesFarmCardMap()
+    {
+        var (m, _) = New(s => s.Farm = s.Farm with { Mode = "Raid", Map = "Spirit's Bathtub" });
+        Notify.RoundReport? r = null;
+        m.RoundEnded = x => r = x;
+        m.Step(new GameSnapshot { Attached = true, EndScreenVisible = true, ResultText = "VICTORY!", RetryButton = Btn }, 0);
+        Assert.Equal("Raid · Spirit's Bathtub (from settings)", r?.Map);
+        Assert.Equal(0, r?.Act);
+    }
+
+    [Fact]
     public void Victory_ClicksNext_CountsStage()
     {
         var (m, _) = New();

@@ -71,6 +71,19 @@ public class ShiftLockCameraTests
     [Fact] public void Ambiguous_IsNull() => Assert.Null(Snap(0.8, 12).ShiftLockFromCamera);
 
     [Fact]
+    public void ZoomedOut_PlayerSubject_IsDetected()
+    {
+        var s = Snap(1.75, 70) with { LocalPlayer = "Astakun17" };
+        s = s with { Camera = s.Camera! with { Subject = "Workspace.Astakun17.Humanoid" } };
+        Assert.Null(s.ShiftLockFromCamera);
+        Assert.True(s.CameraZoomedOut);
+        Assert.False(Snap(1.75, 12).CameraZoomedOut);
+        var cut = s with { Camera = s.Camera! with { Subject = "Workspace.Effects.KaiselDragon" } };
+        Assert.False(cut.CameraZoomedOut);
+        Assert.False((s with { Camera = s.Camera! with { Fov = 110 } }).CameraZoomedOut);
+    }
+
+    [Fact]
     public void Cutscene_SubjectNotPlayer_IsNull()
     {
         var s = Snap(1.75, 12) with { LocalPlayer = "Astakun17" };

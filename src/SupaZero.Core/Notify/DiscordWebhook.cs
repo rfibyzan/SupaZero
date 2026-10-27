@@ -61,13 +61,25 @@ public static class DiscordWebhook
         return new(r.Title, null, r.StoppedOnTarget ? Gold : Blue, f);
     }
 
-    public static async Task<string?> SendAsync(string url, Embed embed, string? mention = null, CancellationToken ct = default)
+    /// <summary>v0.3.50 (Byzan 28 Oct): the Roblox account the notification is for, shown as the embed author (top line) and in the footer.</summary>
+    public static Embed Stamp(Embed embed, string? account)
+    {
+        string? acc = string.IsNullOrWhiteSpace(account) ? null : account.Trim();
+        return embed with
+        {
+            Timestamp = DateTimeOffset.UtcNow.ToString("o"),
+            Author = acc is null ? null : new("Account: " + acc),
+            Footer = new(acc is null ? "SupaZero · Anime Zero" : $"SupaZero · Anime Zero · {acc}"),
+        };
+    }
+
+    public static async Task<string?> SendAsync(string url, Embed embed, string? mention = null, string? account = null, CancellationToken ct = default)
     {
         if (!IsValidUrl(url)) return "Invalid webhook URL (must be https://discord.com/api/webhooks/...).";
         var payload = new Payload(
             string.IsNullOrWhiteSpace(mention) ? null : mention.Trim(),
             "SupaZero",
-            [embed with { Timestamp = DateTimeOffset.UtcNow.ToString("o"), Footer = new("SupaZero · Anime Zero") }]);
+            [Stamp(embed, account)]);
         try
         {
             using var res = await Http.PostAsJsonAsync(url.Trim(), payload, ct).ConfigureAwait(false);
@@ -89,7 +101,10 @@ public static class DiscordWebhook
     {
         [JsonPropertyName("timestamp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Timestamp { get; init; }
         [JsonPropertyName("footer"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Footer? Footer { get; init; }
+        [JsonPropertyName("author"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Author? Author { get; init; }
     }
+
+    public sealed record Author([property: JsonPropertyName("name")] string Name);
 
     public sealed record Field(
         [property: JsonPropertyName("name")] string Name,

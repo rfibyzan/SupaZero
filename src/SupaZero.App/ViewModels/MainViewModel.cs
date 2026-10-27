@@ -373,6 +373,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         // While the macro runs, the latest snapshot comes from the runner; when stopped, read it ourselves (once per timer tick).
         var snap = Runner.IsRunning ? Runner.LastSnapshot ?? new GameSnapshot() : ReadSnapshot();
         Snapshot = snap;
+        if (snap.LocalPlayer.Length > 0) _lastAccount = snap.LocalPlayer;
         string place = snap.PlaceId == AnimeZeroPaths.PlaceId ? "Anime Zero" : snap.PlaceId == 0 ? "-" : $"place {snap.PlaceId}";
         ConnectionText = Rotation.IsRunning
             ? $"Carry rotation: {Rotation.Alts.Count} windows · front {Rotation.FrontName ?? "-"}"
@@ -392,9 +393,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private string? _lastAccount;
+
     public async Task SendWebhook(SupaZero.Core.Notify.DiscordWebhook.Embed embed)
     {
-        var err = await SupaZero.Core.Notify.DiscordWebhook.SendAsync(Settings.Webhook.Url, embed, Settings.Webhook.Mention);
+        // v0.3.50: name the Roblox account (LocalPlayer) so notifications from several accounts can be told apart.
+        string? account = Runner.LastSnapshot.LocalPlayer is { Length: > 0 } lp ? lp : Snapshot?.LocalPlayer is { Length: > 0 } sp ? sp : _lastAccount;
+        if (account is { Length: > 0 }) _lastAccount = account;
+        var err = await SupaZero.Core.Notify.DiscordWebhook.SendAsync(Settings.Webhook.Url, embed, Settings.Webhook.Mention, account);
         Dispatcher.UIThread.Post(() => AddLog(err is null ? $"Webhook sent: {embed.Title}." : err));
     }
 
