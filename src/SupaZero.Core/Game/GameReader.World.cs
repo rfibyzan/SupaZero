@@ -73,17 +73,28 @@ public sealed partial class GameReader
     }
 
     /// <summary>v0.3.18: Trials Lift (World.Markers.Lift.ProximityPrompt). null = not in a Trials arena or unreadable.</summary>
-    private LiftInfo? ReadLift(long ws)
+    private LiftInfo? ReadLift(long ws, string? hudRaw)
     {
         long world = ws != 0 ? reader.FindChild(ws, AnimeZeroPaths.World) : 0;
-        long part = world != 0 ? reader.ResolvePath(world, AnimeZeroPaths.LiftPath) : 0;
-        long pr = part != 0 ? reader.FindChild(part, AnimeZeroPaths.LiftPrompt) : 0;
+        if (world == 0) return null;
+        if (ReadPromptMarker(world, AnimeZeroPaths.LiftPath, AnimeZeroPaths.LiftPrompt, "Lift", false) is { } lift) return lift;
+        // v0.3.42 Spirit's Bathtub: the elevator only counts while the HUD asks for it (proven text "Head to the elevator to continue!").
+        return hudRaw?.Contains(AnimeZeroPaths.ElevatorHudWord, StringComparison.OrdinalIgnoreCase) == true
+            ? ReadPromptMarker(world, AnimeZeroPaths.ElevatorPath, AnimeZeroPaths.ElevatorPrompt, "Elevator", true) : null;
+    }
+
+    private LiftInfo? ReadPromptMarker(long world, string path, string promptName, string fallbackAction, bool elevator)
+    {
+        long part = reader.ResolvePath(world, path);
+        long pr = part != 0 ? reader.FindChild(part, promptName) : 0;
         if (pr == 0 || reader.GetClassName(pr) != "ProximityPrompt" || !props.TryGetWorldPosition(part, out float x, out float y, out float z)) return null;
         var p = props.Read(pr, "ProximityPrompt");
         if (!p.TryGetValue("Enabled", out var en)) return null; // unknown = do nothing
         double max = p.TryGetValue("MaxActivationDistance", out var md) ? Num(md, 10) : 10;
-        string act = p.TryGetValue("ActionText", out var at) && !string.IsNullOrWhiteSpace(at) ? at : "Lift";
-        return new LiftInfo(new(x, y, z), en.Equals("true", StringComparison.OrdinalIgnoreCase), max is > 1 and < 100 ? max : 10, act);
+        double hold = p.TryGetValue("HoldDuration", out var h) ? Num(h, 0) : 0;
+        string act = p.TryGetValue("ActionText", out var at) && !string.IsNullOrWhiteSpace(at) ? at : fallbackAction;
+        return new LiftInfo(new(x, y, z), en.Equals("true", StringComparison.OrdinalIgnoreCase), max is > 1 and < 100 ? max : 10, act,
+            hold is >= 0 and < 10 ? hold : 0, elevator);
     }
 
     /// <summary>Character HP (Character.Humanoid Health/MaxHealth) 0..1.</summary>

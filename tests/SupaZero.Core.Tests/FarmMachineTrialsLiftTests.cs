@@ -34,4 +34,30 @@ public partial class FarmMachineTests
         Assert.Contains(near, x => x is KeyAction { VirtualKey: VirtualKeys.E } k && k.Reason.Contains("Ascend"));
         Assert.DoesNotContain(Real(m.Step(TrialsArena(true, new(-53, -86.19, 33)), 3500)), x => x is KeyAction { VirtualKey: VirtualKeys.E });
     }
+
+    // v0.3.42 Spirit's Bathtub (snapshot World 00:39:38): Markers.Exit (-171,7,-43.5) + ExitPrompt, HUD "Head to the elevator to continue!".
+    private static GameSnapshot Bathtub(bool on, Vec3 me, double hold = 0) => new()
+    {
+        Attached = true, EnemyCount = 0, PlayerPos = me, CameraLook = (1, 0), HudRaw = "Head to the elevator to continue!",
+        Lift = new LiftInfo(new(-171, 7, -43.5), on, 10, "Elevator", hold, Elevator: true),
+    };
+
+    [Fact]
+    public void Elevator_Disabled_WalksThere_NeverPressesE()
+    {
+        var (m, _) = New();
+        var far = Real(m.Step(Bathtub(false, new(-130, 2, -40)), 0));
+        Assert.Contains(far, x => x is MoveAction { Keys.Count: > 0 });
+        var near = Real(m.Step(Bathtub(false, new(-169, 2, -43)), 3000));
+        Assert.DoesNotContain(near, x => x is KeyAction { VirtualKey: VirtualKeys.E });
+    }
+
+    [Fact]
+    public void Elevator_Enabled_HoldsEForHoldDuration()
+    {
+        var (m, _) = New();
+        var near = Real(m.Step(Bathtub(true, new(-169, 2, -43), hold: 1), 0));
+        var e = Assert.Single(near.OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        Assert.Equal(1250, e.HoldMs);
+    }
 }

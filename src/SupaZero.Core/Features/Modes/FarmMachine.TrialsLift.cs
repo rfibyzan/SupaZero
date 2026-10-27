@@ -16,19 +16,28 @@ public sealed partial class FarmMachine
     private List<MacroAction> TrialsLift(GameSnapshot s, LiftInfo lift, long now, AppSettings S)
     {
         Phase = MacroPhase.Navigating;
-        if (!lift.Enabled) { Status = "Trials: floor in progress, waiting for the next wave."; return [new MoveAction([], "Wait for wave")]; }
-        if (s.PlayerPos is not { } me) { Status = "Trials: Lift open, player position unreadable."; return [new MoveAction([], "Wait")]; }
+        string who = lift.Elevator ? "Elevator" : "Trials";
+        string name = lift.Elevator ? "elevator" : "Lift";
+        if (!lift.Enabled)
+        {
+            if (!lift.Elevator) { Status = "Trials: floor in progress, waiting for the next wave."; return [new MoveAction([], "Wait for wave")]; }
+            // v0.3.42: the HUD asks for the elevator but its prompt is not on (yet) → walk there and wait, never press E.
+            _pending.AddRange(Note("elevator-off", now, 10000, "HUD says 'Head to the elevator' but ExitPrompt is disabled → walking to the elevator, not pressing E."));
+        }
+        if (s.PlayerPos is not { } me) { Status = $"{who}: {name} open, player position unreadable."; return [new MoveAction([], "Wait")]; }
         double d = Navigator.Distance2D(me.X, me.Z, lift.Pos.X, lift.Pos.Z);
         double reach = Math.Min(LiftPressDist, lift.MaxDistance - 1);
         if (d > reach)
         {
             var walk = WalkPath(s, lift.Pos, Math.Max(2, reach - 2), now, "Lift", S.Navigation.AttackWhenStuck);
-            Status = $"Trials floor cleared → walking to the Lift ({d:0} stud).";
+            Status = lift.Elevator ? $"Floor cleared → walking to the elevator ({d:0} stud)." : $"Trials floor cleared → walking to the Lift ({d:0} stud).";
             if (walk.Count > 0) return walk;
         }
-        Status = $"Trials: {lift.Action} via the Lift (E).";
-        if (now - _liftPressAt < LiftPressEveryMs) return [new MoveAction([], "Wait for Lift")];
+        if (!lift.Enabled) { Status = "Elevator: waiting for its prompt."; return [new MoveAction([], "Wait at elevator")]; }
+        Status = $"{who}: {lift.Action} via the {name} (E).";
+        if (now - _liftPressAt < LiftPressEveryMs) return [new MoveAction([], $"Wait for {name}")];
         _liftPressAt = now;
-        return [new MoveAction([], "Stand at the Lift"), new KeyAction(VirtualKeys.E, 80, $"{lift.Action} (Lift, E)")];
+        int holdMs = lift.Hold > 0 ? (int)(lift.Hold * 1000) + 250 : 80; // v0.3.42: hold prompts need HoldDuration + 0.25 s
+        return [new MoveAction([], $"Stand at the {name}"), new KeyAction(VirtualKeys.E, holdMs, $"{lift.Action} ({name}, E)")];
     }
 }

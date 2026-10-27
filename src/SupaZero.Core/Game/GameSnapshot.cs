@@ -38,7 +38,8 @@ public sealed record PickupInfo(string Kind, Settings.Vec3 Pos)
 /// <summary>v0.2.67: corpse that can be raised (Shadow Lord): Workspace.AriseShadows.&lt;n&gt;.Arise. Hold = seconds to hold E.</summary>
 public sealed record AriseInfo(string Name, Settings.Vec3 Pos, double Hold, double MaxDistance);
 /// <summary>v0.3.18 Trials Lift (World.Markers.Lift ProximityPrompt "Ascend"). Enabled = the game turned the prompt on.</summary>
-public sealed record LiftInfo(Settings.Vec3 Pos, bool Enabled, double MaxDistance, string Action);
+/// v0.3.42: also the Spirit's Bathtub elevator (World.Markers.Exit.ExitPrompt); Hold = prompt HoldDuration in seconds.
+public sealed record LiftInfo(Settings.Vec3 Pos, bool Enabled, double MaxDistance, string Action, double Hold = 0, bool Elevator = false);
 
 /// <summary>Camera: position, LookVector, FieldOfView (vertical, degrees), ViewportSize (= client area).</summary>
 public sealed record CameraInfo(Settings.Vec3 Pos, Settings.Vec3 Look, double Fov, double ViewW, double ViewH)

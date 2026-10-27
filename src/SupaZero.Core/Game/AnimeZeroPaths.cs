@@ -19,6 +19,11 @@ public static class AnimeZeroPaths
     /// <summary>v0.3.18 (Trials, snapshot World 09:31:14): Workspace.World.Markers.Lift (Part at the arena center, -50,-84.1,33)
     /// .ProximityPrompt ActionText "Ascend", ObjectText "Lift", KeyCode E, HoldDuration 0, MaxActivationDistance 14, Enabled false while the floor runs.</summary>
     public const string LiftPath = "Markers.Lift";
+    /// <summary>v0.3.42 (Spirit's Bathtub, snapshot World 00:39:38 + Byzan screenshot 28 Oct): Workspace.World.Markers.Exit (Part 4x12x12 at
+    /// -171,7,-43.5, right in front of S-bathhouse_elevator) .ExitPrompt ProximityPrompt. Used only while the RoundHUD says "Head to the elevator".</summary>
+    public const string ElevatorPath = "Markers.Exit";
+    public const string ElevatorPrompt = "ExitPrompt";
+    public const string ElevatorHudWord = "elevator";
     public const string LiftPrompt = "ProximityPrompt";
     public const string PooledDrops = "PooledDrops";    // [V] S15: Workspace.PooledDrops.{cash,health} Part; parked at Y=-5000, active = on the floor. Picked up by walking over it.
     public const double PooledDropParkedY = -1000;
