@@ -29,7 +29,16 @@
     <TextBlock Classes="caps" Text="DISCORD WEBHOOK" Margin="2,0,0,0" />
     <Border Classes="card">
       <StackPanel Spacing="6">
-        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Webhook URL" /><TextBox Grid.Column="1" Text="{Binding WebhookUrl}" PasswordChar="•" Watermark="https://discord.com/api/webhooks/..." /></Grid>
+        <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Webhook URL" /><TextBox Grid.Column="1" Text="{Binding WebhookUrl}" PasswordChar="•" RevealPassword="{Binding #RevealWebhook.IsChecked}" Watermark="https://discord.com/api/webhooks/...">
+            <!-- v0.3.39 (Byzan 28 Oct): eye button reveals the webhook URL while checked. -->
+            <TextBox.InnerRightContent>
+              <ToggleButton x:Name="RevealWebhook" Padding="6,2" Margin="2" Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+                            ToolTip.Tip="Show / hide the webhook URL">
+                <Path Width="18" Height="12" Stretch="Uniform" Fill="{DynamicResource OfMuted}"
+                      Data="M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z" />
+              </ToggleButton>
+            </TextBox.InnerRightContent>
+          </TextBox></Grid>
         <TextBlock Classes="muted" FontSize="11" Margin="140,0,0,0" Text="{Binding WebhookStatus}" />
         <Grid ColumnDefinitions="140,*" MinHeight="34"><TextBlock Classes="label" Text="Mention (optional)" /><TextBox Grid.Column="1" Text="{Binding WebhookMention}" Watermark="&lt;@your discord id&gt;" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="30"><TextBlock Classes="label" Text="Send on victory (with drops)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding WebhookOnVictory}" /></Grid>

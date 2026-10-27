@@ -154,7 +154,7 @@ public partial class FarmMachineTests
             AreasView = new GuiRect(50, 50, 900, 600),
         };
         var acts = new List<MacroAction>();
-        for (long t = 0; t <= 19_000; t += 500) acts.AddRange(m.Step(far, t)); // trait skipped (no Traits card), then to the room
+        for (long t = 0; t <= 24_000; t += 500) acts.AddRange(m.Step(far, t)); // trait skipped (no Traits card), Spin button waited 4 s (v0.3.39), then to the room
         Assert.Contains(acts, a => a is ClickAction c && c.Reason == "Teleport Story");
         Assert.DoesNotContain(acts, a => a is ClickAction c && c.Reason == "Teleport Raid");
     }

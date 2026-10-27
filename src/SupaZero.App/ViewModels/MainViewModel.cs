@@ -8,9 +8,8 @@ using SupaZero.Core.Settings;
 
 namespace SupaZero.App.ViewModels;
 
-/// <summary>Tab pages that share the FarmViewModel (Combat, Lobby).</summary>
+/// <summary>Tab pages that share the FarmViewModel (Combat, Modes).</summary>
 public sealed class CombatPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
-public sealed class LobbyPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 public sealed class ModesPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 /// <summary>v0.3.32: Carry tab, only shown in Carry app mode (damage target + carry windows).</summary>
 public sealed class CarryPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
@@ -96,7 +95,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         [
             new TabViewModel("General", General),
             new TabViewModel("Combat", new CombatPageViewModel(Farm)),
-            new TabViewModel("Lobby", new LobbyPageViewModel(Farm)),
             new TabViewModel("Modes", new ModesPageViewModel(Farm)),
             new TabViewModel("Upgrade", Upgrade),
             new TabViewModel("Offsets", Offsets),

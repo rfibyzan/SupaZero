@@ -7,25 +7,52 @@
   <!-- v0.3.17: balanced layout. Drop Target & Trials = one full-width row on top; Mirror Blessing below
        with Buffs and Cards side by side, so neither column leaves a large empty area. -->
   <StackPanel Spacing="12" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
-    <Border Classes="card">
-      <StackPanel Spacing="6">
-        <TextBlock Classes="h2" Text="Drop Target &amp; Trials" />
-        <Border Classes="sep" Margin="0,2,0,4" />
-        <Grid ColumnDefinitions="*,24,*">
-          <StackPanel Spacing="4">
-            <Grid ColumnDefinitions="*,200" MinHeight="34">
-              <TextBlock Classes="label" Text="Drop Target" />
-              <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding DropChoices}" SelectedItem="{Binding SelectedDrop}" />
+    <!-- v0.3.39 (Byzan 28 Oct): the Lobby tab was merged here; Drop Target & Trials left, Lobby right. -->
+    <Grid ColumnDefinitions="*,*">
+      <Border Margin="0,0,6,0" Classes="card" VerticalAlignment="Top">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="Drop Target &amp; Trials" />
+          <Border Classes="sep" Margin="0,2,0,4" />
+          <StackPanel Spacing="8">
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="*,200" MinHeight="34">
+                <TextBlock Classes="label" Text="Drop Target" />
+                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding DropChoices}" SelectedItem="{Binding SelectedDrop}" />
+              </Grid>
+              <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
+            </StackPanel>
+            <Grid ColumnDefinitions="*,150" MinHeight="34">
+              <TextBlock Classes="label" Text="Trials floor (0 = next floor)" />
+              <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />
             </Grid>
-            <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding DropHint}" />
           </StackPanel>
-          <Grid Grid.Column="2" ColumnDefinitions="*,150" MinHeight="34" VerticalAlignment="Top">
-            <TextBlock Classes="label" Text="Trials floor (0 = next floor)" />
-            <NumericUpDown Grid.Column="1" Value="{Binding TrialsFloor}" Minimum="0" Maximum="500" Increment="1" FormatString="0" />
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Margin="6,0,0,0" Classes="card" VerticalAlignment="Top">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="Lobby" />
+          <Border Classes="sep" Margin="0,2,0,4" />
+          <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto create room" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCreateLobby}" /></Grid>
+          <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                     Text="Automatic: Areas → Story (teleport) → walk to the nearest empty room. Join fails → another circle." />
+          <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Skip rooms with other players" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding SkipOccupiedRooms}" /></Grid>
+          <Grid ColumnDefinitions="*,150" MinHeight="34">
+            <TextBlock Classes="label" Text="Switch circle if join fails (s)" />
+            <NumericUpDown Grid.Column="1" Value="{Binding JoinTimeoutSec}" Minimum="2" Maximum="30" Increment="1" FormatString="0" />
           </Grid>
-        </Grid>
-      </StackPanel>
-    </Border>
+          <TextBlock Classes="label" Text="Codes (button 'Redeem codes' on the General tab)" />
+          <TextBox Text="{Binding ExtraCodes}" Watermark="Extra codes (comma separated, optional)" />
+          <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding Root.CodesInfo}" />
+          <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto vote Start (Yes)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoVoteStart}" /></Grid>
+          <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Retry on DEFEAT" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding RetryOnDefeat}" /></Grid>
+          <Grid ColumnDefinitions="*,150" MinHeight="34">
+            <TextBlock Classes="label" Text="Max retries per stage" />
+            <NumericUpDown Grid.Column="1" Value="{Binding MaxRetries}" Minimum="0" Maximum="20" Increment="1" FormatString="0" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Infinite: unlimited retries" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding InfiniteUnlimitedRetry}" /></Grid>
+        </StackPanel>
+      </Border>
+    </Grid>
     <Border Classes="card">
       <StackPanel Spacing="6">
         <Grid ColumnDefinitions="*,Auto">

@@ -10,7 +10,7 @@ public sealed partial class FarmMachine
     private int _pcStep;          // 0 = Trait, 1 = Spin, 2 = done
     private long? _pcStepAt, _pcOpenAt;
     private int _pcCloseTries;
-    public const int PowerMenuReadMs = 1500, PowerMenuTimeoutMs = 15000; // v0.3.13: 3000→1500 (Roll slots are read every 1 s)
+    public const int PowerMenuReadMs = 1500, PowerMenuTimeoutMs = 15000, SpinButtonWaitMs = 4000; // v0.3.13: 3000→1500 (Roll slots are read every 1 s)
 
     /// <summary>
     /// Lobby, before Create Room: click the Trait button in LobbyHUD → wait until the Trait screen is read (3 s) → click again (close) →
@@ -86,7 +86,10 @@ public sealed partial class FarmMachine
             if (!InWindow(s, r.CenterX, r.CenterY)) { Next(); return [stand, .. Note("pc-out-" + key, now, 1000, $"{key} button is outside the Roblox window → skipped.")]; }
             return Ready("pc-" + key, now, 3000) ? [stand, new ClickAction(r.CenterX, r.CenterY, $"{key} button (LobbyHUD)")] : [stand];
         }
-        // Button not readable → skip right away (do not hold up walking to the room), continue with the next step in the same tick.
+        // v0.3.39 (log 28 Oct 00:09:15.557 → 00:09:15.838): right after the Trait Reroll panel closes the LobbyHUD is still hidden,
+        // so the Spinning button was "not readable" 0.3 s later and the Spin check was skipped. Wait up to SpinButtonWaitMs first.
+        if (Calibrating && now - _pcStepAt.Value < SpinButtonWaitMs) { Status = $"Power check: waiting for the {key} button."; return [stand]; }
+        // Button still not readable → skip (do not hold up walking to the room), continue with the next step in the same tick.
         if (s.HubMenuButtons.Count > 0 || s.AreasButton is not null)
             _pending.AddRange(Note("pc-nobtn-" + key, now, 60000, $"{key} button in LobbyHUD not readable → {key} check skipped (using saved powers)."));
         Next();
