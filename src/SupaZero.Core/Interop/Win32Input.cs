@@ -33,6 +33,22 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
     [LibraryImport("user32.dll")] private static partial int GetSystemMetrics(int index);
     [LibraryImport("user32.dll")] private static partial uint MapVirtualKeyW(uint code, uint mapType);
 
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool SetForegroundWindow(nint hWnd);
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool IsIconic(nint hWnd);
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool ShowWindow(nint hWnd, int cmd);
+
+    /// <summary>v0.3.25 carry rotation: bring this Roblox window to the front (Alt tap first so Windows allows the switch). Window management only, no memory access.</summary>
+    public bool BringToFront()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        nint h = MainWindow();
+        if (h == 0) return false;
+        if (IsIconic(h)) ShowWindow(h, 9); // SW_RESTORE
+        Key(0x12, false); Key(0x12, true); // VK_MENU
+        SetForegroundWindow(h);
+        return IsTargetForeground();
+    }
+
     public bool IsTargetForeground()
     {
         if (!OperatingSystem.IsWindows()) return false;

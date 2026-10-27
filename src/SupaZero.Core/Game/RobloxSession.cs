@@ -8,6 +8,17 @@ namespace SupaZero.Core.Game;
 /// <summary>One READ-ONLY attach session (adapted from RIE RobloxSession): memory + offsets + game reader.</summary>
 public sealed class RobloxSession : IDisposable
 {
+    /// <summary>v0.3.25: 0 = newest RobloxPlayerBeta (old behavior); otherwise ONLY this PID (closed = not attached, never another process).</summary>
+    public int PinnedPid { get; private set; }
+
+    public void Pin(int pid)
+    {
+        if (pid == PinnedPid) return;
+        PinnedPid = pid;
+        Memory.Detach();
+        Roots = DataModelRoots.Empty;
+    }
+
     public ProcessMemory Memory { get; } = new();
     public OffsetsSnapshot? Offsets { get; private set; }
     public InstanceReader? Reader { get; private set; }
@@ -47,7 +58,9 @@ public sealed class RobloxSession : IDisposable
         if (Memory.IsAttached && !IsProcessAlive()) { Memory.Detach(); Roots = DataModelRoots.Empty; }
         if (!Memory.IsAttached)
         {
-            if (!Memory.TryAttach(out string st)) { Status = st; return false; }
+            string st;
+            bool ok = PinnedPid != 0 ? Memory.TryAttach(out st, PinnedPid) : Memory.TryAttach(out st);
+            if (!ok) { Status = PinnedPid != 0 ? $"{st} (chosen window closed → not attaching to another one)" : st; return false; }
         }
         if (Roots.DataModel == 0 || Reader.GetClassName(Roots.DataModel) != "DataModel" || Roots.PlayerGui == 0)
         {
@@ -74,5 +87,45 @@ public sealed class RobloxSession : IDisposable
         catch { return false; }
     }
 
+    /// <summary>v0.3.25: share already-loaded offsets with another session (one per carry window).</summary>
+    public void UseOffsets(OffsetsSnapshot offsets)
+    {
+        Offsets = offsets;
+        Reader = new InstanceReader(Memory, offsets);
+        Properties = new PropertyReader(Reader);
+        Game = new GameReader(Reader, Properties);
+    }
+
+    /// <summary>v0.3.25: running RobloxPlayerBeta processes with the LocalPlayer name read (read-only) when the offsets allow it.</summary>
+    public static List<RobloxProcessInfo> ListProcesses(OffsetsSnapshot? offsets)
+    {
+        var list = new List<RobloxProcessInfo>();
+        foreach (var (pid, start) in ProcessMemory.List())
+        {
+            string? player = null;
+            if (offsets is not null)
+            {
+                try
+                {
+                    using var mem = new ProcessMemory();
+                    if (mem.TryAttach(out _, pid))
+                    {
+                        var r = new InstanceReader(mem, offsets);
+                        var roots = new DataModelLocator(r).Locate(mem.MainModuleBase);
+                        if (roots.LocalPlayer != 0) player = r.GetName(roots.LocalPlayer);
+                    }
+                }
+                catch { player = null; }
+            }
+            list.Add(new RobloxProcessInfo(pid, start, string.IsNullOrWhiteSpace(player) ? null : player));
+        }
+        return list;
+    }
+
     public void Dispose() => Memory.Dispose();
+}
+
+public sealed record RobloxProcessInfo(int Pid, DateTime Start, string? Player)
+{
+    public string Label => $"{Player ?? "?"} · PID {Pid} · {(Start == DateTime.MinValue ? "?" : Start.ToString("HH:mm:ss"))}";
 }

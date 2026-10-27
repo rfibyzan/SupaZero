@@ -15,6 +15,21 @@
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto shift lock during rounds (enemies present = always on)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoShiftLock}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Ultimate (G) only on bosses (boss bar shown, not IMMUNE)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding UltBossOnly}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Carry: stop at damage (0 = off, then idle until win)" /><NumericUpDown Grid.Column="1" Value="{Binding CarryDamage}" Minimum="0" Maximum="10000000" Increment="100" FormatString="0" /></Grid>
+        <Border Classes="card" Padding="8" Margin="0,0,0,4">
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Carry windows: checked = take turns between them (window already at the damage target is skipped). None checked = newest window only." />
+              <Button Grid.Column="1" Content="Refresh" Command="{Binding Root.RefreshCarryWindowsCommand}" IsEnabled="{Binding Root.CanEditCarryWindows}" Padding="10,3" Margin="6,0,0,0" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Root.CarryWindows}" IsEnabled="{Binding Root.CanEditCarryWindows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CarryWindowItem">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Shadow Lord: auto Arise on Shadow Gate (hold E on corpses)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoArise}" /></Grid>
         <ItemsControl ItemsSource="{Binding SkillRows}">
           <ItemsControl.ItemTemplate>

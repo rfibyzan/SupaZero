@@ -22,7 +22,7 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Opened += (_, _) =>
         {
-            _hotkey = new GlobalHotkey(this, () => Dispatcher.UIThread.Post(_vm.Runner.Toggle));
+            _hotkey = new GlobalHotkey(this, () => Dispatcher.UIThread.Post(_vm.ToggleMacro));
             _vm.General.RegisterHotkey = _hotkey.Register;
             _vm.General.HotkeyError = () => _hotkey.LastError;
             _vm.General.ApplyHotkey();

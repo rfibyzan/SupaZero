@@ -20,6 +20,15 @@ public sealed class TabViewModel(string title, object content, bool showHeader =
     public bool ShowHeader { get; } = showHeader;
 }
 
+/// <summary>v0.3.25: one running Roblox window in the carry checklist.</summary>
+public sealed class CarryWindowItem(RobloxProcessInfo info) : ObservableObject
+{
+    private bool _isChecked;
+    public RobloxProcessInfo Info { get; } = info;
+    public string Label => Info.Label;
+    public bool IsChecked { get => _isChecked; set => Set(ref _isChecked, value); }
+}
+
 /// <summary>Root VM: top tabs (General, Story, Upgrade, Settings), read-only memory session, macro runner, log.</summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
@@ -65,6 +74,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     [new("Stages cleared", Runner.Machine.StagesCleared.ToString(), true)]));
         };
 
+        Rotation = new CarryRotation(() => Settings);
+        Rotation.Log += AddLog;
+        Rotation.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); Raise(nameof(CanEditCarryWindows)); });
+        Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => Raise(nameof(CanEditCarryWindows)));
+        RefreshCarryWindowsCommand = new RelayCommand(_ => RefreshCarryWindows());
+
         General = new GeneralViewModel(this);
         Farm = new FarmViewModel(this);
         Runner.Machine.CalibrationFinished = scan => Dispatcher.UIThread.Post(() => Farm.ApplyCalibration(scan));
@@ -85,6 +100,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
+        RefreshCarryWindows();
     }
 
     public AppSettings Settings { get; }
@@ -117,7 +133,35 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public TabViewModel SelectedTab => Tabs[Math.Clamp(_selectedTabIndex, 0, Tabs.Count - 1)];
     public string HeaderTitle => SelectedTab.Title;
     public bool ShowHeader => SelectedTab.ShowHeader;
-    public bool IsRunning => Runner.IsRunning;
+    public bool IsRunning => Runner.IsRunning || Rotation.IsRunning;
+    public CarryRotation Rotation { get; }
+    public ObservableCollection<CarryWindowItem> CarryWindows { get; } = [];
+    public RelayCommand RefreshCarryWindowsCommand { get; }
+    public bool CanEditCarryWindows => !IsRunning;
+
+    /// <summary>v0.3.25: re-list RobloxPlayerBeta windows (keeps the checks of PIDs still running).</summary>
+    public void RefreshCarryWindows()
+    {
+        if (IsRunning) return;
+        var keep = CarryWindows.Where(w => w.IsChecked).Select(w => w.Info.Pid).ToHashSet();
+        List<RobloxProcessInfo> list;
+        lock (_readGate) list = RobloxSession.ListProcesses(Session.Offsets);
+        CarryWindows.Clear();
+        foreach (var p in list) CarryWindows.Add(new CarryWindowItem(p) { IsChecked = keep.Contains(p.Pid) });
+        AddLog(list.Count == 0 ? "Carry windows: no RobloxPlayerBeta running." : $"Carry windows: {string.Join(", ", list.Select(p => p.Label))}.");
+    }
+
+    /// <summary>Hotkey: carry windows checked → carry rotation over them; none checked → single macro on the newest window (old behavior).</summary>
+    public void ToggleMacro()
+    {
+        if (Runner.IsRunning) { Runner.Stop(); return; }
+        if (Rotation.IsRunning) { Rotation.Stop(); return; }
+        var picks = CarryWindows.Where(w => w.IsChecked).Select(w => w.Info).ToList();
+        if (picks.Count == 0) { Runner.Start(); return; }
+        if (Session.Offsets is not { } off) { AddLog("Carry rotation: offsets not loaded."); return; }
+        if (Settings.Combat.CarryDamage <= 0) AddLog("Carry rotation: 'Carry: stop at damage' is 0 → every window fights until the round ends.");
+        Rotation.Start(picks, off);
+    }
     public string RunStateText => IsRunning ? "Running" : "Stopped";
     public string ConnectionText { get => _connectionText; private set => Set(ref _connectionText, value); }
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
@@ -244,7 +288,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var snap = Runner.IsRunning ? Runner.LastSnapshot ?? new GameSnapshot() : ReadSnapshot();
         Snapshot = snap;
         string place = snap.PlaceId == AnimeZeroPaths.PlaceId ? "Anime Zero" : snap.PlaceId == 0 ? "-" : $"place {snap.PlaceId}";
-        ConnectionText = Session.IsReady
+        ConnectionText = Rotation.IsRunning
+            ? $"Carry rotation: {Rotation.Alts.Count} windows · front {Rotation.FrontName ?? "-"}"
+            : Session.IsReady
             ? $"{Session.Status} · {place} · {(snap.LocalPlayer.Length > 0 ? snap.LocalPlayer : "?")} · screen {snap.Screen}"
             : Session.Status;
         StatusText = Runner.IsRunning ? $"{Runner.Machine.Phase}: {Runner.Machine.Status}" : $"Screen: {snap.Screen}";
@@ -286,6 +332,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _timer.Stop();
         Runner.Dispose();
+        Rotation.Dispose();
         Save();
         Session.Dispose();
     }

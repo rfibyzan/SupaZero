@@ -17,7 +17,29 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     public bool IsRunning => _loop is { IsCompleted: false };
     public GameSnapshot? LastSnapshot { get; private set; }
 
-    public event Action<string>? Log;
+    // v0.3.25 carry rotation: the rotation pauses input while it switches windows; WantsInput = last tick decided real input.
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    public volatile bool Hold;
+    public bool WantsInput { get; private set; }
+    /// <summary>v0.3.25 carry rotation: the machine only steps while this window is in front (background windows are only read).</summary>
+    public bool StepOnlyInForeground { get; init; }
+    public bool IsForeground => !Hold && input.IsTargetForeground();
+    public string LogPrefix { get; set; } = string.Empty;
+
+    /// <summary>Wait until the current tick's input is done, then hold input and release held keys (before another window comes to the front).</summary>
+    public async Task<bool> PauseForSwitchAsync(int timeoutMs)
+    {
+        Hold = true;
+        if (!await _gate.WaitAsync(timeoutMs)) return false;
+        try { ReleaseMovement(); return true; }
+        finally { _gate.Release(); }
+    }
+
+    public static bool IsRealInput(MacroAction a) => a is not (NoteAction or StopAction) && !(a is MoveAction m && m.Keys.Count == 0);
+
+    private Action<string>? _log;
+    public event Action<string>? Log { add => _log += value; remove => _log -= value; }
+    private void Emit(string m) => _log?.Invoke(LogPrefix + m);
     public event Action<bool>? RunningChanged;
     public event Action? Ticked;
 
@@ -31,12 +53,12 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         if (IsRunning) return;
         Machine.Reset();
         if (calibrate) Machine.StartCalibration();
-        Machine.Diagnostic ??= m => Log?.Invoke(m);
+        Machine.Diagnostic ??= Emit;
         LastStopReason = null;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         _loop = Task.Run(() => Loop(token), token);
-        Log?.Invoke(calibrate ? "Action calibration started (power → room → mode/map/act → Leave)." : "Macro started.");
+        Emit(calibrate ? "Action calibration started (power → room → mode/map/act → Leave)." : "Macro started.");
         RunningChanged?.Invoke(true);
     }
 
@@ -49,7 +71,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         _cts.Cancel();
         _cts = null;
         ReleaseMovement();
-        Log?.Invoke("Macro stopped.");
+        Emit("Macro stopped.");
         RunningChanged?.Invoke(false);
     }
 
@@ -68,24 +90,35 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 if (snap.CameraFollowsPlayer is { } follow && follow != _camFollow)
                 {
                     _camFollow = follow;
-                    if (!follow) Log?.Invoke($"Camera is not following the character (animation/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, turning & camera aim held.");
-                    else Log?.Invoke("Camera is following the character again.");
+                    if (!follow) Emit($"Camera is not following the character (animation/cutscene; subject {snap.Camera?.Subject ?? "?"}, FOV {snap.Camera?.Fov:0.#}) → shift lock, turning & camera aim held.");
+                    else Emit("Camera is following the character again.");
                 }
                 _camFree = snap.CameraFollowsPlayer == false;
                 var sl = snap.ShiftLockFromCamera;
-                if (sl != _shiftLockMem && sl is not null) Log?.Invoke(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                if (sl != _shiftLockMem && sl is not null) Emit(string.Create(System.Globalization.CultureInfo.InvariantCulture,
                     $"Shift lock {(sl == true ? "ON" : "off")} (camera offset {snap.CameraSideOffset:0.00} stud)."));
                 _shiftLockMem = sl;
                 snap = snap with { ShiftLock = sl == true };
                 LastSnapshot = snap;
+                if (StepOnlyInForeground && !IsForeground)
+                {
+                    WantsInput = false;
+                    Ticked?.Invoke();
+                    try { await Task.Delay(tick, ct); } catch (OperationCanceledException) { break; }
+                    continue;
+                }
                 var actions = Machine.Step(snap, clock.ElapsedMilliseconds);
-                bool fg = input.IsTargetForeground();
+                WantsInput = actions.Any(IsRealInput);
+                await _gate.WaitAsync(ct);
+                try
+                {
+                bool fg = !Hold && input.IsTargetForeground();
                 // v0.3.12 (Byzan 26 Oct): enemies detected in any stage → shift lock MUST be on (independent of the toggle).
                 bool mustLock = MustShiftLock(snap);
                 if (fg && (mustLock || settings().Combat.AutoShiftLock)) await EnsureShiftLock(snap.Screen, actions, clock.ElapsedMilliseconds, ct, mustLock);
                 if (!fg && actions.Any(a => a is not NoteAction and not StopAction))
                 {
-                    if (!pausedLogged) Log?.Invoke("Roblox is not in the foreground → input held.");
+                    if (!pausedLogged) Emit("Roblox is not in the foreground → input held.");
                     pausedLogged = true;
                 }
                 else pausedLogged = false;
@@ -94,10 +127,12 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                     if (ct.IsCancellationRequested) break;
                     await Execute(a, fg, ct);
                 }
+                }
+                finally { _gate.Release(); }
                 Ticked?.Invoke();
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex) { Log?.Invoke("Error: " + ex.Message); }
+            catch (Exception ex) { Emit("Error: " + ex.Message); }
             try { await Task.Delay(tick, ct); } catch (OperationCanceledException) { break; }
         }
     }
@@ -138,17 +173,17 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         {
             // Enemies present → never give up; retry every 6 s. No enemies → stop on this screen (old behavior).
             if (!(mustLock && want) || now - _slLastPress < 6000) return;
-            if (now - _slGiveUpLogAt > 60_000) { _slGiveUpLogAt = now; Log?.Invoke("Shift lock still off although enemies are present → retrying every 6 s (check Roblox Settings: Shift Lock Switch = On)."); }
+            if (now - _slGiveUpLogAt > 60_000) { _slGiveUpLogAt = now; Emit("Shift lock still off although enemies are present → retrying every 6 s (check Roblox Settings: Shift Lock Switch = On)."); }
         }
         else if (_slWant == want && ++_slFails >= 3)
         {
-            Log?.Invoke($"Shift lock did not change to {(want ? "on" : "off")} after 3× Shift (check Roblox Settings: Shift Lock Switch){(mustLock && want ? " → enemies present, still retrying every 6 s." : " → stopped trying on this screen.")}");
+            Emit($"Shift lock did not change to {(want ? "on" : "off")} after 3× Shift (check Roblox Settings: Shift Lock Switch){(mustLock && want ? " → enemies present, still retrying every 6 s." : " → stopped trying on this screen.")}");
             if (!(mustLock && want)) return;
         }
         _slWant = want;
         _slLastPress = now;
         input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
-        Log?.Invoke(want ? (mustLock ? "Enemies detected → Shift pressed (shift lock must be on, verified from the camera)." : "Round running → Shift pressed (turning shift lock on, verified from the camera).") : $"Outside a round ({screen}) → Shift pressed (turning shift lock off for GUI clicks).");
+        Emit(want ? (mustLock ? "Enemies detected → Shift pressed (shift lock must be on, verified from the camera)." : "Round running → Shift pressed (turning shift lock on, verified from the camera).") : $"Outside a round ({screen}) → Shift pressed (turning shift lock off for GUI clicks).");
         await Task.Delay(120, ct);
     }
 
@@ -167,7 +202,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         _turnCts?.Cancel();
         if (input.IsTargetForeground() && input.ClientSize() is { } sz) input.MoveClient(sz.W / 2.0, sz.H / 2.0);
         long now = Environment.TickCount64;
-        if (now - _recenterLogAt > 5000) { _recenterLogAt = now; Log?.Invoke($"Cursor left the Roblox window during {why} → pulled back to the center, click cancelled."); }
+        if (now - _recenterLogAt > 5000) { _recenterLogAt = now; Emit($"Cursor left the Roblox window during {why} → pulled back to the center, click cancelled."); }
     }
 
     private void SmoothTurn(int dx, int dy, int durationMs)
@@ -201,19 +236,19 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         {
             input.MoveClient(c.X, c.Y);
             await Task.Delay(90, ct);
-            if (!input.IsTargetForeground()) { Log?.Invoke($"Click {c.Reason} cancelled: Roblox is not in the foreground."); break; }
+            if (!input.IsTargetForeground()) { Emit($"Click {c.Reason} cancelled: Roblox is not in the foreground."); break; }
             if (CursorAt(c.X, c.Y))
             {
-                Log?.Invoke($"Click {c.Reason} ({c.X:0},{c.Y:0})");
+                Emit($"Click {c.Reason} ({c.X:0},{c.Y:0})");
                 input.ClickClient(c.X, c.Y);
                 break;
             }
             if (attempt == 1)
             {
-                Log?.Invoke($"Click {c.Reason} cancelled: cursor could not be placed at ({c.X:0},{c.Y:0}) (Roblox keeps pulling it).");
+                Emit($"Click {c.Reason} cancelled: cursor could not be placed at ({c.X:0},{c.Y:0}) (Roblox keeps pulling it).");
                 break;
             }
-            Log?.Invoke($"Cursor pulled to the center (shift lock on) → Shift, then re-check before clicking {c.Reason}.");
+            Emit($"Cursor pulled to the center (shift lock on) → Shift, then re-check before clicking {c.Reason}.");
             input.KeyDown(ShiftVk); await Task.Delay(40, ct); input.KeyUp(ShiftVk);
             toggled = true;
             await Task.Delay(150, ct);
@@ -231,10 +266,10 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         switch (a)
         {
             case NoteAction n:
-                Log?.Invoke(n.Reason);
+                Emit(n.Reason);
                 return;
             case StopAction s:
-                Log?.Invoke(s.Reason);
+                Emit(s.Reason);
                 LastStopReason = s.Reason;
                 Stop();
                 return;
@@ -253,7 +288,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
             case ClickAction c:
                 if (input.ClientSize() is { } size && (c.X < 0 || c.Y < 0 || c.X >= size.W || c.Y >= size.H))
                 {
-                    Log?.Invoke($"Click {c.Reason} cancelled: ({c.X:0},{c.Y:0}) is outside the Roblox window {size.W}x{size.H}.");
+                    Emit($"Click {c.Reason} cancelled: ({c.X:0},{c.Y:0}) is outside the Roblox window {size.W}x{size.H}.");
                     break;
                 }
                 // v0.2.80 (no guessing): does not depend on the shift lock state. The cursor is moved to the target, then its position is
@@ -262,7 +297,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 await ClickVerified(c, ct);
                 break;
             case ScrollAction sc:
-                Log?.Invoke($"Scroll {sc.Reason} ({sc.X:0},{sc.Y:0}) x{Math.Abs(sc.Notches)}");
+                Emit($"Scroll {sc.Reason} ({sc.X:0},{sc.Y:0}) x{Math.Abs(sc.Notches)}");
                 input.ScrollClient(sc.X, sc.Y, sc.Notches);
                 break;
             case AimAction or TurnAction when _camFree:

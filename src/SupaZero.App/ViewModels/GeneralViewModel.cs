@@ -24,7 +24,7 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
         root.ActiveRebind = CompleteRebind;
         RaiseHotkey();
     });
-    public RelayCommand ToggleCommand => new(_ => root.Runner.Toggle());
+    public RelayCommand ToggleCommand => new(_ => root.ToggleMacro());
     public System.Collections.ObjectModel.ObservableCollection<SupaZero.Core.Game.CalibrationItem> CalibrationItems { get; } = [];
     private string _calibrationSummary = "Not checked yet.";
     public bool HasCalibration => CalibrationItems.Count > 0;

@@ -27,6 +27,28 @@ public sealed class ProcessMemory : IMemorySource, IDisposable
         }
     }
 
+    /// <summary>All running processes with this name, oldest first (PID + start time).</summary>
+    public static IReadOnlyList<(int Pid, DateTime Start)> List(string processName = DefaultProcessName)
+    {
+        if (!OperatingSystem.IsWindows()) return [];
+        var all = Process.GetProcessesByName(processName);
+        try { return all.Select(p => (p.Id, SafeStart(p))).OrderBy(x => x.Item2).ToList(); }
+        finally { foreach (var p in all) p.Dispose(); }
+    }
+
+    /// <summary>Attach to exactly this PID (no fallback to another process).</summary>
+    public bool TryAttach(out string status, int pid, string processName = DefaultProcessName)
+    {
+        if (!OperatingSystem.IsWindows()) { status = "Windows only."; return false; }
+        Process p;
+        try { p = Process.GetProcessById(pid); }
+        catch { status = $"PID {pid} is not running."; return false; }
+        bool nameOk;
+        try { nameOk = string.Equals(p.ProcessName, processName, StringComparison.OrdinalIgnoreCase); } catch { nameOk = false; }
+        if (!nameOk) { p.Dispose(); status = $"PID {pid} is not {processName}."; return false; }
+        return AttachTo(p, out status);
+    }
+
     public bool TryAttach(out string status, string processName = DefaultProcessName)
     {
         if (!OperatingSystem.IsWindows()) { status = "Windows only."; return false; }
@@ -34,6 +56,11 @@ public sealed class ProcessMemory : IMemorySource, IDisposable
         Process? newest = all.OrderByDescending(SafeStart).FirstOrDefault();
         foreach (var p in all) if (!ReferenceEquals(p, newest)) p.Dispose();
         if (newest is null) { status = $"{processName} is not running."; return false; }
+        return AttachTo(newest, out status);
+    }
+
+    private bool AttachTo(Process newest, out string status)
+    {
         using (newest)
         {
             if (_handle != 0 && ProcessId == newest.Id) { status = "Already attached."; return true; }
