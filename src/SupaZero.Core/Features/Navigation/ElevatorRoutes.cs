@@ -42,7 +42,16 @@ public static class ElevatorRoutes
         int best = -1;
         for (int i = 0; i < pts.Count; i++)
             if (Math.Abs(me.Y - pts[i].Y) <= 5 && (best < 0 || D3(me, pts[i]) < D3(me, pts[best]))) best = i;
-        if (best < 0 || D3(me, pts[best]) > 12) return -1;
+        // v0.3.48 (Byzan 28 Oct 01:04, "off the stair route" while standing ON the first flight, likely mid-jump/attack): once above the
+        // ground floor, a point up to 10 studs higher/lower still counts (the under-the-flight case only exists on the ground floor).
+        if ((best < 0 || D3(me, pts[best]) > 12) && me.Y > pts[0].Y + 4)
+        {
+            best = -1;
+            for (int i = 0; i < pts.Count; i++)
+                if (Math.Abs(me.Y - pts[i].Y) <= 10 && (best < 0 || D2(me, pts[i]) < D2(me, pts[best]))) best = i;
+            if (best >= 0 && D2(me, pts[best]) > 10) best = -1;
+        }
+        if (best < 0 || D3(me, pts[best]) > (me.Y > pts[0].Y + 4 ? 20 : 12)) return -1;
         if (best + 1 >= pts.Count) return D2(me, pts[best]) <= 2.5 ? pts.Count : best;
         // Already at this point, or already past it toward the next one → aim for the next point.
         if (D2(me, pts[best]) <= 2.5) return best + 1;
