@@ -48,10 +48,9 @@ public class CodesTests
         Assert.Contains(m.Step(menu, 1000).OfType<ClickAction>(), c => c.Reason == "Code box");
         var type = Assert.Single(m.Step(menu, 1400).OfType<TypeTextAction>());
         Assert.True(type.Unicode);
-        // Box text not (yet) the code → no Redeem.
-        Assert.DoesNotContain(m.Step(menu, 2000).OfType<ClickAction>(), c => c.Reason.StartsWith("Redeem"));
+        // Box text readable and equal → Redeem.
         var typed = menu with { CodesText = "MINICODE" };
-        Assert.Contains(m.Step(typed, 2100).OfType<ClickAction>(), c => c.Reason == "Redeem MINICODE");
+        Assert.Contains(m.Step(typed, 2000).OfType<ClickAction>(), c => c.Reason == "Redeem MINICODE");
         // Old toast (Id 1) is ignored; the new one decides.
         Assert.Empty(tried);
         m.Step(typed with { Notifications = [new NotificationInfo(1, "You received  $2,500"), new NotificationInfo(7, "Code \"MINICODE\" redeemed!")] }, 2600);
@@ -61,13 +60,23 @@ public class CodesTests
     }
 
     [Fact]
+    public void Machine_FocusedBoxReadsEmpty_RedeemsAnyway()
+    {
+        var s = new AppSettings();
+        var m = new FarmMachine(() => s) { CodesFor = _ => ["THANKS4WAITING"] };
+        var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
+        m.Step(menu, 0); m.Step(menu, 400);
+        Assert.Contains(m.Step(menu, 1000).OfType<ClickAction>(), c => c.Reason == "Redeem THANKS4WAITING");
+    }
+
+    [Fact]
     public void Machine_TypingNotAccepted_RetriesWithKeysThenSkips()
     {
         var s = new AppSettings();
         var m = new FarmMachine(() => s) { CodesFor = _ => ["ABC1"] };
         CodeOutcome? got = null;
         m.CodeTried = (_, _, o, _) => got = o;
-        var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
+        var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "abX", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
         m.Step(menu, 0); m.Step(menu, 400); m.Step(menu, 2000);           // click, type (unicode), mismatch
         m.Step(menu, 2100);
         var second = m.Step(menu, 2500).OfType<TypeTextAction>().Single(); // retype with plain keys

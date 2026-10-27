@@ -81,8 +81,13 @@ public sealed partial class FarmMachine
                 return [new TypeTextAction(code, Unicode: _codeTries == 0, $"Type code {code}")];
             case 2:
                 if (now - _codeAt < 500) return [];
-                if (string.Equals(s.CodesText?.Trim(), code, StringComparison.OrdinalIgnoreCase))
+                // v0.3.27 (Byzan log 18:30:08-12): while the box has focus its Text reads '' in memory although the code is on screen.
+                // Empty = not readable while focused → Redeem anyway (box + button are proven); the toast decides. Other text = real mismatch.
+                bool match = string.Equals(s.CodesText?.Trim(), code, StringComparison.OrdinalIgnoreCase);
+                bool unreadable = string.IsNullOrEmpty(s.CodesText?.Trim());
+                if (match || unreadable)
                 {
+                    if (unreadable) _pending.Add(new NoteAction($"Code box reads '' while focused → Redeem {code}, result from the message."));
                     if (s.CodesRedeem is not { } r) return Note("codes-noredeem", now, 10000, "Redeem button not readable → waiting.");
                     _toastBase = s.Notifications.Select(n => n.Id).ToHashSet();
                     _codeStep = 3; _codeAt = now;
