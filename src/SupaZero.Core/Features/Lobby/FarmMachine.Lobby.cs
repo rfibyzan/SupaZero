@@ -321,10 +321,12 @@ public sealed partial class FarmMachine
         bool vertical = r.CenterY < top + margin || r.CenterY > bottom - margin;
         double dist = vertical ? (r.CenterY > bottom - margin ? r.CenterY - (bottom - margin) : r.CenterY - (top + margin))
                                : (r.CenterX > right - margin ? r.CenterX - (right - margin) : r.CenterX - (left + margin));
-        double span = Math.Max(40, (vertical ? bottom - top : right - left) * 0.5);
-        int notches = (int)Math.Clamp(Math.Ceiling(Math.Abs(dist) / span), 1, 3) * (dist > 0 ? -1 : 1);
+        // v0.3.35 (Byzan 27 Oct 23:47, calibration too slow; log 14:20 ZZZ World needed 4 single-notch scrolls): span 50%→30% of the list
+        // height and up to 5 notches per step, so a far entry is reached in 1-2 steps. Overshoot is corrected by the next step (scroll up).
+        double span = Math.Max(40, (vertical ? bottom - top : right - left) * 0.3);
+        int notches = (int)Math.Clamp(Math.Ceiling(Math.Abs(dist) / span), 1, 5) * (dist > 0 ? -1 : 1);
         double cx = (left + right) / 2, cy = (top + bottom) / 2;
-        if (!Ready(key + "-scroll", now, 450)) return [];
+        if (!Ready(key + "-scroll", now, 350)) return [];
         _scrolls[key] = n + 1;
         Status = $"Scrolling list to {label}.";
         return [new ScrollAction(cx, cy, notches, $"{label} not visible yet → scroll {(notches < 0 ? "down" : "up")}")];

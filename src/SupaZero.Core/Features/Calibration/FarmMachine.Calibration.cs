@@ -20,7 +20,7 @@ public sealed partial class FarmMachine
 {
     public bool Calibrating { get; private set; }
     public Action<CalibrationScan>? CalibrationFinished { get; set; }
-    public const int CalStableMs = 400, CalStepTimeoutMs = 10_000; // v0.3.7: 800→400 ms (faster)
+    public const int CalStableMs = 250, CalStepTimeoutMs = 10_000; // v0.3.7: 800→400 ms; v0.3.35 (Byzan 27 Oct 23:47 "too slow"): 400→250 ms
 
     // 1 read mode list · 2 pick mode · 3 read maps · 4 pick map · 5 read acts · 6 Leave
     private int _calStage;
