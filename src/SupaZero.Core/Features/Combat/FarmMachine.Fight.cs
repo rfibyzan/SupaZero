@@ -9,11 +9,11 @@ public sealed partial class FarmMachine
     private List<MacroAction> Fight(GameSnapshot s, AppSettings S, long now)
     {
         // v0.3.23 Carry: damage target reached → idle (no attack/skill/move/pickup) until the end screen. Unreadable damage → fight normally.
-        if (S.Combat.CarryDamage > 0)
+        if (S.Combat.CarryTarget > 0)
         {
-            if (s.MyDamage is { } dmg && dmg >= S.Combat.CarryDamage)
+            if (s.MyDamage is { } dmg && dmg >= S.Combat.CarryTarget)
             {
-                Status = $"Carry: damage {dmg:N0} ≥ {S.Combat.CarryDamage:N0}, idle until the round ends.";
+                Status = $"Carry: damage {dmg:N0} ≥ {S.Combat.CarryTarget:N0}, idle until the round ends.";
                 return [new MoveAction([], "Carry idle")];
             }
             if (s.MyDamage is null)

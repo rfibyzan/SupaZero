@@ -10,7 +10,7 @@ public sealed partial class FarmMachine
     /// Press E only when own scoreboard damage is readable and below the carry target; target met or unreadable = stay down.</summary>
     private List<MacroAction> FreeRevive(GameSnapshot s, AppSettings S, long now)
     {
-        int target = S.Combat.CarryDamage;
+        int target = S.Combat.CarryTarget;
         if (s.MyDamage is not { } dmg)
         {
             Status = "Down: own damage unreadable, free revive not used.";

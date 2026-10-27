@@ -129,7 +129,7 @@ public sealed class CarryRotation(Func<AppSettings> settings) : IDisposable
                 {
                     pausedLogged = false;
                     if (front >= 0) _alts[front].LastServed = now;
-                    int target = settings().Combat.CarryDamage;
+                    int target = settings().Combat.CarryTarget;
                     var states = _alts.Select(a => (a.Runner.IsRunning && NeedsInput(a.Runner.LastSnapshot, target), a.LastServed)).ToList();
                     // The window in front is "served" right now; compare the others by when they were last in front.
                     int pick = Pick(states, front, now, since);

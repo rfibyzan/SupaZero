@@ -15,6 +15,14 @@
       </Border>
       <TextBlock Text="SupaZero" FontWeight="SemiBold" VerticalAlignment="Center" />
     </StackPanel>
+    <!-- v0.3.32: app mode switch (like RIE expert/newbie). Right margin leaves room for the window caption buttons. -->
+    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,150,0"
+                IsEnabled="{Binding CanSwitchMode}" ToolTip.Tip="App mode. Carry adds the Carry tab (damage target + carry windows). Locked while running.">
+      <ToggleButton Content="Normal" IsChecked="{Binding NormalMode, Mode=OneWay}" Command="{Binding SetModeCommand}" CommandParameter="Normal"
+                    Padding="12,3" CornerRadius="6,0,0,6" />
+      <ToggleButton Content="Carry" IsChecked="{Binding CarryMode, Mode=OneWay}" Command="{Binding SetModeCommand}" CommandParameter="Carry"
+                    Padding="12,3" CornerRadius="0,6,6,0" />
+    </StackPanel>
 
     <Border Grid.Row="1" BorderBrush="{DynamicResource OfBorder}" BorderThickness="0,0,0,1" Margin="14,4,14,0" Padding="0,0,0,8">
       <ListBox Classes="tabs" ItemsSource="{Binding Tabs}" SelectedIndex="{Binding SelectedTabIndex}">

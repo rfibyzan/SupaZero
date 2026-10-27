@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SupaZero.App.ViewModels"
+             x:Class="SupaZero.App.Views.CarryView"
+             x:DataType="vm:CarryPageViewModel">
+  <!-- v0.3.32: Carry settings live in their own tab, shown only in Carry app mode (title bar switch). -->
+  <Grid ColumnDefinitions="*,*" DataContext="{Binding Farm}" x:DataType="vm:FarmViewModel">
+    <Border Margin="0,0,8,0" Classes="card" VerticalAlignment="Top">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Carry" />
+        <TextBlock Classes="muted" TextWrapping="Wrap" Text="Alt account: deal damage until the target, then idle until the round ends (Retry as usual). Free Revive (E) only while below the target." />
+        <Border Classes="sep" Margin="0,2,0,4" />
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Stop at damage (0 = off, then idle until win)" /><NumericUpDown Grid.Column="1" Value="{Binding CarryDamage}" Minimum="0" Maximum="10000000" Increment="100" FormatString="0" /></Grid>
+        <Border Classes="card" Padding="8" Margin="0,0,0,4">
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Carry windows: checked = take turns between them (window already at the damage target is skipped). None checked = newest window only." />
+              <Button Grid.Column="1" Content="Refresh" Command="{Binding Root.RefreshCarryWindowsCommand}" IsEnabled="{Binding Root.CanEditCarryWindows}" Padding="10,3" Margin="6,0,0,0" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Root.CarryWindows}" IsEnabled="{Binding Root.CanEditCarryWindows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:CarryWindowItem">
+                  <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

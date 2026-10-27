@@ -14,8 +14,14 @@ public sealed record CombatSettings(
     bool UltBossOnly = true,
     /// <summary>v0.3.23 Carry (alt account): once this player's scoreboard damage reaches this value, stop fighting and idle until the
     /// round ends (Retry is handled by the end screen as usual). 0 = off.</summary>
-    int CarryDamage = 0)
+    int CarryDamage = 0,
+    /// <summary>v0.3.32 (Byzan 27 Oct 23:26): app mode switch Normal/Carry in the title bar (like RIE expert/newbie). Carry damage,
+    /// carry windows and rotation only apply in Carry mode; Normal mode always fights normally on one window.</summary>
+    bool CarryMode = false)
 {
+    /// <summary>Damage target that is actually in effect: CarryDamage in Carry mode, 0 (= off) in Normal mode.</summary>
+    public int CarryTarget => CarryMode ? CarryDamage : 0;
+
     public static List<SkillBinding> DefaultSkills() =>
     [
         new("Skill 1", "1", true, 4000),

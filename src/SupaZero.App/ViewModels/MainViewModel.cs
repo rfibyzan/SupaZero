@@ -12,6 +12,8 @@ namespace SupaZero.App.ViewModels;
 public sealed class CombatPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 public sealed class LobbyPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 public sealed class ModesPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
+/// <summary>v0.3.32: Carry tab, only shown in Carry app mode (damage target + carry windows).</summary>
+public sealed class CarryPageViewModel(FarmViewModel farm) { public FarmViewModel Farm { get; } = farm; }
 
 public sealed class TabViewModel(string title, object content, bool showHeader = true)
 {
@@ -76,8 +78,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         Rotation = new CarryRotation(() => Settings);
         Rotation.Log += AddLog;
-        Rotation.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); Raise(nameof(CanEditCarryWindows)); });
-        Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => Raise(nameof(CanEditCarryWindows)));
+        Rotation.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); Raise(nameof(CanEditCarryWindows)); Raise(nameof(CanSwitchMode)); });
+        Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(CanEditCarryWindows)); Raise(nameof(CanSwitchMode)); });
         RefreshCarryWindowsCommand = new RelayCommand(_ => RefreshCarryWindows());
         ConfigureCodes(Runner.Machine);
         Rotation.ConfigureMachine = ConfigureCodes;
@@ -89,6 +91,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Upgrade = new UpgradeViewModel(this);
         Offsets = new OffsetsViewModel(this);
         SettingsPage = new SettingsPageViewModel(this);
+        _carryTab = new TabViewModel("Carry", new CarryPageViewModel(Farm));
         Tabs =
         [
             new TabViewModel("General", General),
@@ -99,6 +102,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             new TabViewModel("Offsets", Offsets),
             new TabViewModel("Settings", SettingsPage),
         ];
+
+        if (Settings.Combat.CarryMode) Tabs.Insert(1, _carryTab);
+        SetModeCommand = new RelayCommand(p => CarryMode = p is string m && m == "Carry");
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _timer.Tick += (_, _) => Refresh();
@@ -118,7 +124,31 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public OffsetsViewModel Offsets { get; }
     public UpgradeViewModel Upgrade { get; }
     public SettingsPageViewModel SettingsPage { get; }
-    public IReadOnlyList<TabViewModel> Tabs { get; }
+    public ObservableCollection<TabViewModel> Tabs { get; }
+    private readonly TabViewModel _carryTab;
+    public RelayCommand SetModeCommand { get; }
+
+    /// <summary>v0.3.32 (Byzan 27 Oct): app mode Normal/Carry, switched in the title bar. Carry mode adds the Carry tab and enables
+    /// the damage target + carry window rotation. Locked while the macro runs.</summary>
+    public bool CarryMode
+    {
+        get => Settings.Combat.CarryMode;
+        set
+        {
+            if (value == Settings.Combat.CarryMode || IsRunning) { Raise(nameof(CarryMode)); Raise(nameof(NormalMode)); return; }
+            var current = SelectedTab;
+            Settings.Combat = Settings.Combat with { CarryMode = value };
+            if (value && !Tabs.Contains(_carryTab)) Tabs.Insert(1, _carryTab);
+            if (!value) Tabs.Remove(_carryTab);
+            int idx = value ? 1 : Math.Max(0, Tabs.IndexOf(current));
+            _selectedTabIndex = -1;
+            SelectedTabIndex = idx;
+            Save();
+            AddLog(value ? "Mode: Carry (damage target + carry windows active)." : "Mode: Normal (carry settings ignored).");
+            Raise(nameof(CarryMode)); Raise(nameof(NormalMode));
+        }
+    }
+    public bool NormalMode => !CarryMode;
     public ObservableCollection<string> LogLines { get; } = [];
 
     public int SelectedTabIndex
@@ -141,6 +171,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<CarryWindowItem> CarryWindows { get; } = [];
     public RelayCommand RefreshCarryWindowsCommand { get; }
     public bool CanEditCarryWindows => !IsRunning;
+    public bool CanSwitchMode => !IsRunning;
 
     /// <summary>v0.3.25: re-list RobloxPlayerBeta windows (keeps the checks of PIDs still running).</summary>
     public void RefreshCarryWindows()
@@ -213,7 +244,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!IsRunning && DateTime.Now - _webCodesAt > TimeSpan.FromMinutes(30)) _ = FetchCodes();
         if (Runner.IsRunning) { Runner.Stop(); return; }
         if (Rotation.IsRunning) { Rotation.Stop(); return; }
-        var picks = CarryWindows.Where(w => w.IsChecked).Select(w => w.Info).ToList();
+        var picks = Settings.Combat.CarryMode ? CarryWindows.Where(w => w.IsChecked).Select(w => w.Info).ToList() : [];
         if (picks.Count == 0) { Runner.Start(); return; }
         if (Session.Offsets is not { } off) { AddLog("Carry rotation: offsets not loaded."); return; }
         if (Settings.Combat.CarryDamage <= 0) AddLog("Carry rotation: 'Carry: stop at damage' is 0 → every window fights until the round ends.");

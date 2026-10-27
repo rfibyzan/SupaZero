@@ -188,7 +188,7 @@ public partial class FarmMachineTests
         Assert.Equal(11300, GameReader.ParseDamage("11.3K"));
         Assert.Equal(0, GameReader.ParseDamage("0"));
         Assert.Null(GameReader.ParseDamage("abc"));
-        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000, CarryMode: true));
         var snap = new GameSnapshot
         {
             Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
@@ -203,17 +203,33 @@ public partial class FarmMachineTests
     }
 
     [Fact]
+    public void Carry_NormalMode_IgnoresDamageTarget()
+    {
+        // v0.3.32: damage target set but app mode Normal → keep fighting.
+        Assert.Equal(0, new CombatSettings(CarryDamage: 1000).CarryTarget);
+        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000, CarryMode: false));
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
+            PlayerPos = new(75, 3, -336), CameraLook = (0, -1),
+            Enemies = [new("1", new(75, 3, -340), 100, 100)],
+            SkillCooldowns = [new("1", null, false)],
+        };
+        Assert.Contains(m.Step(snap with { MyDamage = 5000 }, 10_000).OfType<KeyAction>(), k => k.Reason.Contains("Skill 1"));
+    }
+
+    [Fact]
     public void Carry_FreeRevive_OnlyBelowTarget()
     {
         Assert.True(GameReader.IsFreeReviveLabel("Revive  ·  Free"));
         Assert.False(GameReader.IsFreeReviveLabel("Revive  ·  50"));
         Assert.False(GameReader.IsFreeReviveLabel(null));
-        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000, CarryMode: true));
         var snap = new GameSnapshot { Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"), FreeReviveShown = true };
         Assert.Contains(m.Step(snap with { MyDamage = 400 }, 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
-        var (m2, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        var (m2, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000, CarryMode: true));
         Assert.DoesNotContain(m2.Step(snap with { MyDamage = 1200 }, 10_000).OfType<KeyAction>(), k => true);
-        var (m3, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        var (m3, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000, CarryMode: true));
         Assert.DoesNotContain(m3.Step(snap with { MyDamage = null }, 10_000).OfType<KeyAction>(), k => true);
     }
 
