@@ -48,17 +48,18 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
         if (IsRunning) Stop(); else Start();
     }
 
-    public void Start(bool calibrate = false)
+    public void Start(bool calibrate = false, bool redeemCodes = false)
     {
         if (IsRunning) return;
         Machine.Reset();
         if (calibrate) Machine.StartCalibration();
+        else if (redeemCodes) Machine.StartRedeemCodes();
         Machine.Diagnostic ??= Emit;
         LastStopReason = null;
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         _loop = Task.Run(() => Loop(token), token);
-        Emit(calibrate ? "Action calibration started (power → room → mode/map/act → Leave)." : "Macro started.");
+        Emit(calibrate ? "Action calibration started (power → room → mode/map/act → Leave)." : redeemCodes ? "Redeem codes started (lobby → Codes → each code → Exit)." : "Macro started.");
         RunningChanged?.Invoke(true);
     }
 

@@ -71,7 +71,7 @@ public sealed record FarmSettings(
     List<SupaZero.Core.Game.BlessingPref>? BlessingCards = null,
     /// <summary>v0.3.11: cards read in game (name, rarity, description, value) outside the built-in list.</summary>
     List<SupaZero.Core.Game.BlessingInfo>? KnownBlessings = null,
-    /// <summary>v0.3.26: in the lobby, redeem codes (beebom list + ExtraCodes) not yet redeemed/used by this account, then continue.</summary>
+    /// <summary>v0.3.26 (unused since v0.3.28: codes run only from the Redeem codes button).</summary>
     bool AutoRedeemCodes = true,
     /// <summary>v0.3.26: extra codes (comma separated) tried besides the beebom list.</summary>
     string ExtraCodes = "",

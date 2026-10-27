@@ -16,9 +16,41 @@ public sealed partial class FarmMachine
     private int _codeIdx, _codeStep, _codeTries, _codeOpenTries;
     private long _codeAt;
     private HashSet<long> _toastBase = [];
+    private int _codesOk, _codesUsed, _codesFailed;
+
+    /// <summary>v0.3.28 (Byzan 27 Oct 18:34): codes are redeemed only from the "Redeem codes" button (like Action calibration), never from the F1 farm start.</summary>
+    public bool RedeemingCodes { get; private set; }
+
+    public void StartRedeemCodes()
+    {
+        ResetCodes();
+        RedeemingCodes = true;
+    }
+
+    /// <summary>Redeem-codes run: lobby → open Codes → each code → Exit → stop. Other screens = stop (no farming).</summary>
+    private List<MacroAction> RedeemStep(GameSnapshot s, AppSettings S, long now)
+    {
+        switch (s.Screen)
+        {
+            case GameScreen.Unknown: return Wait("Redeem codes: waiting for Roblox / DataModel.");
+            case GameScreen.CodesMenu: return CodesMenu(s, S, now);
+            case GameScreen.Lobby:
+                if (OpenCodes(s, S, now) is { } open) return open;
+                if (CodesPending(s, S)) return Note("codes-nobutton", now, 10000, "Redeem codes: Codes button not readable → waiting (stand in the lobby, close other menus).");
+                if (_codes is null) return Wait("Redeem codes: waiting for the player name.");
+                RedeemingCodes = false;
+                return Stop(_codes.Count == 0 ? "Redeem codes: nothing new for this account."
+                    : $"Redeem codes done: {_codesOk} redeemed, {_codesUsed} already used, {_codesFailed} failed.");
+            default:
+                RedeemingCodes = false;
+                return Stop("Redeem codes: go to the lobby first.");
+        }
+    }
 
     private void ResetCodes()
     {
+        RedeemingCodes = false;
+        _codesOk = _codesUsed = _codesFailed = 0;
         _codes = null; _codesPlayer = "";
         _codeIdx = _codeStep = _codeTries = _codeOpenTries = 0;
         _codeAt = 0;
@@ -27,7 +59,7 @@ public sealed partial class FarmMachine
 
     private bool CodesPending(GameSnapshot s, AppSettings S)
     {
-        if (!S.Farm.AutoRedeemCodes || CodesFor is null) return false;
+        if (!RedeemingCodes || CodesFor is null) return false;
         if (_codes is null)
         {
             if (string.IsNullOrEmpty(s.LocalPlayer)) return false; // codes are remembered per account → wait for the name
@@ -109,6 +141,7 @@ public sealed partial class FarmMachine
     private List<MacroAction> NextCode(string code, CodeOutcome outcome, string text)
     {
         CodeTried?.Invoke(_codesPlayer, code, outcome, text);
+        if (outcome == CodeOutcome.Redeemed) _codesOk++; else if (outcome == CodeOutcome.AlreadyUsed) _codesUsed++; else _codesFailed++;
         _codeIdx++; _codeStep = 0; _codeTries = 0;
         return [new NoteAction($"Code {code}: {outcome} ({text}).")];
     }

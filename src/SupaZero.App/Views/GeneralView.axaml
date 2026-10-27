@@ -107,6 +107,8 @@
               <Button Content="Check" Command="{Binding CalibrateCommand}" Padding="12,3" ToolTip.Tip="Reads memory once without input: offsets, GUI, position, saved powers. A quick check that SupaZero reads the game correctly." />
               <Button Content="Action calibration" Command="{Binding CalibrateActionCommand}" Padding="12,3"
                       ToolTip.Tip="From the lobby: checks Trait, opens Spinning (reads powers), enters a room, reads all modes/maps/acts, then Leaves. Does not press Start." />
+              <Button Content="Redeem codes" Command="{Binding RedeemCodesCommand}" Padding="12,3"
+                      ToolTip.Tip="From the lobby: opens Codes, types every code from beebom.com (+ extra codes on the Lobby tab) not yet redeemed by this account, reads the result, closes Codes, then stops." />
             </StackPanel>
           </Grid>
           <Expander Header="Details" IsVisible="{Binding HasCalibration}" Padding="4" FontSize="11" HorizontalAlignment="Stretch">

@@ -33,6 +33,7 @@ public class CodesTests
     {
         var s = new AppSettings();
         var m = new FarmMachine(() => s) { CodesFor = _ => ["MINICODE"] };
+        m.StartRedeemCodes();
         var tried = new List<(string, string, CodeOutcome)>();
         m.CodeTried = (p, c, o, _) => tried.Add((p, c, o));
         var lobby = new GameSnapshot { Attached = true, LocalPlayer = "AuraTrout", CodesButton = new GuiRect(1711, 410, 88, 106) };
@@ -55,8 +56,11 @@ public class CodesTests
         Assert.Empty(tried);
         m.Step(typed with { Notifications = [new NotificationInfo(1, "You received  $2,500"), new NotificationInfo(7, "Code \"MINICODE\" redeemed!")] }, 2600);
         Assert.Equal(("AuraTrout", "MINICODE", CodeOutcome.Redeemed), Assert.Single(tried));
-        // All done → Exit.
+        // All done → Exit, then back in the lobby → stop (no farming).
         Assert.Contains(m.Step(typed, 5000).OfType<ClickAction>(), c => c.Reason == "Codes Exit");
+        var end = m.Step(lobby, 7000);
+        Assert.Contains(end, a => a is StopAction st && st.Reason.Contains("1 redeemed"));
+        Assert.False(m.RedeemingCodes);
     }
 
     [Fact]
@@ -64,6 +68,7 @@ public class CodesTests
     {
         var s = new AppSettings();
         var m = new FarmMachine(() => s) { CodesFor = _ => ["THANKS4WAITING"] };
+        m.StartRedeemCodes();
         var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
         m.Step(menu, 0); m.Step(menu, 400);
         Assert.Contains(m.Step(menu, 1000).OfType<ClickAction>(), c => c.Reason == "Redeem THANKS4WAITING");
@@ -74,6 +79,7 @@ public class CodesTests
     {
         var s = new AppSettings();
         var m = new FarmMachine(() => s) { CodesFor = _ => ["ABC1"] };
+        m.StartRedeemCodes();
         CodeOutcome? got = null;
         m.CodeTried = (_, _, o, _) => got = o;
         var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "abX", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
@@ -87,14 +93,21 @@ public class CodesTests
     }
 
     [Fact]
-    public void Machine_NoCodesOrOff_LobbyUnchanged()
+    public void FarmStart_NeverRedeems_AndClosesCodesMenu()
     {
         var s = new AppSettings();
-        s.Farm = s.Farm with { AutoRedeemCodes = false };
-        var m = new FarmMachine(() => s) { CodesFor = _ => ["X1Y"] };
+        var m = new FarmMachine(() => s) { CodesFor = _ => ["X1Y"] }; // normal (F1) start: no StartRedeemCodes
         var lobby = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesButton = new GuiRect(1711, 410, 88, 106) };
         Assert.DoesNotContain(m.Step(lobby, 0).OfType<ClickAction>(), c => c.Reason == "Codes button");
-        // Menu open with nothing to do → close it.
         Assert.Contains(m.Step(new GameSnapshot { Attached = true, CodesOpen = true, CodesExit = new GuiRect(0, 0, 40, 40) }, 3000).OfType<ClickAction>(), c => c.Reason == "Codes Exit");
+    }
+
+    [Fact]
+    public void RedeemRun_OutsideLobby_Stops()
+    {
+        var s = new AppSettings();
+        var m = new FarmMachine(() => s) { CodesFor = _ => ["X1Y"] };
+        m.StartRedeemCodes();
+        Assert.Contains(m.Step(new GameSnapshot { Attached = true, EnemyCount = 3, LocalPlayer = "P" }, 0), a => a is StopAction);
     }
 }

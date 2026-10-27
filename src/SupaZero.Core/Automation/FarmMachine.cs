@@ -105,10 +105,10 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
 
         // v0.3.24 Carry: free revive (E) only while own damage is readable and still below the carry target.
         bool carryDown = s.FreeReviveShown && S.Combat.CarryDamage > 0 && screen is not (GameScreen.Victory or GameScreen.Defeat);
-        var actions = Calibrating ? CalibrationStep(s, S, nowMs) : carryDown ? FreeRevive(s, S, nowMs) : screen switch
+        var actions = Calibrating ? CalibrationStep(s, S, nowMs) : RedeemingCodes ? RedeemStep(s, S, nowMs) : carryDown ? FreeRevive(s, S, nowMs) : screen switch
         {
             GameScreen.Unknown => Wait("Waiting for Roblox / DataModel."),
-            GameScreen.Lobby => OpenCodes(s, S, nowMs) ?? WalkToLobby(s, S, nowMs),
+            GameScreen.Lobby => WalkToLobby(s, S, nowMs),
             GameScreen.CodesMenu => CodesMenu(s, S, nowMs),
             GameScreen.LobbyMenu => LobbyMenu(s, S, nowMs),
             GameScreen.QueueWaiting => QueueWait(s, nowMs),

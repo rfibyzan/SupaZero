@@ -50,6 +50,13 @@ public sealed class GeneralViewModel(MainViewModel root) : ObservableObject
         root.Runner.Start(calibrate: true);
     });
 
+    /// <summary>v0.3.28: redeem codes (beebom list + extra codes) from the lobby, then stop. F1 never redeems.</summary>
+    public RelayCommand RedeemCodesCommand => new(_ =>
+    {
+        if (root.Runner.IsRunning) { root.AddLog("Redeem codes: stop the macro first."); return; }
+        root.Runner.Start(redeemCodes: true);
+    });
+
     public RelayCommand ClearLogCommand => new(_ => root.LogLines.Clear());
 
     public void ApplyHotkey()
