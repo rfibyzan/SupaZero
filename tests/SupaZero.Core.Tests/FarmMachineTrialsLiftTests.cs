@@ -68,8 +68,8 @@ public partial class FarmMachineTests
         Assert.NotNull(r);
         Assert.Equal(-1, ElevatorRoutes.Next(r, new(413, 19.7, -60)));       // ground, away from the stairs
         Assert.Equal(4, ElevatorRoutes.Next(r, new(435, 19.7, -89.4)));      // at the stair foot → next point
-        int mid = ElevatorRoutes.Next(r, new(440, 51.3, -45));               // landing between points 9 and 10
-        Assert.Equal(9, mid);
+        int mid = ElevatorRoutes.Next(r, new(440, 51.3, -45));               // landing between points 10 and 11
+        Assert.Equal(10, mid);
         Assert.Equal(r.Points.Count, ElevatorRoutes.Next(r, new(384.5, 95.5, -57.5)));
         Assert.Equal(-1, ElevatorRoutes.Next(r, new(440, 19.7, -45)));       // under the landing, wrong floor
         Assert.Null(ElevatorRoutes.For(new(-171, 7, -43.5)));

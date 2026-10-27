@@ -18,7 +18,7 @@ public static class ElevatorRoutes
             // v0.3.47 (Byzan 28 Oct 01:01, stuck against the side of the flight while "walking to the stairs"): the route starts at the
             // recorded spawn-side ground points in the open south hall, so the approach reaches the foot from the south, never along the flight.
             new(415.5, 19.7, -84.7), new(419.2, 19.7, -87.6), new(426.6, 19.7, -86.3),
-            new(434.8, 19.7, -89.5), new(441.3, 20.6, -86.8), new(442.8, 26.5, -80.8), new(440.4, 32.4, -74.7), new(440.2, 39.0, -68.0),
+            new(434.8, 19.7, -89.5), new(441.3, 20.6, -86.8), new(442.8, 26.5, -80.8), new(440.4, 32.4, -74.7), new(440.2, 39.0, -68.0), new(440.1, 45.5, -61.4),
             new(440.0, 51.2, -54.1), new(439.8, 51.4, -36.6), new(438.1, 51.4, -19.0), new(430.1, 52.5, -17.8), new(424.7, 58.1, -20.4),
             new(418.6, 64.1, -21.8), new(412.7, 70.1, -22.3), new(406.7, 76.3, -22.5), new(399.4, 82.5, -22.7), new(390.7, 82.7, -23.6),
             new(384.0, 84.4, -29.0), new(384.0, 89.2, -35.9), new(386.8, 94.0, -43.6), new(388.5, 95.5, -52.4), new(384.5, 95.5, -57.5),
@@ -57,7 +57,8 @@ public static class ElevatorRoutes
         if (D2(me, pts[best]) <= 2.5) return best + 1;
         // "Already past it" only on flat parts: on a rising segment being past in 2D usually means standing UNDER the flight.
         bool rising = pts[best + 1].Y - pts[best].Y > 2;
-        if (!rising && D2(me, pts[best + 1]) < D2(pts[best], pts[best + 1])) return best + 1;
+        // v0.3.49: clearly above this point (+1.5 studs) the player cannot be under the flight → "past it" counts on rising segments too.
+        if ((!rising || me.Y >= pts[best].Y + 1.5) && D2(me, pts[best + 1]) < D2(pts[best], pts[best + 1])) return best + 1;
         return best;
     }
 }

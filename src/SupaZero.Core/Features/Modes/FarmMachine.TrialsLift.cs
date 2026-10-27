@@ -10,6 +10,7 @@ public sealed partial class FarmMachine
     internal const double LiftPressDist = 6;
     internal const long LiftPressEveryMs = 2000;
     private long _liftPressAt = -LiftPressEveryMs;
+    private int _stairIdx = -1;
 
     /// <summary>v0.3.18 Trials arena (no Areas, circular Barriers, Lift at the center). Floor still running (prompt disabled) → wait at spawn
     /// for the next wave. The game enables "Ascend" → walk to the Lift and tap E (HoldDuration 0) to go up to the next floor.</summary>
@@ -53,6 +54,11 @@ public sealed partial class FarmMachine
                 $"Elevator at ({lift.Pos.X:0},{lift.Pos.Y:0},{lift.Pos.Z:0}) is {lift.Pos.Y - me.Y:0} studs above/below the player and has no recorded route."))];
         }
         int i = ElevatorRoutes.Next(route, me);
+        // v0.3.49 (Byzan 28 Oct 01:06, back and forth between stairs 8/23 and 9/23): never step back 1-2 points once a later one was the
+        // target; the progress resets only when the player is off the route (fell down / new floor).
+        if (i < 0) _stairIdx = -1;
+        else if (i < _stairIdx && _stairIdx - i <= 2) i = _stairIdx;
+        else _stairIdx = i;
         if (i >= route.Points.Count) return null; // top reached → normal walk/press
         if (i < 0)
         {
