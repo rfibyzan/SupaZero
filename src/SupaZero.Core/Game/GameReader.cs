@@ -207,11 +207,15 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             TraitNext = traitRoot != 0 && IsShown(traitRoot, pg) && reader.ResolvePath(traitRoot, AnimeZeroPaths.TraitNextButton) is var tn and not 0 && IsShown(tn, pg)
                 && CleanText(reader.ResolvePath(tn, "Txt(Shadow).Txt"))?.Trim() == ">" ? HubRect(tn) : null,
             SpinMenuOpen = (invList != 0 && IsShown(invList, pg)) || (rollFrame != 0 && IsShown(rollFrame, pg)),
-            SpinButton = reader.ResolvePath(pg, AnimeZeroPaths.SpinButtonPath) is var sb and not 0 && IsShown(sb, pg) && HubRect(sb) is { W: > 4, H: > 4 } sbr ? sbr : null,
+            SpinButton = SpinButtonNode(pg) is var sb and not 0 && IsShown(sb, pg) && HubRect(sb) is { W: > 4, H: > 4 } sbr ? sbr : null,
             RollExit = rollFrame != 0 && IsShown(rollFrame, pg) && reader.ResolvePath(rollFrame, AnimeZeroPaths.RollExit) is var rx and not 0 && IsShown(rx, pg)
                 && HubRect(rx) is { } rxr ? rxr with { Y = rxr.Y + SurfaceShiftY(rollFrame) * GuiScale } : null,
         };
     }
+
+    /// <summary>v0.3.41: new path (WideButtons) first, the old path (snapshot s0819) as fallback.</summary>
+    private long SpinButtonNode(long pg) => pg == 0 ? 0
+        : reader.ResolvePath(pg, AnimeZeroPaths.SpinButtonPath) is var n and not 0 ? n : reader.ResolvePath(pg, AnimeZeroPaths.SpinButtonPathOld);
 
 
     private long _hubAt;

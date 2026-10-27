@@ -57,7 +57,10 @@ public static class AnimeZeroPaths
     public const string MenuSpin = "Spin";
     /// <summary>v0.3.12 (snapshot s0819 + Byzan screenshot 26 Oct): the "Spinning" button (EXTRA LUCK, hotkey R) = ImageButton SummonButton;
     /// the "Spinning" text is at Juice.Body.Art.Spinning (depth 6, outside the text scan). Opens "UI Animation (Finished).Roll".</summary>
-    public const string SpinButtonPath = "LobbyHUD.LeftSideButtons.SummonButton";
+    public const string SpinButtonPathOld = "LobbyHUD.LeftSideButtons.SummonButton";
+    /// <summary>v0.3.41 (RIE PlayerGui 28 Oct 00:28:11): game update moved the button into a WideButtons frame
+    /// (SummonButton 24,183 200x75 "EXTRA LUCK / Spinning / R"; its sibling StoreButton is a paid shop and is never clicked).</summary>
+    public const string SpinButtonPath = "LobbyHUD.LeftSideButtons.WideButtons.SummonButton";
     /// <summary>Roll open: MainFrame directly under ScreenGui Roll (s0819); older version at Roll.SurfaceGui.MainFrame. Exit button = ExitButton.HitPad.</summary>
     public static readonly string[] RollMainFrames = ["UI Animation (Finished).Roll.MainFrame", "UI Animation (Finished).Roll.SurfaceGui.MainFrame"];
     public const string RollExit = "ExitButton.HitPad";
