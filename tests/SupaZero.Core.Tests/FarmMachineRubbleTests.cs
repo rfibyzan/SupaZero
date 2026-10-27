@@ -33,6 +33,26 @@ public partial class FarmMachineTests
     }
 
     [Fact]
+    public void RubblePending_EnterNextArea_OnlyWhenRubbleBlocksTheWay()
+    {
+        // v0.3.29: "Enter area 3/5" after area 2's wave; rubble beyond area 3's entry = later area → walk to area 3, not to the rubble.
+        Vec3 Rub(double z) => new(0, 3, z);
+        GameSnapshot Fight() => new()
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 2/5 · 1 left"), PlayerPos = new(0, 3, 0), CameraLook = (0, -1),
+            Enemies = [new("1", new(0, 3, -10), 100, 100)], NextAreaPos = new(0, 3, -89),
+        };
+        foreach (var (z, expectRubble) in new[] { (-150.0, false), (-40.0, true) })
+        {
+            var (m, _) = New();
+            m.Step(Fight() with { RubblePending = Rub(z) }, 10_000);
+            var enter = Fight() with { EnemyCount = 0, Enemies = [], RubblePending = Rub(z), Hud = HudText.Parse("Enter area 3/5") };
+            m.Step(enter, 11_000);
+            Assert.Equal(expectRubble, m.Status.Contains("rubble", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
     public void Rubble_IsTreatedAsEnemyTarget()
     {
         var s = new GameSnapshot { Attached = true, EnemyCount = 1, Enemies = [new EnemyInfo("Rubble", new Vec3(5, 0, 5), 1, 1)], RubblePos = new Vec3(5, 0, 5) };

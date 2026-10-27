@@ -31,7 +31,7 @@ public sealed partial class FarmMachine
         bool waveAlive = s.Enemies.Any(e => e.Alive && e.Name != AnimeZeroPaths.RubbleName);
         if (waveAlive && hud is { Area: > 0, Enter: false }) _waveArea = hud.Area;
         if (left == 0 && s.RubblePending is { } rpend && hud is { Area: > 0 } && _waveArea > 0
-            && (hud.Area == _waveArea || (hud.Enter && hud.Area == _waveArea + 1)) && RubbleNear(s, rpend))
+            && (hud.Area == _waveArea || (hud.Enter && hud.Area == _waveArea + 1 && RubbleBeforeNextArea(s, rpend))) && RubbleNear(s, rpend))
         {
             _pending.AddRange(Note("rubble-pending", now, 10000, string.Create(System.Globalization.CultureInfo.InvariantCulture,
                 $"Wave of area {_waveArea} clear → attack rubble at ({rpend.X:0},{rpend.Z:0}) [{s.RubbleInfo}].")));

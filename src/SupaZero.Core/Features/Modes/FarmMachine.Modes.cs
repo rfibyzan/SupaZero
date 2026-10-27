@@ -18,6 +18,15 @@ public sealed partial class FarmMachine
     public const double RubbleNearPlayer = 250, RubbleNearArea = 80;
 
     /// <summary>Rubble waiting near the player (≤ 250 studs) or near the current area box (≤ 80 studs from its edge).</summary>
+    /// <summary>
+    /// v0.3.29 (Byzan 27 Oct 23:10, West City Act 1; RIE World 23:14:02: Border2 open, Border3 Blocker solid + RubbleBar inside Area 3 box): rubble already broken, HUD "Enter area 3/5" 89 studs away, but the macro
+    /// kept going for a still-solid Blocker further on ("Path to rubble not found"). With "Enter area N" a rubble only blocks the way when it
+    /// is closer to the player than area N's entry point; a rubble beyond it belongs to a later area. Area point unreadable = not attacked.
+    /// </summary>
+    internal static bool RubbleBeforeNextArea(GameSnapshot s, Vec3 rp) =>
+        s.PlayerPos is { } p && s.NextAreaPos is { } n
+        && Navigator.Distance2D(p.X, p.Z, rp.X, rp.Z) < Navigator.Distance2D(p.X, p.Z, n.X, n.Z);
+
     internal static bool RubbleNear(GameSnapshot s, Vec3 rp) =>
         (s.PlayerPos is { } p && Navigator.Distance2D(p.X, p.Z, rp.X, rp.Z) <= RubbleNearPlayer)
         || (s.CurrentArea is { } a && a.Contains(rp, -RubbleNearArea));
