@@ -60,4 +60,33 @@ public partial class FarmMachineTests
         var e = Assert.Single(near.OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
         Assert.Equal(1250, e.HoldMs);
     }
+
+    [Fact]
+    public void ElevatorRoute_FollowsRecordedStairs()
+    {
+        var r = ElevatorRoutes.For(new(383, 98, -57))!;
+        Assert.NotNull(r);
+        Assert.Equal(-1, ElevatorRoutes.Next(r, new(413, 19.7, -60)));       // ground, away from the stairs
+        Assert.Equal(1, ElevatorRoutes.Next(r, new(435, 19.7, -89.4)));      // at the stair foot → next point
+        int mid = ElevatorRoutes.Next(r, new(440, 51.3, -45));               // landing between points 6 and 7
+        Assert.Equal(6, mid);
+        Assert.Equal(r.Points.Count, ElevatorRoutes.Next(r, new(384.5, 95.5, -57.5)));
+        Assert.Equal(-1, ElevatorRoutes.Next(r, new(440, 19.7, -45)));       // under the landing, wrong floor
+        Assert.Null(ElevatorRoutes.For(new(-171, 7, -43.5)));                // floor 1 elevator needs no route
+    }
+
+    [Fact]
+    public void Elevator_Floor2_OnStairs_WalksUp_NoE()
+    {
+        var (m, _) = New();
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 0, PlayerPos = new(440, 39, -68), CameraLook = (1, 0), HudRaw = "Head to the elevator to continue!",
+            Lift = new LiftInfo(new(383, 98, -57), true, 14, "Enter", 0, Elevator: true),
+        };
+        var a = Real(m.Step(snap, 0));
+        Assert.Contains(a, x => x is MoveAction { Keys.Count: > 0 });
+        Assert.DoesNotContain(a, x => x is KeyAction { VirtualKey: VirtualKeys.E });
+        Assert.True(m.Status.Contains("Climbing the stairs"), m.Status);
+    }
 }
