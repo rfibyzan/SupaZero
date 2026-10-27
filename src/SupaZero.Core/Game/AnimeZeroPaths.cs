@@ -70,6 +70,10 @@ public static class AnimeZeroPaths
     public const string RetryButton = "Retry";          // [V]
     public const string LeaveButton = "Leave";          // [V]
     public const string BossBar = "BossBar";
+    /// <summary>v0.3.23 (RIE PlayerGui 15:26:26): run scoreboard rows, one Frame per player named by UserId;
+    /// damage text at Content.Info.Damage.Text ("5,712").</summary>
+    public const string RunPlayerRows = "RunPlayerList.SocialPanel.PlayerList.Rows";
+    public const string RunPlayerRowDamage = "Content.Info.Damage.Text";
 
     // Lobby CREATE LOBBY
     public const string LobbyRoot = "UI Animation (Finished).Quque.MainFrame";

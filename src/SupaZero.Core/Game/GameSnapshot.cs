@@ -110,6 +110,8 @@ public sealed record GameSnapshot
     public Settings.Vec3? PlayerPos { get; init; }
     /// <summary>Character HP 0..1 (Humanoid Health/MaxHealth), null when unreadable.</summary>
     public double? PlayerHp { get; init; }
+    /// <summary>v0.3.23: this player's damage on the run scoreboard (row = LocalPlayer.UserId); null when unreadable.</summary>
+    public long? MyDamage { get; init; }
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
     /// <summary>v0.2.67: active ARISE prompts (Shadow Lord), empty when none.</summary>
     public IReadOnlyList<AriseInfo> Arises { get; init; } = [];

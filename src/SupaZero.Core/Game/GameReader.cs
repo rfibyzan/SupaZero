@@ -139,6 +139,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             Lift = ReadLift(ws),
             Shadows = ParseShadows(pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.ShadowsValue) is var sv and not 0 ? Text(sv) : null),
             PlayerHp = ReadPlayerHp(roots.LocalPlayer),
+            MyDamage = ReadMyDamage(pg, roots.LocalPlayer),
             NextAreaPos = hud is { TargetArea: > 0 } ? ReadAreaPos(ws, hud.TargetArea) : null,
             NextAreaCenter = hud is { TargetArea: > 0 } ? ReadAreaCenter(ws, hud.TargetArea) : null,
             LobbyModes = lobbyShown ? ReadList(Find(lobby, AnimeZeroPaths.LobbyModesList), pg) : [],

@@ -8,6 +8,17 @@ public sealed partial class FarmMachine
 {
     private List<MacroAction> Fight(GameSnapshot s, AppSettings S, long now)
     {
+        // v0.3.23 Carry: damage target reached → idle (no attack/skill/move/pickup) until the end screen. Unreadable damage → fight normally.
+        if (S.Combat.CarryDamage > 0)
+        {
+            if (s.MyDamage is { } dmg && dmg >= S.Combat.CarryDamage)
+            {
+                Status = $"Carry: damage {dmg:N0} ≥ {S.Combat.CarryDamage:N0}, idle until the round ends.";
+                return [new MoveAction([], "Carry idle")];
+            }
+            if (s.MyDamage is null)
+                _pending.AddRange(Note("carry-dmg", now, 15000, "Carry: own damage on the scoreboard (RunPlayerList row = UserId) unreadable → fighting normally."));
+        }
         var hud = s.Hud;
         int left = s.EnemyCount >= 0 ? s.EnemyCount : hud?.EnemiesLeft ?? -1;
         string area = hud is { AreaTotal: > 0 } ? $"Area {hud.Area}/{hud.AreaTotal}" : "Area ?";

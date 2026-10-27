@@ -11,7 +11,10 @@ public sealed record CombatSettings(
     /// <summary>v0.2.72: turn shift lock on automatically during a round; turned off when GUI clicks are needed / outside a round.</summary>
     bool AutoShiftLock = true,
     /// <summary>v0.3.21 (Byzan 27 Oct): Ultimate (G) only while a boss is fighting: PlayerGui.BossBar shown and not [IMMUNE].</summary>
-    bool UltBossOnly = true)
+    bool UltBossOnly = true,
+    /// <summary>v0.3.23 Carry (alt account): once this player's scoreboard damage reaches this value, stop fighting and idle until the
+    /// round ends (Retry is handled by the end screen as usual). 0 = off.</summary>
+    int CarryDamage = 0)
 {
     public static List<SkillBinding> DefaultSkills() =>
     [

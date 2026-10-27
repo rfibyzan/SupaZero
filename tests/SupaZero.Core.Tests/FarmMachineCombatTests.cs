@@ -182,6 +182,27 @@ public partial class FarmMachineTests
     }
 
     [Fact]
+    public void Carry_IdlesOnceDamageReached_AndParsesScoreboard()
+    {
+        Assert.Equal(5712, GameReader.ParseDamage("5,712"));
+        Assert.Equal(11300, GameReader.ParseDamage("11.3K"));
+        Assert.Equal(0, GameReader.ParseDamage("0"));
+        Assert.Null(GameReader.ParseDamage("abc"));
+        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
+            PlayerPos = new(75, 3, -336), CameraLook = (0, -1),
+            Enemies = [new("1", new(75, 3, -340), 100, 100)],
+            SkillCooldowns = [new("1", null, false)],
+        };
+        Assert.Contains(m.Step(snap with { MyDamage = 400 }, 10_000).OfType<KeyAction>(), k => k.Reason.Contains("Skill 1"));
+        var idle = m.Step(snap with { MyDamage = 1200 }, 11_000);
+        Assert.DoesNotContain(idle.OfType<KeyAction>(), k => true);
+        Assert.Contains("Carry", m.Status);
+    }
+
+    [Fact]
     public void Turn_DirectionAndDeadzone()
     {
         // Look -Z (0,-1); camera right = +X (Roblox). Enemy at +X → turn right (dx > 0).

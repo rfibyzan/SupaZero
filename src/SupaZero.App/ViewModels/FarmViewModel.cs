@@ -339,6 +339,7 @@ public sealed class FarmViewModel : ObservableObject
     });
 
     public bool AutoShiftLock { get => S.Combat.AutoShiftLock; set { S.Combat = S.Combat with { AutoShiftLock = value }; _root.Save(); } }
+    public decimal CarryDamage { get => S.Combat.CarryDamage; set { S.Combat = S.Combat with { CarryDamage = (int)Math.Clamp(value, 0, 10_000_000) }; _root.Save(); } }
     public bool UltBossOnly { get => S.Combat.UltBossOnly; set { S.Combat = S.Combat with { UltBossOnly = value }; _root.Save(); } }
     public bool AutoArise { get => S.Combat.AutoArise; set { S.Combat = S.Combat with { AutoArise = value }; _root.Save(); } }
     public decimal AttackIntervalMs { get => S.Combat.AttackIntervalMs; set { S.Combat = S.Combat with { AttackIntervalMs = (int)value }; _root.Save(); } }
