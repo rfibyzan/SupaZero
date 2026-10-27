@@ -67,6 +67,7 @@ public sealed partial class FarmMachine
         // Tracking: nearest living enemy → walk closer until within attack range, cursor aimed at the enemy.
         // While approaching only Dash (Q) is used; basic attack + skills 1/2/3 only once within attack range.
         bool approaching = false;
+        bool rubbleNear = false;
         EnemyInfo? tgt = null;
         var candidates = Targets(s);
         // Low HP while fighting: grab the nearest health first.
@@ -123,6 +124,9 @@ public sealed partial class FarmMachine
                 }
                 approaching = lootWalk is null && dGoal > range + (isRubble ? 2 : RangeTolerance(S.Navigation.AttackRange));
                 // v0.3.31: pressed against the rubble debris (stuck ≥ 1.5 s, ≤ 60 studs) = as close as it gets → attack with everything.
+                // v0.3.33 (Byzan 27 Oct 23:30): at 41 studs one manual M1 broke the West City rubble while the macro never pressed M1
+                // (it only attacked within 12 studs). Rubble ≤ 60 studs: basic attack while still approaching.
+                rubbleNear = isRubble && dGoal <= RubbleStraightRange;
                 if (isRubble && approaching && dGoal <= RubbleStraightRange && _stuckRef is { } sr && now - _stuckSince >= 1500
                     && Navigator.Distance2D(me.X, me.Z, sr.X, sr.Z) <= 1.5)
                 {
@@ -204,6 +208,12 @@ public sealed partial class FarmMachine
                 && s.Enemies.Any(e => e.Alive && Navigator.Distance2D(p0.X, p0.Z, e.Pos.X, e.Pos.Z) > 2 * S.Navigation.AttackRange)
                 && HotkeyMap.TryGetVirtualKey(dash.Key, out uint dvk))
                 actions.Add(new KeyAction((ushort)dvk, 40, $"{dash.Name} ({dash.Key}) approach"));
+            if (rubbleNear && now - _lastAttack >= S.Combat.AttackIntervalMs)
+            {
+                _lastAttack = now;
+                actions.Add(new AttackAction("Basic attack (rubble ≤ 60 studs)"));
+                Status += " · attacking rubble";
+            }
             return actions;
         }
 

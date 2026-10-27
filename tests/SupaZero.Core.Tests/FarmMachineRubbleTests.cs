@@ -62,7 +62,7 @@ public partial class FarmMachineTests
             Attached = true, EnemyCount = 1, Hud = HudText.Parse("Break the rubble to continue!"), PlayerPos = new(0, 3, 0), CameraLook = (0, -1),
             Enemies = [new EnemyInfo("Rubble", new Vec3(0, 3, -41), 1, 1)], RubblePos = new Vec3(0, 3, -41),
         };
-        m.Step(s, 10_000);
+        Assert.Contains(m.Step(s, 10_000).OfType<AttackAction>(), a => a.Reason.Contains("rubble"));
         Assert.DoesNotContain("against the debris", m.Status);
         m.Step(s, 11_000);
         m.Step(s, 12_000);
