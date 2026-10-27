@@ -13,6 +13,7 @@
           <NumericUpDown Grid.Column="1" Value="{Binding AttackIntervalMs}" Minimum="30" Maximum="2000" Increment="10" FormatString="0" />
         </Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Auto shift lock during rounds (enemies present = always on)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoShiftLock}" /></Grid>
+        <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Ultimate (G) only on bosses (boss bar shown, not IMMUNE)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding UltBossOnly}" /></Grid>
         <Grid ColumnDefinitions="*,Auto" MinHeight="34"><TextBlock Classes="label" Text="Shadow Lord: auto Arise on Shadow Gate (hold E on corpses)" /><ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoArise}" /></Grid>
         <ItemsControl ItemsSource="{Binding SkillRows}">
           <ItemsControl.ItemTemplate>

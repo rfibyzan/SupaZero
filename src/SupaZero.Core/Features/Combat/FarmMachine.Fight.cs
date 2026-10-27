@@ -200,7 +200,9 @@ public sealed partial class FarmMachine
             && c.Ready && (!_skillLast.TryGetValue(k.Name, out long t0) || now - t0 >= 400);
         var main = skills.Where(k => !IsDash(k) && !IsSwap(k) && !IsUlt(k)).ToList();
         // Ultimate: press G periodically while fighting (the game rejects it while the ult bar is not full); HUD is used when a G box exists.
-        bool ultNow = ult is not null && now - _lastSkillPress >= 300
+        // v0.3.21: boss-only Ultimate (setting UltBossOnly) → only when BossBar is shown and not [IMMUNE]; otherwise G is never pressed.
+        bool ultBossOk = !S.Combat.UltBossOnly || (s.BossBarVisible && !s.BossImmune);
+        bool ultNow = ult is not null && ultBossOk && now - _lastSkillPress >= 300
             && (s.UltReady ?? (hudCd.TryGetValue(ult.Key, out var uc) && uc.Ready))
             && (!_skillLast.TryGetValue(ult.Name, out long ut) || now - ut >= Math.Max(800, ult.CooldownMs))
             && HotkeyMap.TryGetVirtualKey(ult.Key, out _);

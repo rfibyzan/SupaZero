@@ -147,7 +147,7 @@ public partial class FarmMachineTests
     [Fact]
     public void Fight_PressesUltimateG_BetweenSkills_AndOldSettingsGetUltRow()
     {
-        var old = new CombatSettings(Skills: CombatSettings.DefaultSkills().Where(k => k.Name != "Ultimate").ToList());
+        var old = new CombatSettings(Skills: CombatSettings.DefaultSkills().Where(k => k.Name != "Ultimate").ToList(), UltBossOnly: false);
         Assert.Contains(old.EffectiveSkills, k => k.Name == "Ultimate" && k.Key == "G" && k.Enabled);
         var (m, _) = New(s => s.Combat = old);
         var snap = new GameSnapshot
@@ -162,6 +162,23 @@ public partial class FarmMachineTests
         var ready = snap with { UltReady = true, SkillCooldowns = [new("1", null, false), new("2", 2, false), new("3", 4, false)] };
         Assert.Contains(m.Step(ready, 11_000).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
         Assert.DoesNotContain(m.Step(ready, 11_500).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
+    }
+
+    [Fact]
+    public void Fight_UltBossOnly_PressesGOnlyWhenBossBarShownAndNotImmune()
+    {
+        var (m, _) = New(s => s.Combat = new CombatSettings());
+        Assert.True(new CombatSettings().UltBossOnly);
+        var snap = new GameSnapshot
+        {
+            Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"),
+            PlayerPos = new(75, 3, -336), CameraLook = (0, -1), UltReady = true,
+            Enemies = [new("1", new(75, 3, -340), 100, 100)],
+            SkillCooldowns = [new("1", 3, false), new("2", 2, false), new("3", 4, false)],
+        };
+        Assert.DoesNotContain(m.Step(snap, 10_000).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
+        Assert.DoesNotContain(m.Step(snap with { BossBarVisible = true, BossTag = "[IMMUNE]" }, 11_000).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
+        Assert.Contains(m.Step(snap with { BossBarVisible = true, BossTag = "[BOSS]" }, 12_000).OfType<KeyAction>(), k => k.Reason.Contains("Ultimate (G)"));
     }
 
     [Fact]

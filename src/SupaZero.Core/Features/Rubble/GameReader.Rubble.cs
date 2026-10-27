@@ -44,9 +44,16 @@ public sealed partial class GameReader
             else
             {
                 string cls = reader.GetClassName(ad);
-                info = $"Adornee {cls} {reader.GetName(ad)}";
-                // An Attachment has no Position of its own → use its parent Part (Blocker).
-                holder = cls == "Attachment" ? reader.GetParent(ad) : ad;
+                // v0.3.21 (Byzan log 27 Oct 14:11:41, Hxh Act 4): Adornee pointer non-zero but class/name empty = not a valid instance
+                // (character stood still until the camera looked at the bar). Treat as empty so the unique-Blocker fallback runs.
+                if (string.IsNullOrEmpty(cls)) info = "Adornee invalid (no class)";
+                else
+                {
+                    info = $"Adornee {cls} {reader.GetName(ad)}";
+                    // An Attachment has no Position of its own → use its parent Part (Blocker).
+                    holder = cls == "Attachment" ? reader.GetParent(ad) : ad;
+                    if (holder != 0 && string.IsNullOrEmpty(reader.GetClassName(holder))) { holder = 0; info += " (parent invalid)"; }
+                }
             }
         }
         // v0.3.20 (Byzan RIE World 13:55:08 + log 27 Oct 2026, Hxh Act 4): RubbleBar.Adornee is empty on this map, but only the active

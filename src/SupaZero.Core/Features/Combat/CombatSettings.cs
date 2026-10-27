@@ -9,7 +9,9 @@ public sealed record CombatSettings(
     /// <summary>v0.2.67: Shadow Lord: approach a corpse with an ARISE prompt, then hold E until it rises as an ally.</summary>
     bool AutoArise = true,
     /// <summary>v0.2.72: turn shift lock on automatically during a round; turned off when GUI clicks are needed / outside a round.</summary>
-    bool AutoShiftLock = true)
+    bool AutoShiftLock = true,
+    /// <summary>v0.3.21 (Byzan 27 Oct): Ultimate (G) only while a boss is fighting: PlayerGui.BossBar shown and not [IMMUNE].</summary>
+    bool UltBossOnly = true)
 {
     public static List<SkillBinding> DefaultSkills() =>
     [
