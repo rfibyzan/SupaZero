@@ -61,6 +61,17 @@ public static class AnimeZeroPaths
     /// <summary>Roll open: MainFrame directly under ScreenGui Roll (s0819); older version at Roll.SurfaceGui.MainFrame. Exit button = ExitButton.HitPad.</summary>
     public static readonly string[] RollMainFrames = ["UI Animation (Finished).Roll.MainFrame", "UI Animation (Finished).Roll.SurfaceGui.MainFrame"];
     public const string RollExit = "ExitButton.HitPad";
+
+    // v0.3.26 Codes (RIE PlayerGui 18:17:54 / 18:18:02 / 18:18:19 / 18:18:30, 27 Oct): LobbyHUD.RightSideButtons.CodesButton opens
+    // ScreenGui "Finished UI.Codes" (Enabled true, LobbyHUD disabled). MainFrame sits under a SurfaceGui (origin 0,0; ScreenGui at 0,58).
+    public const string CodesButton = "LobbyHUD.RightSideButtons.CodesButton";
+    public const string CodesGui = "Finished UI.Codes";
+    public const string CodesFrame = "Finished UI.Codes.SurfaceGui.MainFrame";
+    public const string CodesTextBox = "Body.Content.Holder.InPut.TextBox";
+    public const string CodesRedeem = "Body.Content.RedeemButton";
+    public const string CodesExit = "Body.Content.ExitButton.HitPad";
+    /// <summary>Result toasts: children "Notification" (Txt = 'Code "SORRYXD67" redeemed!' / 'You have already used this code.' / 'You received ' + reward labels).</summary>
+    public const string Notifications = "UI Animation (Finished).PopupsAndTooltips.NotificationsCut.Notifications";
     public const double StartVoteYesX = 960, StartVoteYesY = 232;
 
     // End screen

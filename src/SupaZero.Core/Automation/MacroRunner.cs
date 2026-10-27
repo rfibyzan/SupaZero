@@ -155,7 +155,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     /// <summary>v0.3.12: live enemies are read and the screen is not the lobby/lobby menu (Shift is forbidden in the lobby).</summary>
     public static bool MustShiftLock(GameSnapshot s) => MustShiftLock(s.Screen, s.EnemyCount);
     public static bool MustShiftLock(GameScreen screen, int enemyCount) =>
-        enemyCount > 0 && screen is not (GameScreen.Lobby or GameScreen.LobbyMenu or GameScreen.QueueWaiting or GameScreen.TrialsMenu);
+        enemyCount > 0 && screen is not (GameScreen.Lobby or GameScreen.LobbyMenu or GameScreen.QueueWaiting or GameScreen.TrialsMenu or GameScreen.CodesMenu);
 
     private long _slGiveUpLogAt = -60_000;
 
@@ -163,6 +163,7 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
     {
         if (screen != _slScreen) { _slScreen = screen; _slFails = 0; _slWant = null; }
         // Shift lock state only from the camera (no guessing): unreadable / animated camera → do not press Shift.
+        if (screen == GameScreen.CodesMenu) return; // v0.3.26: never Shift while typing a code (lobby)
         if ((screen == GameScreen.Unknown && !mustLock) || _camFree || _shiftLockMem is not { } cur) return;
         // GUI click this tick: click handling turns shift lock off & back on by itself.
         bool clicking = actions.Any(a => a is ClickAction or ScrollAction);
@@ -338,6 +339,20 @@ public sealed class MacroRunner(Func<GameSnapshot> read, IInput input, Func<AppS
                 // was once dragged outside and the basic attack clicked the browser/File Explorer (Byzan's report 24 Oct 23:24).
                 if (!CursorInside()) { RecenterCursor("attack"); break; }
                 input.ClickHere();
+                break;
+            case TypeTextAction tt:
+                Emit($"Typing {tt.Reason} ({(tt.Unicode ? "unicode" : "keys")}).");
+                input.KeyDown(0x11); await Task.Delay(30, ct); input.KeyDown(0x41); await Task.Delay(30, ct); input.KeyUp(0x41); input.KeyUp(0x11); // Ctrl+A
+                await Task.Delay(40, ct);
+                input.KeyDown(0x08); await Task.Delay(30, ct); input.KeyUp(0x08); // Backspace
+                await Task.Delay(60, ct);
+                foreach (char ch in tt.Text)
+                {
+                    if (!input.IsTargetForeground()) break;
+                    if (tt.Unicode) input.TypeUnicode(ch);
+                    else if (char.IsAsciiLetterOrDigit(ch)) { ushort vk = char.ToUpperInvariant(ch); input.KeyDown(vk); await Task.Delay(20, ct); input.KeyUp(vk); }
+                    await Task.Delay(35, ct);
+                }
                 break;
             case KeyAction k:
                 input.KeyDown(k.VirtualKey);

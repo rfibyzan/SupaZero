@@ -12,7 +12,10 @@ public readonly record struct GuiRect(double X, double Y, double W, double H)
         x >= X + margin && x <= X + W - margin && y >= Y + margin && y <= Y + H - margin;
 }
 
-public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting, BlessingPick, TrialsMenu }
+public enum GameScreen { Unknown, Lobby, LobbyMenu, StartVote, InRound, Victory, Defeat, QueueWaiting, BlessingPick, TrialsMenu, CodesMenu }
+
+/// <summary>v0.3.26: one result toast (instance address = identity, text = its TextLabels joined).</summary>
+public sealed record NotificationInfo(long Id, string Text);
 
 /// <summary>State of one HUD skill box: Key from keybind.Txt; Remaining cooldown seconds (null = ready); Locked = MasteryLock shown.</summary>
 /// <summary>Enemy in Workspace.enemies: HumanoidRootPart position + Humanoid HP.</summary>
@@ -114,6 +117,15 @@ public sealed record GameSnapshot
     public long? MyDamage { get; init; }
     /// <summary>v0.3.24: PlayerGui.FreeRevive shown (ScreenGui Enabled, card visible) and its label says "Free".</summary>
     public bool FreeReviveShown { get; init; }
+
+    // v0.3.26 Codes menu
+    public GuiRect? CodesButton { get; init; }
+    public bool CodesOpen { get; init; }
+    public GuiRect? CodesTextBox { get; init; }
+    public string? CodesText { get; init; }
+    public GuiRect? CodesRedeem { get; init; }
+    public GuiRect? CodesExit { get; init; }
+    public IReadOnlyList<NotificationInfo> Notifications { get; init; } = [];
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
     /// <summary>v0.2.67: active ARISE prompts (Shadow Lord), empty when none.</summary>
     public IReadOnlyList<AriseInfo> Arises { get; init; } = [];
@@ -332,6 +344,7 @@ public sealed record GameSnapshot
             // previously the vote was never clicked (Byzan screenshot 24 Oct 22:42, "Get ready" 0/1 votes). Enough: no living enemy read.
             if (StartVoteVisible && !Enemies.Any(e => e.Alive && e.Name != AnimeZeroPaths.RubbleName) && (EnemyCount <= 0 || Enemies.Count > 0 || HudRaw?.Contains("ready", StringComparison.OrdinalIgnoreCase) == true)) return GameScreen.StartVote;
             if (Blessings.Count > 0) return GameScreen.BlessingPick;
+            if (CodesOpen) return GameScreen.CodesMenu;
             if (LobbyMenuOpen) return GameScreen.LobbyMenu;
             if (QueueSkip is not null) return GameScreen.QueueWaiting;
             if (Trials is not null) return GameScreen.TrialsMenu;

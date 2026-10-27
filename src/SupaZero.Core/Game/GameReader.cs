@@ -187,6 +187,7 @@ public sealed partial class GameReader(InstanceReader reader, PropertyReader pro
             SkillTreeExit = treeShown && reader.ResolvePath(tree, AnimeZeroPaths.SkillTreeExit) is var ex and not 0 && IsShown(ex, pg) ? HubRect(ex) : null,
             UnitsButton = pg != 0 && reader.ResolvePath(pg, AnimeZeroPaths.UnitsButtonPath) is var ub and not 0 && IsShown(ub, pg) ? HubRect(ub) : null,
         };
+        snap = ReadCodes(snap, pg);
         snap = ReadModes(snap, pg, ws, lobby, lobbyShown, end, endShown);
         if (snap.Screen != GameScreen.Lobby) return snap;
         var (areas, cards) = ScanHub(pg);

@@ -144,6 +144,15 @@ public sealed partial class Win32Input(Func<int> processId) : IInput
         MouseButton(MouseLeftUp);
     }
 
+    public void TypeUnicode(char c)
+    {
+        foreach (bool up in new[] { false, true })
+        {
+            var i = new Input { Type = InputKeyboard, Data = new InputUnion { Keyboard = new KeyboardInput { Vk = 0, Scan = c, Flags = 0x0004u | (up ? KeyUpFlag : 0) } } };
+            SendInput(1, ref i, Marshal.SizeOf<Input>());
+        }
+    }
+
     public void KeyDown(ushort vk) => Key(vk, false);
     public void KeyUp(ushort vk) => Key(vk, true);
 

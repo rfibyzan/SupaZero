@@ -179,6 +179,10 @@ public sealed class FarmViewModel : ObservableObject
     }
 
     public bool AutoCreateLobby { get => S.Farm.AutoCreateLobby; set => Farm(f => f with { AutoCreateLobby = value }); }
+    public bool AutoRedeemCodes { get => S.Farm.AutoRedeemCodes; set => Farm(f => f with { AutoRedeemCodes = value }); }
+    public string ExtraCodes { get => S.Farm.ExtraCodes; set => Farm(f => f with { ExtraCodes = value ?? "" }); }
+    public string CodesInfo => _root.CodesInfo;
+    public void RaiseCodesInfo() => Raise(nameof(CodesInfo));
     public bool AutoVoteStart { get => S.Farm.AutoVoteStart; set => Farm(f => f with { AutoVoteStart = value }); }
     public bool RetryOnDefeat { get => S.Farm.RetryOnDefeat; set => Farm(f => f with { RetryOnDefeat = value }); }
     public bool InfiniteUnlimitedRetry { get => S.Farm.InfiniteUnlimitedRetry; set => Farm(f => f with { InfiniteUnlimitedRetry = value }); }

@@ -26,6 +26,9 @@ public sealed record AttackAction(string Reason) : MacroAction(Reason);
 /// <summary>Press a key (virtual-key) for <paramref name="HoldMs"/>.</summary>
 public sealed record KeyAction(ushort VirtualKey, int HoldMs, string Reason) : MacroAction(Reason);
 
+/// <summary>v0.3.26: select all + Backspace in the focused text box, then type <paramref name="Text"/> (Unicode chars, or plain letter/digit keys).</summary>
+public sealed record TypeTextAction(string Text, bool Unicode, string Reason) : MacroAction(Reason);
+
 /// <summary>Hold exactly these movement keys (W/A/S/D); other movement keys are released. Empty = release all.</summary>
 public sealed record MoveAction(IReadOnlyList<ushort> Keys, string Reason) : MacroAction(Reason);
 

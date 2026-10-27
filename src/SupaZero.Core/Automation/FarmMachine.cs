@@ -68,6 +68,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         Phase = MacroPhase.Idle;
         Status = "Idle";
         Calibrating = false;
+        ResetCodes();
     }
 
     public IReadOnlyList<MacroAction> Step(GameSnapshot s, long nowMs)
@@ -107,7 +108,8 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
         var actions = Calibrating ? CalibrationStep(s, S, nowMs) : carryDown ? FreeRevive(s, S, nowMs) : screen switch
         {
             GameScreen.Unknown => Wait("Waiting for Roblox / DataModel."),
-            GameScreen.Lobby => WalkToLobby(s, S, nowMs),
+            GameScreen.Lobby => OpenCodes(s, S, nowMs) ?? WalkToLobby(s, S, nowMs),
+            GameScreen.CodesMenu => CodesMenu(s, S, nowMs),
             GameScreen.LobbyMenu => LobbyMenu(s, S, nowMs),
             GameScreen.QueueWaiting => QueueWait(s, nowMs),
             GameScreen.BlessingPick => PickBlessing(s, S, nowMs),

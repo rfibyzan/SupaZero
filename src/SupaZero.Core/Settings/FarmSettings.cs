@@ -70,4 +70,10 @@ public sealed record FarmSettings(
     /// <summary>v0.3.11: Mirror Blessing card order + whether pickable. null = from the legacy BlessingPriority.</summary>
     List<SupaZero.Core.Game.BlessingPref>? BlessingCards = null,
     /// <summary>v0.3.11: cards read in game (name, rarity, description, value) outside the built-in list.</summary>
-    List<SupaZero.Core.Game.BlessingInfo>? KnownBlessings = null);
+    List<SupaZero.Core.Game.BlessingInfo>? KnownBlessings = null,
+    /// <summary>v0.3.26: in the lobby, redeem codes (beebom list + ExtraCodes) not yet redeemed/used by this account, then continue.</summary>
+    bool AutoRedeemCodes = true,
+    /// <summary>v0.3.26: extra codes (comma separated) tried besides the beebom list.</summary>
+    string ExtraCodes = "",
+    /// <summary>v0.3.26: per player name, codes the game answered "redeemed" or "already used" (never typed again).</summary>
+    Dictionary<string, List<string>>? DoneCodes = null);

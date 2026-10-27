@@ -79,6 +79,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Rotation.RunningChanged += _ => Dispatcher.UIThread.Post(() => { Raise(nameof(IsRunning)); Raise(nameof(RunStateText)); Raise(nameof(CanEditCarryWindows)); });
         Runner.RunningChanged += _ => Dispatcher.UIThread.Post(() => Raise(nameof(CanEditCarryWindows)));
         RefreshCarryWindowsCommand = new RelayCommand(_ => RefreshCarryWindows());
+        ConfigureCodes(Runner.Machine);
+        Rotation.ConfigureMachine = ConfigureCodes;
+        _ = FetchCodes();
 
         General = new GeneralViewModel(this);
         Farm = new FarmViewModel(this);
@@ -151,9 +154,63 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         AddLog(list.Count == 0 ? "Carry windows: no RobloxPlayerBeta running." : $"Carry windows: {string.Join(", ", list.Select(p => p.Label))}.");
     }
 
+    // v0.3.26 auto redeem codes
+    private readonly object _codesGate = new();
+    private List<string> _webCodes = [];
+    private DateTime _webCodesAt = DateTime.MinValue;
+    private readonly HashSet<string> _codesTriedSession = new(StringComparer.OrdinalIgnoreCase);
+    private string _codesInfo = "Codes: loading the list from beebom.com…";
+    public string CodesInfo { get => _codesInfo; private set { if (Set(ref _codesInfo, value)) Farm?.RaiseCodesInfo(); } }
+
+    private async Task FetchCodes()
+    {
+        try
+        {
+            var list = await SupaZero.Core.Features.Codes.CodeList.FetchBeebomAsync();
+            lock (_codesGate) { _webCodes = list; _webCodesAt = DateTime.Now; }
+            Dispatcher.UIThread.Post(() => { CodesInfo = $"Codes: {list.Count} active on beebom.com ({DateTime.Now:HH:mm})."; AddLog($"Codes list: {list.Count} from beebom.com."); });
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.UIThread.Post(() => { CodesInfo = "Codes: beebom.com unreachable, only extra codes are used."; AddLog("Codes list failed: " + ex.Message); });
+        }
+    }
+
+    private void ConfigureCodes(FarmMachine m)
+    {
+        m.CodesFor = player =>
+        {
+            lock (_codesGate)
+            {
+                var done = Settings.Farm.DoneCodes?.GetValueOrDefault(player) ?? [];
+                return _webCodes.Concat(SupaZero.Core.Features.Codes.CodeList.ParseManual(Settings.Farm.ExtraCodes))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(c => !done.Contains(c, StringComparer.OrdinalIgnoreCase) && !_codesTriedSession.Contains(player + "|" + c))
+                    .ToList();
+            }
+        };
+        m.CodeTried = (player, code, outcome, text) =>
+        {
+            lock (_codesGate)
+            {
+                if (outcome is SupaZero.Core.Features.Codes.CodeOutcome.Redeemed or SupaZero.Core.Features.Codes.CodeOutcome.AlreadyUsed)
+                {
+                    var all = new Dictionary<string, List<string>>(Settings.Farm.DoneCodes ?? new(), StringComparer.OrdinalIgnoreCase);
+                    var list = new List<string>(all.GetValueOrDefault(player) ?? []);
+                    if (!list.Contains(code, StringComparer.OrdinalIgnoreCase)) list.Add(code);
+                    all[player] = list;
+                    Settings.Farm = Settings.Farm with { DoneCodes = all };
+                }
+                else _codesTriedSession.Add(player + "|" + code); // failed / no answer: try again after restarting SupaZero
+            }
+            Dispatcher.UIThread.Post(Save);
+        };
+    }
+
     /// <summary>Hotkey: carry windows checked → carry rotation over them; none checked → single macro on the newest window (old behavior).</summary>
     public void ToggleMacro()
     {
+        if (!IsRunning && DateTime.Now - _webCodesAt > TimeSpan.FromMinutes(30)) _ = FetchCodes();
         if (Runner.IsRunning) { Runner.Stop(); return; }
         if (Rotation.IsRunning) { Rotation.Stop(); return; }
         var picks = CarryWindows.Where(w => w.IsChecked).Select(w => w.Info).ToList();

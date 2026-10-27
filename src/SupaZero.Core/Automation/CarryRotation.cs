@@ -33,6 +33,8 @@ public sealed class CarryRotation(Func<AppSettings> settings) : IDisposable
     public bool IsRunning => _loop is { IsCompleted: false };
     public string? FrontName { get; private set; }
     public event Action<string>? Log;
+    /// <summary>v0.3.26: lets the app hook each window's machine (codes list / results).</summary>
+    public Action<FarmMachine>? ConfigureMachine { get; set; }
     public event Action<bool>? RunningChanged;
 
     public void Start(IReadOnlyList<RobloxProcessInfo> picks, OffsetsSnapshot offsets)
@@ -49,6 +51,7 @@ public sealed class CarryRotation(Func<AppSettings> settings) : IDisposable
             var runner = new MacroRunner(() => { lock (gate) return session.ReadSnapshot(); }, input, settings) { StepOnlyInForeground = true };
             var alt = new Alt(p, session, input, runner);
             runner.LogPrefix = $"[{alt.Name}] ";
+            ConfigureMachine?.Invoke(runner.Machine);
             runner.Log += m => Log?.Invoke(m);
             _alts.Add(alt);
         }

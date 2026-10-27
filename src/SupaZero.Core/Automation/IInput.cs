@@ -31,6 +31,9 @@ public interface IInput
     void RightDown();
     void RightUp();
 
+    /// <summary>Type one character as Unicode (KEYEVENTF_UNICODE, no Shift).</summary>
+    void TypeUnicode(char c);
+
     void KeyDown(ushort vk);
     void KeyUp(ushort vk);
 }
