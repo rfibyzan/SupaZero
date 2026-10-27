@@ -123,6 +123,9 @@ public sealed partial class GameReader
 
     private Dictionary<string, string>? _idleToId;
     private DateTime _powersAt = DateTime.MinValue;
+    private (int Inv, string Title)? _pendingSlotName;
+    /// <summary>v0.3.37: name-cache key for an inventory slot whose character id could not be read.</summary>
+    internal static string SlotKey(int inv) => $"slot:{inv}";
     private IReadOnlyList<EquippedPower> _equipped = [];
 
     /// <summary>Loadout + traits, read at most every 2 seconds (no input of any kind).</summary>
@@ -157,8 +160,17 @@ public sealed partial class GameReader
                 string? id = CharacterId(slot);
 
                 // Name: learned from the title while this slot is selected.
-                if (id is not null && main != 0 && IsVisibleFlag(Find(main, "SelectedFrame", 2)) && Text(RollPath(pg, SelectedTitle)) is { Length: > 0 } title)
-                    Powers.LearnName(id, title.Trim());
+                // v0.3.37 (RIE PlayerGui 23:58:45 / 23:58:57, 27 Oct): CharacterId(slot) is often null, yet
+                // List.Slot3...SelectedFrame Visible ↔ Roll CharacterInfo.Title "Shadow Lord" (and Trait header "Shadow Lord 3/6").
+                // So the name is also stored per inventory slot ("slot:3"), but only after the same slot+title is seen on two reads
+                // in a row (the title may lag one frame behind a click on another slot).
+                if (main != 0 && IsVisibleFlag(Find(main, "SelectedFrame", 2)) && Text(RollPath(pg, SelectedTitle)) is { Length: > 0 } title)
+                {
+                    title = title.Trim();
+                    if (id is not null) Powers.LearnName(id, title);
+                    if (_pendingSlotName == (inv, title)) Powers.LearnName(SlotKey(inv), title);
+                    _pendingSlotName = (inv, title);
+                }
 
                 long equipped = reader.ResolvePath(slot, "Options.EquipButton.EquipButton.Equipped");
                 if (equipped == 0 || !IsVisibleFlag(equipped)) continue;
@@ -166,7 +178,7 @@ public sealed partial class GameReader
                 if (!m.Success) continue;
                 int loadout = int.Parse(m.Groups[1].Value);
 
-                string name = Powers.NameFor(id) ?? (id is null ? $"Slot {inv}" : PowerKnowledge.Pretty(id));
+                string name = Powers.NameFor(id) ?? Powers.NameFor(SlotKey(inv)) ?? (id is null ? $"Slot {inv}" : PowerKnowledge.Pretty(id));
                 int? level = main != 0 ? ParseInt(Text(reader.ResolvePath(main, "LevelShadow.Level"))) : null;
                 result.Add(new EquippedPower(loadout, inv, name, id, level, main != 0 ? Rarity(main) : null, Powers.TraitFor(name)));
             }
