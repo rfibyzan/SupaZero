@@ -82,7 +82,10 @@ public class WalkableMoundTests
     [Theory]
     [InlineData("DIRT_MOUND_1", "MAP", true)]
     [InlineData("DIRT_MOUND_1", "Rubble", false)]
-    [InlineData("ROCK_PATCH_A", "MAP", false)]
+    [InlineData("ROCK_PATCH_A", "MAP", true)]
+    [InlineData("ROCK_PATCH_B", "MAP", true)]
+    [InlineData("ROCK_PATCH_A", "Rubble", false)]
+    [InlineData("DES_BLD_INT", "DES_BUILD_1", false)]
     [InlineData("DES_ROAD", "MAP", true)]
     [InlineData("INT_ROAD_1", "MAP", true)]
     public void DirtMound_OutsideRubble_IsWalkable(string name, string parent, bool walkable) =>

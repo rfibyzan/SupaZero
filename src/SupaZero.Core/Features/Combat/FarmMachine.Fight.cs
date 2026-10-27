@@ -58,7 +58,9 @@ public sealed partial class FarmMachine
                 return [new MoveAction([], "No destination"), .. Note("nav-none", now, 6000, $"{area} clear but the next area position (World.Spawns/Areas) is unreadable. HUD text: '{s.HudRaw ?? "(none)"}'{(s.RunWave is { Length: > 0 } rw ? $", run wave '{rw}'" : "")}.")];
             }
             var walk = WalkPath(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.TargetArea}", S.Navigation.AttackWhenStuck);
-            Status = walk.Count == 0 ? $"Reached area {hud!.TargetArea}, waiting for enemies." : $"{(hud!.Enter ? $"Enter area {hud.TargetArea}/{hud.AreaTotal}" : $"{area} clear")} → walking to area {hud.TargetArea}.";
+            // v0.3.34: "Waiting for path" (empty move) no longer shows as "walking".
+            if (walk.Count > 0 && !walk.OfType<MoveAction>().Any(m => m.Keys.Count > 0)) Status = $"Path to area {hud!.TargetArea} not found, waiting (see log).";
+            else Status = walk.Count == 0 ? $"Reached area {hud!.TargetArea}, waiting for enemies." : $"{(hud!.Enter ? $"Enter area {hud.TargetArea}/{hud.AreaTotal}" : $"{area} clear")} → walking to area {hud.TargetArea}.";
             return walk.Count == 0 ? [new MoveAction([], "Arrived")] : walk;
         }
         Phase = MacroPhase.Fighting;

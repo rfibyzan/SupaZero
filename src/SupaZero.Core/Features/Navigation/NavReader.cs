@@ -100,8 +100,12 @@ public sealed partial class GameReader
         }
     }
 
+    // v0.3.34 (Byzan 27 Oct 23:33, West City "Enter area 5/5", log "Path to area 5: from (519,1022) to (711,1043), not found: no reachable
+    // cell"; RIE World 23:14:02): MAP.ROCK_PATCH_A/B are scattered-rock patch meshes whose bounding boxes are 139-275 studs wide with tops
+    // 17-24 studs while the road through them is clear (screenshot). Same treatment as DIRT_MOUND: floor, never a wall. A real rock the
+    // character bumps into is still handled by the stuck marker (Block) + re-plan.
     internal static bool IsWalkableMound(string name, string parentName) =>
-        (name.StartsWith("DIRT_MOUND", StringComparison.Ordinal) || name.EndsWith("_ROAD", StringComparison.Ordinal) || name.Contains("_ROAD_", StringComparison.Ordinal))
+        (name.StartsWith("DIRT_MOUND", StringComparison.Ordinal) || name.StartsWith("ROCK_PATCH", StringComparison.Ordinal) || name.EndsWith("_ROAD", StringComparison.Ordinal) || name.Contains("_ROAD_", StringComparison.Ordinal))
         && parentName != AnimeZeroPaths.RubbleName;
 
     private NavRect? ReadRect(long part, SortedDictionary<string, string>? pr = null)
