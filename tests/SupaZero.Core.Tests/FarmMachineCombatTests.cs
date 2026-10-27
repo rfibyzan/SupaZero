@@ -243,6 +243,7 @@ public partial class FarmMachineTests
     public void Arise_WalksToCorpse_ThenHoldsE()
     {
         var (m, _) = New();
+        m.SetSelectedMapForTest("Shadow Gate");
         var far = new GameSnapshot
         {
             Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
@@ -265,6 +266,7 @@ public partial class FarmMachineTests
     public void Arise_ShadowsUnreadable_Skipped()
     {
         var (m, _) = New();
+        m.SetSelectedMapForTest("Shadow Gate");
         var snap = new GameSnapshot
         {
             Attached = true, EnemyCount = 2, Hud = HudText.Parse("Easy · Area 1/5 · 2 left"),
@@ -285,5 +287,45 @@ public partial class FarmMachineTests
             Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 2), 0.9, 10)],
         };
         Assert.DoesNotContain(m.Step(snap, 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+    }
+
+    private static GameSnapshot AriseNear(double y) => new()
+    {
+        Attached = true, EnemyCount = 2, Hud = HudText.Parse("Nightmare · Area 1/5 · 2 left"),
+        PlayerPos = new(0, y, 18), CameraLook = (0, -1), Enemies = [new("1", new(0, 3, -15), 100, 100)],
+        Arises = [new AriseInfo("Suit Leg", new(0, 0.1, 20), 0.9, 10)], Shadows = (0, 3),
+    };
+
+    [Fact]
+    public void Arise_OtherMapOrUnknownMap_Skipped()
+    {
+        // v0.3.19 (Byzan 27 Oct 2026): Arise only on Shadow Gate; unknown map = no Arise.
+        var (m, _) = New();
+        Assert.DoesNotContain(m.Step(AriseNear(3), 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        m.SetSelectedMapForTest("Hxh");
+        var a = m.Step(AriseNear(3), 10_500);
+        Assert.DoesNotContain(a.OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        Assert.Contains(a.OfType<NoteAction>(), n => n.Reason.Contains("only runs on Shadow Gate"));
+    }
+
+    [Fact]
+    public void Arise_WhileAirborne_WaitsToLand_NoJump()
+    {
+        // v0.3.19 (Byzan 27 Oct 2026): holding E mid-jump does not raise the corpse → land first, never press Space during Arise.
+        var (m, _) = New();
+        m.SetSelectedMapForTest("Shadow Gate");
+        var air1 = m.Step(AriseNear(5.5), 10_000);
+        var air2 = m.Step(AriseNear(4.2), 10_150);
+        foreach (var a in air1.Concat(air2))
+        {
+            Assert.False(a is KeyAction { VirtualKey: VirtualKeys.E or VirtualKeys.Space }, $"unexpected key {a}");
+        }
+        Assert.Contains(air2, x => x is MoveAction { Keys.Count: 0 });
+        // Landed: Y back at 3 and stable ≥ 300 ms → hold E.
+        Assert.DoesNotContain(m.Step(AriseNear(3), 10_300).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        var e = Assert.Single(m.Step(AriseNear(3), 10_650).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        Assert.Equal(1150, e.HoldMs);
+        // Between holds: stand still, no jump.
+        Assert.DoesNotContain(m.Step(AriseNear(3), 11_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.Space);
     }
 }

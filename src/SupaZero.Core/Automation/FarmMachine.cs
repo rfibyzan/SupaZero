@@ -44,6 +44,7 @@ public sealed partial class FarmMachine(Func<AppSettings> settings)
     {
         _pcStep = 0; _pcStepAt = null; _pcOpenAt = null;
         _waveArea = -1;
+        _ariseLastY = null; _ariseKey = null;
         _cooldowns.Clear();
         _roomBan.Clear();
         _pickupBan.Clear();
