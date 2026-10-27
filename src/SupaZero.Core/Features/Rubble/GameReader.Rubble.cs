@@ -49,6 +49,14 @@ public sealed partial class GameReader
                 holder = cls == "Attachment" ? reader.GetParent(ad) : ad;
             }
         }
+        // v0.3.20 (Byzan RIE World 13:55:08 + log 27 Oct 2026, Hxh Act 4): RubbleBar.Adornee is empty on this map, but only the active
+        // Border*.Blocker carries an Attachment named "RubbleBar" (Border1 had it, Border2-4 Blockers had no children). Fallback ONLY when
+        // exactly one solid Blocker has that Attachment; zero or several = unknown → unreadable, as before.
+        if (holder == 0 && ws != 0 && UniqueRubbleBlocker(ws) is { } ub)
+        {
+            holder = ub.Blocker;
+            info += $"; Blocker {ub.Border} (only solid Blocker with RubbleBar Attachment)";
+        }
         if (!sure)
         {
             // Rubble destroyed → Blocker CanCollide false (v0.2.91). Without a solid Blocker there is no pending rubble.
@@ -75,6 +83,27 @@ public sealed partial class GameReader
         if (holder != 0 && PositionOf(holder) is { } hp) { _rubbleInfo = info; return hp; }
         _rubbleInfo = $"{info}; position unreadable";
         return null;
+    }
+
+    /// <summary>v0.3.20: the single Workspace.World.Map.Border*.Blocker (CanCollide true) that has a child Attachment "RubbleBar"; null when 0 or ≥2.</summary>
+    private (long Blocker, string Border)? UniqueRubbleBlocker(long ws)
+    {
+        long world = reader.FindChild(ws, AnimeZeroPaths.World);
+        long map = world != 0 ? reader.FindChild(world, AnimeZeroPaths.WorldMap) : 0;
+        if (map == 0) return null;
+        (long, string)? found = null;
+        foreach (long b in reader.GetChildren(map, 512))
+        {
+            string bn = reader.GetName(b);
+            if (!bn.StartsWith("Border", StringComparison.Ordinal)) continue;
+            long blk = reader.FindChild(b, AnimeZeroPaths.RubbleBlocker);
+            if (blk == 0 || !string.Equals(Prop(blk, "CanCollide"), "true", StringComparison.OrdinalIgnoreCase)) continue;
+            long att = reader.FindChild(blk, AnimeZeroPaths.RubbleBar);
+            if (att == 0 || reader.GetClassName(att) != "Attachment") continue;
+            if (found is not null) return null; // several candidates = guess → refuse
+            found = (blk, bn);
+        }
+        return found;
     }
 
     private Settings.Vec3? _rubbleStand;

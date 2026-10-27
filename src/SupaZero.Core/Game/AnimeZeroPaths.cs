@@ -49,6 +49,8 @@ public static class AnimeZeroPaths
     public const string RubbleName = "Rubble";
     /// <summary>v0.2.91: World.Map.Border*.Rubble.ClimbStop = invisible wall in front of the rubble (the nearest reachable limit).</summary>
     public const string RubbleClimbStop = "ClimbStop";
+    /// <summary>World.Map.Border*.Blocker = solid wall Part of the rubble; the active one holds Attachment "RubbleBar" (v0.3.20, Hxh Act 4).</summary>
+    public const string RubbleBlocker = "Blocker";
     // Power-check menus in the lobby (LobbyHUD.LeftSideButtons, "Spinning" seen in research.md).
     public const string LobbyHud = "LobbyHUD";
     public const string MenuTrait = "Trait";

@@ -44,7 +44,7 @@ public sealed partial class FarmMachine
             if (EnterTarget(s, S, now) is not { } next)
             {
                 Status = $"{area} clear, next area unreadable.";
-                return [new MoveAction([], "No destination"), .. Note("nav-none", now, 6000, $"{area} clear but the next area position (World.Spawns/Areas) is unreadable.")];
+                return [new MoveAction([], "No destination"), .. Note("nav-none", now, 6000, $"{area} clear but the next area position (World.Spawns/Areas) is unreadable. HUD text: '{s.HudRaw ?? "(none)"}'{(s.RunWave is { Length: > 0 } rw ? $", run wave '{rw}'" : "")}.")];
             }
             var walk = WalkPath(s, next, S.Navigation.ArriveRadius, now, $"area {hud!.TargetArea}", S.Navigation.AttackWhenStuck);
             Status = walk.Count == 0 ? $"Reached area {hud!.TargetArea}, waiting for enemies." : $"{(hud!.Enter ? $"Enter area {hud.TargetArea}/{hud.AreaTotal}" : $"{area} clear")} → walking to area {hud.TargetArea}.";
