@@ -101,3 +101,17 @@ public class WalkableMoundTests
         Assert.True(road.IsFloorAt(10));
     }
 }
+
+public class RolledPartTests
+{
+    [Fact]
+    public void RolledFloor_IsFloorNotWall()
+    {
+        // Bathtub floor 2 hall floor: Size (2, 91.3, 73.8), LookVector (1,0,0), Size.Y lying along world Z.
+        var r = SupaZero.Core.Game.NavRect.FromPart(new(412.6, 15.7, -56.6), new(1.995, 91.261, 73.754), 1, 0, 0, new(0, 0, 1));
+        Assert.InRange(r.HalfY, 0.9, 1.1);
+        Assert.False(r.BlocksBodyAt(17.2));
+        Assert.True(r.IsFloorAt(17.2));
+        Assert.InRange(r.HalfZ, 45, 46);
+    }
+}

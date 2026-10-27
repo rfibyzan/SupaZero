@@ -140,6 +140,10 @@ public sealed class PropertyReader(InstanceReader reader)
                 if (M.TryReadFloat(a + 8, out float r02) && M.TryReadFloat(a + 20, out float r12) && M.TryReadFloat(a + 32, out float r22)
                     && Sane(r02) && Sane(r12) && Sane(r22) && MathF.Abs(r02 * r02 + r12 * r12 + r22 * r22 - 1) < 0.05f)
                     props["LookVector"] = $"{F(-r02)}, {F(-r12)}, {F(-r22)}";
+                // SupaZero v0.3.46: UpVector = Y column (needed for parts rolled 90°, e.g. a floor stored as a "wall" with Size.Y horizontal).
+                if (M.TryReadFloat(a + 4, out float r01) && M.TryReadFloat(a + 16, out float r11) && M.TryReadFloat(a + 28, out float r21)
+                    && Sane(r01) && Sane(r11) && Sane(r21) && MathF.Abs(r01 * r01 + r11 * r11 + r21 * r21 - 1) < 0.05f)
+                    props["UpVector"] = $"{F(r01)}, {F(r11)}, {F(r21)}";
             }
             if (Off("Primitive.Flags", out long fo) && M.TryReadByte(prim + fo, out byte flags))
             {

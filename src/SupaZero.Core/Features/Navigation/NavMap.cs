@@ -6,6 +6,23 @@ namespace SupaZero.Core.Game;
 /// </summary>
 public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, double LookX, double LookZ, double Y, double HalfY = 0, bool Tilted = false, bool NoBlock = false)
 {
+    /// <summary>v0.3.46 (Byzan 28 Oct 00:58, Bathtub floor 2 still "Path to stairs not found"; RIE World 00:45:04): the hall floor is
+    /// Map.Part (412.6,15.7,-56.6) Size (2, 91.3, 73.8) rolled 90° (Size.Y horizontal). Read without UpVector it became a 91-stud-tall wall
+    /// across the hall. With an UpVector that is not vertical (|up.Y| &lt; 0.9) the part's world box is computed from all three axes.</summary>
+    public static NavRect FromPart(Settings.Vec3 pos, Settings.Vec3 size, double lookX, double lookZ, double lookY, Settings.Vec3? up)
+    {
+        if (up is null || Math.Abs(up.Y) >= 0.9) return FromPart(pos, size, lookX, lookZ, lookY);
+        // Columns: R = right (Size.X), U = up (Size.Y), B = -look (Size.Z); R = U × B.
+        double bx = -lookX, by = -lookY, bz = -lookZ;
+        double rx = up.Y * bz - up.Z * by, ry = up.Z * bx - up.X * bz, rz = up.X * by - up.Y * bx;
+        double sx = Math.Abs(size.X) / 2, sy = Math.Abs(size.Y) / 2, sz = Math.Abs(size.Z) / 2;
+        double hx = Math.Abs(rx) * sx + Math.Abs(up.X) * sy + Math.Abs(bx) * sz;
+        double hy = Math.Abs(ry) * sx + Math.Abs(up.Y) * sy + Math.Abs(by) * sz;
+        double hz = Math.Abs(rz) * sx + Math.Abs(up.Z) * sy + Math.Abs(bz) * sz;
+        bool tilted = Math.Abs(ry) > 0.05 && Math.Abs(ry) < 0.95 || Math.Abs(up.Y) > 0.05 && Math.Abs(up.Y) < 0.95;
+        return new(pos.X, pos.Z, hx, hz, 0, -1, pos.Y, hy, tilted);
+    }
+
     public static NavRect FromPart(Settings.Vec3 pos, Settings.Vec3 size, double lookX = 0, double lookZ = -1, double lookY = 0)
     {
         double l = Math.Sqrt(lookX * lookX + lookZ * lookZ);

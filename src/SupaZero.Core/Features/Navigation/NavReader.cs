@@ -119,12 +119,13 @@ public sealed partial class GameReader
             var pos = ParseVec(pr.GetValueOrDefault("Position"));
             var sz = ParseVec(pr.GetValueOrDefault("Size"));
             var lv = ParseVec(pr.GetValueOrDefault("LookVector"));
-            return pos is null || sz is null || sz.X <= 0 || sz.Z <= 0 ? null : NavRect.FromPart(pos, sz, lv?.X ?? 0, lv?.Z ?? -1, lv?.Y ?? 0);
+            var uv = ParseVec(pr.GetValueOrDefault("UpVector"));
+            return pos is null || sz is null || sz.X <= 0 || sz.Z <= 0 ? null : NavRect.FromPart(pos, sz, lv?.X ?? 0, lv?.Z ?? -1, lv?.Y ?? 0, uv);
         }
         if (!props.TryGetWorldPosition(part, out float x, out float y, out float z)) return null;
         var size = ParseVec(Prop(part, "Size"));
         if (size is null || size.X <= 0 || size.Z <= 0) return null;
         var look = ParseVec(Prop(part, "LookVector"));
-        return NavRect.FromPart(new(x, y, z), size, look?.X ?? 0, look?.Z ?? -1, look?.Y ?? 0);
+        return NavRect.FromPart(new(x, y, z), size, look?.X ?? 0, look?.Z ?? -1, look?.Y ?? 0, ParseVec(Prop(part, "UpVector")));
     }
 }
