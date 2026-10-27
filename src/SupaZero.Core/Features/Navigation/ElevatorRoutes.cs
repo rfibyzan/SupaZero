@@ -15,6 +15,9 @@ public static class ElevatorRoutes
     [
         new("Spirit's Bathtub floor 2 stairs", new(383, 98, -57),
         [
+            // v0.3.47 (Byzan 28 Oct 01:01, stuck against the side of the flight while "walking to the stairs"): the route starts at the
+            // recorded spawn-side ground points in the open south hall, so the approach reaches the foot from the south, never along the flight.
+            new(415.5, 19.7, -84.7), new(419.2, 19.7, -87.6), new(426.6, 19.7, -86.3),
             new(434.8, 19.7, -89.5), new(441.3, 20.6, -86.8), new(442.8, 26.5, -80.8), new(440.4, 32.4, -74.7), new(440.2, 39.0, -68.0),
             new(440.0, 51.2, -54.1), new(439.8, 51.4, -36.6), new(438.1, 51.4, -19.0), new(430.1, 52.5, -17.8), new(424.7, 58.1, -20.4),
             new(418.6, 64.1, -21.8), new(412.7, 70.1, -22.3), new(406.7, 76.3, -22.5), new(399.4, 82.5, -22.7), new(390.7, 82.7, -23.6),
