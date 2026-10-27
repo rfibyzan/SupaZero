@@ -90,9 +90,19 @@ public sealed partial class GameReader
             if (!cls.EndsWith("Part", StringComparison.Ordinal) && cls is not ("UnionOperation" or "MeshPart" or "WedgePart" or "TrussPart")) continue;
             var pr = props.Read(c);
             if (!pr.TryGetValue("CanCollide", out var cc) || cc != "true") continue;
-            if (ReadRect(c, pr) is { } r) list.Add(r);
+            if (ReadRect(c, pr) is not { } r) continue;
+            // v0.3.29 (Byzan 27 Oct 23:11, West City Act 1; RIE World 23:14:02): Map.MAP.DIRT_MOUND_1 is a low mound mesh whose bounding box
+            // (195x16x263) covers the whole Area 2→3 road (the game's own route), and the DES_ROAD mesh under Spawns.3 has its top 3 studs
+            // above the INT_ROAD feet → "Path to area 3: destination (-18,601) blocked". Mounds/road meshes outside Border*.Rubble never
+            // block (they still count as floor); the ones inside Border*.Rubble stay solid (real rubble).
+            if (IsWalkableMound(reader.GetName(c), reader.GetName(node))) r = r with { NoBlock = true };
+            list.Add(r);
         }
     }
+
+    internal static bool IsWalkableMound(string name, string parentName) =>
+        (name.StartsWith("DIRT_MOUND", StringComparison.Ordinal) || name.EndsWith("_ROAD", StringComparison.Ordinal) || name.Contains("_ROAD_", StringComparison.Ordinal))
+        && parentName != AnimeZeroPaths.RubbleName;
 
     private NavRect? ReadRect(long part, SortedDictionary<string, string>? pr = null)
     {

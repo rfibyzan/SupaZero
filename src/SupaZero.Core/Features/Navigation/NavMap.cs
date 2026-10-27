@@ -4,7 +4,7 @@ namespace SupaZero.Core.Game;
 /// Oriented rectangle in the XZ plane (Part: position, Size X/Z, yaw from LookVector). Size.Z along LookVector,
 /// Size.X along RightVector (= Look × Up).
 /// </summary>
-public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, double LookX, double LookZ, double Y, double HalfY = 0, bool Tilted = false)
+public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, double LookX, double LookZ, double Y, double HalfY = 0, bool Tilted = false, bool NoBlock = false)
 {
     public static NavRect FromPart(Settings.Vec3 pos, Settings.Vec3 size, double lookX = 0, double lookZ = -1, double lookY = 0)
     {
@@ -15,7 +15,7 @@ public sealed record NavRect(double X, double Z, double HalfX, double HalfZ, dou
     }
 
     /// <summary>Blocks a body whose feet are at <paramref name="footY"/>: upright (not sloped/ramp), top above step height, bottom below the head.</summary>
-    public bool BlocksBodyAt(double footY) => !Tilted && Y + HalfY > footY + 2.5 && Y - HalfY < footY + 5;
+    public bool BlocksBodyAt(double footY) => !Tilted && !NoBlock && Y + HalfY > footY + 2.5 && Y - HalfY < footY + 5;
 
     /// <summary>v0.2.47: floor walkable by feet at <paramref name="footY"/> (part top between 4 studs below the feet and the step limit).</summary>
     public bool IsFloorAt(double footY) => Y + HalfY <= footY + 2.5 && Y + HalfY >= footY - 4;

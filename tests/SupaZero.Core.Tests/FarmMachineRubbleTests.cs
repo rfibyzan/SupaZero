@@ -59,3 +59,23 @@ public partial class FarmMachineTests
         Assert.Single(FarmMachine.Targets(s));
     }
 }
+
+public class WalkableMoundTests
+{
+    [Theory]
+    [InlineData("DIRT_MOUND_1", "MAP", true)]
+    [InlineData("DIRT_MOUND_1", "Rubble", false)]
+    [InlineData("ROCK_PATCH_A", "MAP", false)]
+    [InlineData("DES_ROAD", "MAP", true)]
+    [InlineData("INT_ROAD_1", "MAP", true)]
+    public void DirtMound_OutsideRubble_IsWalkable(string name, string parent, bool walkable) =>
+        Assert.Equal(walkable, SupaZero.Core.Game.GameReader.IsWalkableMound(name, parent));
+
+    [Fact]
+    public void NoBlock_NeverBlocks_ButStaysFloor()
+    {
+        var road = SupaZero.Core.Game.NavRect.FromPart(new(0, 9, 0), new(244, 6, 160)) with { NoBlock = true };
+        Assert.False(road.BlocksBodyAt(8.9));
+        Assert.True(road.IsFloorAt(10));
+    }
+}
