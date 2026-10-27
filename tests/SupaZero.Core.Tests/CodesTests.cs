@@ -46,19 +46,19 @@ public class CodesTests
             Notifications = [new NotificationInfo(1, "You received  $2,500")],
         };
         Assert.Equal(GameScreen.CodesMenu, menu.Screen);
-        Assert.Contains(m.Step(menu, 1000).OfType<ClickAction>(), c => c.Reason == "Code box");
-        var type = Assert.Single(m.Step(menu, 1400).OfType<TypeTextAction>());
+        Assert.Contains(m.Step(menu, 1500).OfType<ClickAction>(), c => c.Reason == "Code box");
+        var type = Assert.Single(m.Step(menu, 3000).OfType<TypeTextAction>());
         Assert.True(type.Unicode);
         // Box text readable and equal → Redeem.
         var typed = menu with { CodesText = "MINICODE" };
-        Assert.Contains(m.Step(typed, 2000).OfType<ClickAction>(), c => c.Reason == "Redeem MINICODE");
+        Assert.Contains(m.Step(typed, 4500).OfType<ClickAction>(), c => c.Reason == "Redeem MINICODE");
         // Old toast (Id 1) is ignored; the new one decides.
         Assert.Empty(tried);
-        m.Step(typed with { Notifications = [new NotificationInfo(1, "You received  $2,500"), new NotificationInfo(7, "Code \"MINICODE\" redeemed!")] }, 2600);
+        m.Step(typed with { Notifications = [new NotificationInfo(1, "You received  $2,500"), new NotificationInfo(7, "Code \"MINICODE\" redeemed!")] }, 5000);
         Assert.Equal(("AuraTrout", "MINICODE", CodeOutcome.Redeemed), Assert.Single(tried));
         // All done → Exit, then back in the lobby → stop (no farming).
-        Assert.Contains(m.Step(typed, 5000).OfType<ClickAction>(), c => c.Reason == "Codes Exit");
-        var end = m.Step(lobby, 7000);
+        Assert.Contains(m.Step(typed, 7000).OfType<ClickAction>(), c => c.Reason == "Codes Exit");
+        var end = m.Step(lobby, 9000);
         Assert.Contains(end, a => a is StopAction st && st.Reason.Contains("1 redeemed"));
         Assert.False(m.RedeemingCodes);
     }
@@ -70,8 +70,8 @@ public class CodesTests
         var m = new FarmMachine(() => s) { CodesFor = _ => ["THANKS4WAITING"] };
         m.StartRedeemCodes();
         var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
-        m.Step(menu, 0); m.Step(menu, 400);
-        Assert.Contains(m.Step(menu, 1000).OfType<ClickAction>(), c => c.Reason == "Redeem THANKS4WAITING");
+        m.Step(menu, 1500); m.Step(menu, 3000); // v0.3.40: 1.5 s gap after every click
+        Assert.Contains(m.Step(menu, 4500).OfType<ClickAction>(), c => c.Reason == "Redeem THANKS4WAITING");
     }
 
     [Fact]
@@ -83,13 +83,13 @@ public class CodesTests
         CodeOutcome? got = null;
         m.CodeTried = (_, _, o, _) => got = o;
         var menu = new GameSnapshot { Attached = true, LocalPlayer = "P", CodesOpen = true, CodesText = "abX", CodesTextBox = new GuiRect(0, 0, 100, 40), CodesRedeem = new GuiRect(0, 50, 100, 40), CodesExit = new GuiRect(0, 100, 40, 40) };
-        m.Step(menu, 0); m.Step(menu, 400); m.Step(menu, 2000);           // click, type (unicode), mismatch
-        m.Step(menu, 2100);
-        var second = m.Step(menu, 2500).OfType<TypeTextAction>().Single(); // retype with plain keys
+        m.Step(menu, 1500); m.Step(menu, 3000); m.Step(menu, 6000);       // click, type (unicode), mismatch (1.5 s gaps, v0.3.40)
+        m.Step(menu, 6100);
+        var second = m.Step(menu, 7600).OfType<TypeTextAction>().Single(); // retype with plain keys
         Assert.False(second.Unicode);
-        m.Step(menu, 4200);
+        m.Step(menu, 10600);
         Assert.Equal(CodeOutcome.Failed, got);
-        Assert.Contains(m.Step(menu, 6000).OfType<ClickAction>(), c => c.Reason == "Codes Exit");
+        Assert.Contains(m.Step(menu, 12500).OfType<ClickAction>(), c => c.Reason == "Codes Exit");
     }
 
     [Fact]

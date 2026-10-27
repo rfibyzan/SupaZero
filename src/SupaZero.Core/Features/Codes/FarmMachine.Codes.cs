@@ -72,6 +72,9 @@ public sealed partial class FarmMachine
     }
 
     /// <summary>Lobby: open the Codes menu (LobbyHUD Codes button) while codes are pending. Null = nothing to do.</summary>
+    /// <summary>v0.3.40: pause after every click in the Codes flow (menu and toast animations).</summary>
+    public const int CodeClickGapMs = 1500;
+
     private List<MacroAction>? OpenCodes(GameSnapshot s, AppSettings S, long now)
     {
         if (!CodesPending(s, S) || s.CodesButton is not { } b) return null;
@@ -84,6 +87,7 @@ public sealed partial class FarmMachine
         Status = "Opening Codes.";
         if (!Ready("codes-open", now, 3000)) return [];
         _codeOpenTries++;
+        _codeAt = now; // v0.3.40: the Codes menu animates open → first click on the box waits CodeClickGapMs
         return [new ClickAction(b.CenterX, b.CenterY, "Codes button")];
     }
 
@@ -96,23 +100,25 @@ public sealed partial class FarmMachine
         {
             Status = "Codes done → closing the Codes menu.";
             if (s.CodesExit is not { } x) return Note("codes-noexit", now, 10000, "Codes menu open but its Exit button is not readable → waiting.");
-            return Ready("codes-close", now, 2000) ? [new ClickAction(x.CenterX, x.CenterY, "Codes Exit")] : [];
+            return now - _codeAt >= CodeClickGapMs && Ready("codes-close", now, 2000) ? [new ClickAction(x.CenterX, x.CenterY, "Codes Exit")] : [];
         }
         string code = _codes![_codeIdx];
         Status = $"Code {_codeIdx + 1}/{_codes.Count}: {code}";
         switch (_codeStep)
         {
             case 0:
+                // v0.3.40 (Byzan 28 Oct): the menu/toast animate after every click; input that came too fast mis-clicked → 1.5 s gap.
+                if (now - _codeAt < CodeClickGapMs) return [];
                 if (s.CodesTextBox is not { } box) return Note("codes-nobox", now, 10000, "Codes menu open but the code box is not readable → waiting.");
                 _codeStep = 1; _codeAt = now;
                 return [new ClickAction(box.CenterX, box.CenterY, "Code box")];
             case 1:
-                if (now - _codeAt < 300) return [];
+                if (now - _codeAt < CodeClickGapMs) return [];
                 _codeStep = 2; _codeAt = now;
                 // 1st try: Unicode characters (no Shift); 2nd try: plain keys.
                 return [new TypeTextAction(code, Unicode: _codeTries == 0, $"Type code {code}")];
             case 2:
-                if (now - _codeAt < 500) return [];
+                if (now - _codeAt < CodeClickGapMs) return [];
                 // v0.3.27 (Byzan log 18:30:08-12): while the box has focus its Text reads '' in memory although the code is on screen.
                 // Empty = not readable while focused → Redeem anyway (box + button are proven); the toast decides. Other text = real mismatch.
                 bool match = string.Equals(s.CodesText?.Trim(), code, StringComparison.OrdinalIgnoreCase);
@@ -125,7 +131,7 @@ public sealed partial class FarmMachine
                     _codeStep = 3; _codeAt = now;
                     return [new ClickAction(r.CenterX, r.CenterY, $"Redeem {code}")];
                 }
-                if (now - _codeAt < 1500) return [];
+                if (now - _codeAt < CodeClickGapMs + 1500) return [];
                 if (++_codeTries >= 2)
                     return NextCode(code, CodeOutcome.Failed, $"box text '{s.CodesText ?? "?"}' ≠ code after 2 tries (typing not accepted)");
                 _codeStep = 0;
