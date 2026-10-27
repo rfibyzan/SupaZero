@@ -14,6 +14,16 @@ public sealed partial class GameReader
         return txt != 0 ? ParseDamage(Text(txt)) : null;
     }
 
+    /// <summary>v0.3.24: free revive card shown and labelled "Free" (never the paid kind).</summary>
+    private bool ReadFreeRevive(long pg)
+    {
+        long label = pg != 0 ? reader.ResolvePath(pg, AnimeZeroPaths.FreeReviveLabel) : 0;
+        return label != 0 && IsShown(label, pg) && IsFreeReviveLabel(CleanText(label));
+    }
+
+    public static bool IsFreeReviveLabel(string? t) =>
+        t is not null && t.Contains("Revive", StringComparison.OrdinalIgnoreCase) && t.Contains("Free", StringComparison.OrdinalIgnoreCase);
+
     public static long? ParseDamage(string? t)
     {
         if (string.IsNullOrWhiteSpace(t)) return null;

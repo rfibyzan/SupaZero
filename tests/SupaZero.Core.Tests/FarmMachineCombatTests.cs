@@ -203,6 +203,21 @@ public partial class FarmMachineTests
     }
 
     [Fact]
+    public void Carry_FreeRevive_OnlyBelowTarget()
+    {
+        Assert.True(GameReader.IsFreeReviveLabel("Revive  ·  Free"));
+        Assert.False(GameReader.IsFreeReviveLabel("Revive  ·  50"));
+        Assert.False(GameReader.IsFreeReviveLabel(null));
+        var (m, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        var snap = new GameSnapshot { Attached = true, EnemyCount = 1, Hud = HudText.Parse("Easy · Area 1/5 · 1 left"), FreeReviveShown = true };
+        Assert.Contains(m.Step(snap with { MyDamage = 400 }, 10_000).OfType<KeyAction>(), k => k.VirtualKey == VirtualKeys.E);
+        var (m2, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        Assert.DoesNotContain(m2.Step(snap with { MyDamage = 1200 }, 10_000).OfType<KeyAction>(), k => true);
+        var (m3, _) = New(s => s.Combat = new CombatSettings(CarryDamage: 1000));
+        Assert.DoesNotContain(m3.Step(snap with { MyDamage = null }, 10_000).OfType<KeyAction>(), k => true);
+    }
+
+    [Fact]
     public void Turn_DirectionAndDeadzone()
     {
         // Look -Z (0,-1); camera right = +X (Roblox). Enemy at +X → turn right (dx > 0).

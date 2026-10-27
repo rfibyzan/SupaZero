@@ -74,6 +74,8 @@ public static class AnimeZeroPaths
     /// damage text at Content.Info.Damage.Text ("5,712").</summary>
     public const string RunPlayerRows = "RunPlayerList.SocialPanel.PlayerList.Rows";
     public const string RunPlayerRowDamage = "Content.Info.Damage.Text";
+    /// <summary>v0.3.24 (RIE PlayerGui 15:26:26): death card ScreenGui FreeRevive, label "Revive  ·  Free", key E, "Once per run".</summary>
+    public const string FreeReviveLabel = "FreeRevive.Card.Revive.Face.Label";
 
     // Lobby CREATE LOBBY
     public const string LobbyRoot = "UI Animation (Finished).Quque.MainFrame";

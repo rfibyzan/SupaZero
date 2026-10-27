@@ -112,6 +112,8 @@ public sealed record GameSnapshot
     public double? PlayerHp { get; init; }
     /// <summary>v0.3.23: this player's damage on the run scoreboard (row = LocalPlayer.UserId); null when unreadable.</summary>
     public long? MyDamage { get; init; }
+    /// <summary>v0.3.24: PlayerGui.FreeRevive shown (ScreenGui Enabled, card visible) and its label says "Free".</summary>
+    public bool FreeReviveShown { get; init; }
     public IReadOnlyList<PickupInfo> Pickups { get; init; } = [];
     /// <summary>v0.2.67: active ARISE prompts (Shadow Lord), empty when none.</summary>
     public IReadOnlyList<AriseInfo> Arises { get; init; } = [];
