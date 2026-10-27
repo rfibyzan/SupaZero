@@ -61,7 +61,8 @@ public sealed partial class FarmMachine
             {
                 Status = $"Floor cleared → walking to the stairs ({route.Name}).";
                 var toStairs = WalkPath(s, first, 2, now, "stairs", S.Navigation.AttackWhenStuck);
-                return toStairs.Count > 0 ? toStairs : null;
+                // v0.3.45: arrived at the foot → never fall back to walking toward the elevator's x/z (caused back-and-forth at the foot).
+                return toStairs.Count > 0 ? toStairs : [new MoveAction([], "At the stairs")];
             }
             Status = "Elevator: off the stair route, position unknown → waiting.";
             return [new MoveAction([], "Off route"), .. Note("elevator-offroute", now, 10000, string.Create(System.Globalization.CultureInfo.InvariantCulture,

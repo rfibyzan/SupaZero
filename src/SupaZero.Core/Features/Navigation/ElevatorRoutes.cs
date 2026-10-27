@@ -34,12 +34,18 @@ public static class ElevatorRoutes
     public static int Next(Route r, Vec3 me)
     {
         var pts = r.Points;
-        int best = 0;
-        for (int i = 1; i < pts.Count; i++) if (D3(me, pts[i]) < D3(me, pts[best])) best = i;
-        if (D3(me, pts[best]) > 12) return -1;
+        // v0.3.45 (Byzan 28 Oct 00:55, stuck "Climbing the stairs 3/20, 2 stud" UNDER the stair flight): only points at the player's own
+        // height (±5 studs) count, so standing under the stairs never picks a point above the head; from the ground the route restarts at its foot.
+        int best = -1;
+        for (int i = 0; i < pts.Count; i++)
+            if (Math.Abs(me.Y - pts[i].Y) <= 5 && (best < 0 || D3(me, pts[i]) < D3(me, pts[best]))) best = i;
+        if (best < 0 || D3(me, pts[best]) > 12) return -1;
         if (best + 1 >= pts.Count) return D2(me, pts[best]) <= 2.5 ? pts.Count : best;
         // Already at this point, or already past it toward the next one → aim for the next point.
-        if (D2(me, pts[best]) <= 2.5 || D2(me, pts[best + 1]) < D2(pts[best], pts[best + 1])) return best + 1;
+        if (D2(me, pts[best]) <= 2.5) return best + 1;
+        // "Already past it" only on flat parts: on a rising segment being past in 2D usually means standing UNDER the flight.
+        bool rising = pts[best + 1].Y - pts[best].Y > 2;
+        if (!rising && D2(me, pts[best + 1]) < D2(pts[best], pts[best + 1])) return best + 1;
         return best;
     }
 }

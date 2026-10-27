@@ -72,7 +72,9 @@ public partial class FarmMachineTests
         Assert.Equal(6, mid);
         Assert.Equal(r.Points.Count, ElevatorRoutes.Next(r, new(384.5, 95.5, -57.5)));
         Assert.Equal(-1, ElevatorRoutes.Next(r, new(440, 19.7, -45)));       // under the landing, wrong floor
-        Assert.Null(ElevatorRoutes.For(new(-171, 7, -43.5)));                // floor 1 elevator needs no route
+        Assert.Null(ElevatorRoutes.For(new(-171, 7, -43.5)));
+        Assert.Equal(1, ElevatorRoutes.Next(r, new(442, 19.7, -79)));        // under the flight below point 3 → back to the foot (point 2)
+        Assert.Equal(1, ElevatorRoutes.Next(r, new(438, 19.7, -88)));        // near the foot → point 2                // floor 1 elevator needs no route
     }
 
     [Fact]
